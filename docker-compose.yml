@@ -22,6 +22,7 @@ services:
     environment:
       FINANCE_DATA_ROOT: /data
       FINANCE_CONFIG_ROOT: /app/config
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
     volumes:
       - ${FINANCE_DATA_ROOT}:/data
       - ${FINANCE_CONFIG_ROOT}:/app/config
