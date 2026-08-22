@@ -6,13 +6,13 @@ SQL_CATEGORIEEN = """
     ORDER BY categorie, subcategorie
 """
 
-SQL_WINKELS = """
-    SELECT DISTINCT winkel
+SQL_AFZENDERS = """
+    SELECT DISTINCT afzender
     FROM gold.transacties
-    WHERE winkel IS NOT NULL
+    WHERE afzender IS NOT NULL
       AND ($categorie::VARCHAR IS NULL OR categorie = $categorie)
       AND ($subcategorie::VARCHAR IS NULL OR subcategorie = $subcategorie)
-    ORDER BY winkel
+    ORDER BY afzender
 """
 
 SQL_STATUS = """
@@ -38,7 +38,7 @@ SQL_TOTALEN = """
         FROM gold.transacties
         WHERE ($categorie::VARCHAR IS NULL OR categorie = $categorie)
           AND ($subcategorie::VARCHAR IS NULL OR subcategorie = $subcategorie)
-          AND ($winkel::VARCHAR IS NULL OR winkel = $winkel)
+          AND ($afzender::VARCHAR IS NULL OR afzender = $afzender)
     )
     SELECT
         p.periode_start::DATE AS periode_start,

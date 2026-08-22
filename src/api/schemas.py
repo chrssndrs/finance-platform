@@ -12,8 +12,8 @@ class CategorieenResponse(BaseModel):
     categorieen: list[CategorieGroep]
 
 
-class WinkelsResponse(BaseModel):
-    winkels: list[str]
+class AfzendersResponse(BaseModel):
+    afzenders: list[str]
 
 
 class StatusResponse(BaseModel):
@@ -31,7 +31,7 @@ class PeriodeTotaal(BaseModel):
 class TotalenResponse(BaseModel):
     categorie: str | None
     subcategorie: str | None
-    winkel: str | None
+    afzender: str | None
     granulariteit: str
     aantal: int
     reeks: list[PeriodeTotaal]

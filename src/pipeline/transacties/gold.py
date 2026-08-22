@@ -12,6 +12,39 @@ logger = logging.getLogger(__name__)
 
 CATEGORISATIE_REGELS_PAD = CONFIG_ROOT / "categorisatie_regels.yaml"
 
+# Regex (op de lowercased, getrimde naam_omschrijving) die een betaalverwerker-suffix
+# herkent en verwijdert, zodat de onderliggende afzender overblijft (bv. "KNMV via
+# Mollie" en "KNMV via Stichting Mollie Payments" worden allebei "knmv"). Nodig omdat
+# deze verwerkers een gedeeld/pooled tegenrekening-IBAN gebruiken voor duizenden
+# ongerelateerde afzenders — IBAN-groepering zou die anders ten onrechte samenvoegen.
+VERWERKER_SUFFIX_PATROON = (
+    r"\s+(via|by)\s+(stichting\s+)?"
+    r"(mollie(\s+payments)?|buckaroo|adyen|ccv(\s+group)?|pay\.nl|sisow|multisafepay"
+    r"|tikkie|ingenico|worldline(\s+financial\s+solutions)?|cm\.com"
+    r"|worldpay(\s+(customer\s+payments|b\.v\.))?"
+    r"|(rabo(\s+zakelijk)?|ing)\s+betaalverzoek)\s*$"
+)
+
+# Tegenrekening-IBAN's waarvan empirisch is vastgesteld dat het gedeelde/pooled
+# betaalverwerker-rekeningen zijn (gebruikt door tientallen ongerelateerde afzenders),
+# niet de eigen rekening van één tegenpartij. IBAN-gebaseerde afzender-consolidatie
+# slaat deze over, ook als VERWERKER_SUFFIX_PATROON de tekst niet ving (bv. omdat de
+# naam_omschrijving de verwerker niet noemt, zoals bij sommige Adyen-transacties).
+# Kom je in een nieuwe bank-export een vergelijkbaar gedeeld IBAN tegen? Voeg het hier toe.
+GEDEELDE_AFZENDER_IBANS = {
+    "NL04ADYB2017400157",  # Adyen
+    "NL65ADYB2006011162",  # Adyen
+    "NL92ADYB2017400998",  # Adyen
+    "NL58CITI2032329913",  # Stripe-achtige verwerker
+    "NL13ABNA0506417344",  # Tikkie
+    "NL39RABO0301242844",  # Ingenico/Worldline
+    "NL59ABNA0626226163",  # WorldPay
+    "NL35RABO0117713678",  # PAY.nl
+    "NL51DEUT0265262461",  # Mollie
+    "NL56DEUT0265186420",  # Buckaroo
+    "NL63DEUT0265247986",  # CM.com
+}
+
 
 @dataclass
 class GoldResultaat:
@@ -60,7 +93,8 @@ def run_gold(
         )
     """)
 
-    con.execute("""
+    con.execute(
+        """
         CREATE OR REPLACE TABLE gold.transacties AS
         WITH regel_matches AS (
             SELECT
@@ -69,6 +103,10 @@ def run_gold(
                 r.subcategorie,
                 r.winkel,
                 r.prioriteit,
+                -- of de winkel-match kwam uit naam_omschrijving zelf (dus de winkel IS
+                -- de tegenpartij) i.p.v. alleen uit mededelingen (bv. een persoon die
+                -- toevallig "Hornbach" noemt als besteding-omschrijving in een overboeking)
+                regexp_matches(lower(s.naam_omschrijving), lower(r.patroon)) AS winkel_uit_naam,
                 ROW_NUMBER() OVER (
                     PARTITION BY s.transactie_id
                     ORDER BY r.prioriteit ASC
@@ -86,20 +124,111 @@ def run_gold(
                 )
         ),
         beste_match AS (
-            SELECT transactie_id, categorie, subcategorie, winkel
+            SELECT
+                transactie_id, categorie, subcategorie, winkel,
+                (winkel IS NOT NULL AND winkel_uit_naam) AS winkel_is_afzender
             FROM regel_matches
             WHERE rn = 1
+        ),
+        -- Afzender-consolidatie voor transacties zonder betrouwbare winkel-match:
+        -- normaliseer per rij naar een groepeersleutel, kies daarna de vaakst voor-
+        -- komende ruwe naam als canonieke weergavenaam voor die sleutel.
+        basis_afzender AS (
+            SELECT
+                s.transactie_id,
+                s.tegenrekening,
+                s.naam_omschrijving,
+                b.winkel,
+                b.winkel_is_afzender,
+                regexp_replace(lower(trim(s.naam_omschrijving)), $verwerker_patroon, '') AS naam_gestript,
+                -- zelfde strip, maar met behoud van originele hoofdlettering, als
+                -- weergavenaam-kandidaat (naam_gestript zelf is altijd lowercase,
+                -- alleen bruikbaar als groepeersleutel, niet om te tonen)
+                regexp_replace(trim(s.naam_omschrijving), $verwerker_patroon, '', 'i') AS naam_zonder_verwerker
+            FROM silver.transacties s
+            LEFT JOIN beste_match b ON b.transactie_id = s.transactie_id
+        ),
+        -- Sommige verwerkers (Rabo/ING Betaalverzoek) genereren per betaalverzoek een
+        -- nieuwe/andere tegenrekening-IBAN i.p.v. één vast pooled IBAN — die staan dus
+        -- niet in GEDEELDE_AFZENDER_IBANS. Maar als een IBAN op ÉÉN rij al via de
+        -- verwerker-suffix herkend is (naam_gestript != ruwe naam), dan is diezelfde
+        -- IBAN op een ANDERE rij (waar de verwerkersnaam niet in de tekst voorkomt,
+        -- bv. "A.J.L.M. Kemps e/o L.A.A Bouwman" zonder "via Rabo Betaalverzoek")
+        -- evenmin een betrouwbare afzender-sleutel: empirisch bevestigd dat zulke
+        -- IBAN's door meerdere, totaal ongerelateerde afzenders gedeeld worden.
+        verwerker_ibans AS (
+            SELECT DISTINCT tegenrekening
+            FROM basis_afzender
+            WHERE tegenrekening IS NOT NULL
+              AND tegenrekening != ''
+              AND naam_gestript != lower(trim(naam_omschrijving))
+        ),
+        sleutels AS (
+            SELECT
+                transactie_id,
+                naam_omschrijving,
+                winkel,
+                winkel_is_afzender,
+                -- weergave-kandidaat: bij verwerker-suffix-stripping tonen we de
+                -- gestripte naam (bv. "KNMV"), anders de ruwe naam ongewijzigd
+                CASE
+                    WHEN naam_gestript != lower(trim(naam_omschrijving)) THEN naam_zonder_verwerker
+                    ELSE naam_omschrijving
+                END AS weergave_naam,
+                CASE
+                    WHEN winkel_is_afzender THEN NULL
+                    WHEN naam_gestript != lower(trim(naam_omschrijving)) THEN 'tekst:' || naam_gestript
+                    WHEN tegenrekening IS NOT NULL AND tegenrekening != ''
+                         AND NOT list_contains($gedeelde_ibans, tegenrekening)
+                         AND tegenrekening NOT IN (SELECT tegenrekening FROM verwerker_ibans)
+                        THEN 'iban:' || tegenrekening
+                    ELSE 'tekst:' || regexp_replace(lower(trim(naam_omschrijving)), '\\s*,\\s*', ', ')
+                END AS normalisatie_sleutel
+            FROM basis_afzender
+        ),
+        naam_tellingen AS (
+            SELECT normalisatie_sleutel, weergave_naam, COUNT(*) AS aantal
+            FROM sleutels
+            WHERE normalisatie_sleutel IS NOT NULL
+            GROUP BY normalisatie_sleutel, weergave_naam
+        ),
+        canonieke_namen AS (
+            SELECT normalisatie_sleutel, weergave_naam AS canonieke_naam
+            FROM (
+                SELECT
+                    normalisatie_sleutel, weergave_naam,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY normalisatie_sleutel
+                        ORDER BY aantal DESC, length(weergave_naam) DESC
+                    ) AS rn
+                FROM naam_tellingen
+            ) t
+            WHERE rn = 1
+        ),
+        afzenders AS (
+            SELECT
+                sl.transactie_id,
+                COALESCE(CASE WHEN sl.winkel_is_afzender THEN sl.winkel END, c.canonieke_naam) AS afzender
+            FROM sleutels sl
+            LEFT JOIN canonieke_namen c ON c.normalisatie_sleutel = sl.normalisatie_sleutel
         )
         SELECT
             s.*,
             COALESCE(o.categorie, b.categorie, 'Overig')               AS categorie,
             COALESCE(o.subcategorie, b.subcategorie, 'Ongecategoriseerd') AS subcategorie,
             (o.transactie_id IS NOT NULL)                                AS handmatig_overschreven,
-            b.winkel                                                     AS winkel
+            b.winkel                                                     AS winkel,
+            a.afzender                                                   AS afzender
         FROM silver.transacties s
         LEFT JOIN beste_match b ON b.transactie_id = s.transactie_id
         LEFT JOIN gold.categorie_overrides o ON o.transactie_id = s.transactie_id
-    """)
+        LEFT JOIN afzenders a ON a.transactie_id = s.transactie_id
+        """,
+        {
+            "verwerker_patroon": VERWERKER_SUFFIX_PATROON,
+            "gedeelde_ibans": list(GEDEELDE_AFZENDER_IBANS),
+        },
+    )
     logger.info("gold.transacties tabel klaar")
 
     aantal_regels = con.execute("SELECT COUNT(*) FROM gold.categorisatie_regels").fetchone()[0]

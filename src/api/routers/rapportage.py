@@ -6,19 +6,19 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from src.api.deps import get_db
 from src.api.queries import (
     GRANULARITEIT_NAAR_DUCKDB_EENHEID,
+    SQL_AFZENDERS,
     SQL_CATEGORIEEN,
     SQL_STATUS,
     SQL_TOTALEN,
-    SQL_WINKELS,
     periode_starts,
 )
 from src.api.schemas import (
+    AfzendersResponse,
     CategorieenResponse,
     CategorieGroep,
     PeriodeTotaal,
     StatusResponse,
     TotalenResponse,
-    WinkelsResponse,
 )
 
 router = APIRouter(prefix="/api/rapportage")
@@ -34,14 +34,14 @@ def get_categorieen(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> Categor
     return CategorieenResponse(categorieen=groepen)
 
 
-@router.get("/winkels", response_model=WinkelsResponse)
-def get_winkels(
+@router.get("/afzenders", response_model=AfzendersResponse)
+def get_afzenders(
     categorie: str | None = None,
     subcategorie: str | None = None,
     con: duckdb.DuckDBPyConnection = Depends(get_db),
-) -> WinkelsResponse:
-    rijen = con.execute(SQL_WINKELS, {"categorie": categorie, "subcategorie": subcategorie}).fetchall()
-    return WinkelsResponse(winkels=[r[0] for r in rijen])
+) -> AfzendersResponse:
+    rijen = con.execute(SQL_AFZENDERS, {"categorie": categorie, "subcategorie": subcategorie}).fetchall()
+    return AfzendersResponse(afzenders=[r[0] for r in rijen])
 
 
 @router.get("/status", response_model=StatusResponse)
@@ -54,7 +54,7 @@ def get_status(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> StatusRespon
 def get_totalen(
     categorie: str | None = None,
     subcategorie: str | None = None,
-    winkel: str | None = None,
+    afzender: str | None = None,
     granulariteit: str = Query(default="maand"),
     aantal: int = Query(default=6, ge=1, le=100),
     con: duckdb.DuckDBPyConnection = Depends(get_db),
@@ -78,14 +78,14 @@ def get_totalen(
             "duckdb_eenheid": GRANULARITEIT_NAAR_DUCKDB_EENHEID[granulariteit],
             "categorie": categorie,
             "subcategorie": subcategorie,
-            "winkel": winkel,
+            "afzender": afzender,
         },
     ).fetchall()
 
     return TotalenResponse(
         categorie=categorie,
         subcategorie=subcategorie,
-        winkel=winkel,
+        afzender=afzender,
         granulariteit=granulariteit,
         aantal=aantal,
         reeks=[

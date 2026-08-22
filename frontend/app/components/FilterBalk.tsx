@@ -1,5 +1,6 @@
 "use client";
 
+import { Combobox } from "@/app/components/Combobox";
 import type { CategorieGroep, Granulariteit } from "@/lib/api";
 import { EENHEID_MEERVOUD, PERIODE_PRESETS } from "@/lib/periode";
 
@@ -12,30 +13,30 @@ const GRANULARITEIT_LABEL: Record<Granulariteit, string> = {
 
 interface FilterBalkProps {
   categorieen: CategorieGroep[];
-  winkels: string[];
+  afzenders: string[];
   categorie: string | null;
   subcategorie: string | null;
-  winkel: string | null;
+  afzender: string | null;
   granulariteit: Granulariteit;
   aantal: number;
   onCategorieChange: (categorie: string | null) => void;
   onSubcategorieChange: (subcategorie: string | null) => void;
-  onWinkelChange: (winkel: string | null) => void;
+  onAfzenderChange: (afzender: string | null) => void;
   onGranulariteitChange: (granulariteit: Granulariteit) => void;
   onAantalChange: (aantal: number) => void;
 }
 
 export function FilterBalk({
   categorieen,
-  winkels,
+  afzenders,
   categorie,
   subcategorie,
-  winkel,
+  afzender,
   granulariteit,
   aantal,
   onCategorieChange,
   onSubcategorieChange,
-  onWinkelChange,
+  onAfzenderChange,
   onGranulariteitChange,
   onAantalChange,
 }: FilterBalkProps) {
@@ -76,21 +77,7 @@ export function FilterBalk({
         </select>
       </label>
 
-      <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
-        Winkel
-        <select
-          className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-          value={winkel ?? ""}
-          onChange={(e) => onWinkelChange(e.target.value || null)}
-        >
-          <option value="">Alle</option>
-          {winkels.map((w) => (
-            <option key={w} value={w}>
-              {w}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Combobox label="Winkel / afzender" opties={afzenders} waarde={afzender} onChange={onAfzenderChange} />
 
       <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
         Weergave

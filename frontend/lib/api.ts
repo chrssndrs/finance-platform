@@ -11,8 +11,8 @@ export interface CategorieenResponse {
   categorieen: CategorieGroep[];
 }
 
-export interface WinkelsResponse {
-  winkels: string[];
+export interface AfzendersResponse {
+  afzenders: string[];
 }
 
 export interface StatusResponse {
@@ -30,7 +30,7 @@ export interface PeriodeTotaal {
 export interface TotalenResponse {
   categorie: string | null;
   subcategorie: string | null;
-  winkel: string | null;
+  afzender: string | null;
   granulariteit: Granulariteit;
   aantal: number;
   reeks: PeriodeTotaal[];
@@ -51,14 +51,14 @@ export function getCategorieen(): Promise<CategorieenResponse> {
   return fetchJson<CategorieenResponse>("/api/rapportage/categorieen");
 }
 
-export function getWinkels(params: {
+export function getAfzenders(params: {
   categorie: string | null;
   subcategorie: string | null;
-}): Promise<WinkelsResponse> {
+}): Promise<AfzendersResponse> {
   const zoekParams = new URLSearchParams();
   if (params.categorie) zoekParams.set("categorie", params.categorie);
   if (params.subcategorie) zoekParams.set("subcategorie", params.subcategorie);
-  return fetchJson<WinkelsResponse>(`/api/rapportage/winkels?${zoekParams}`);
+  return fetchJson<AfzendersResponse>(`/api/rapportage/afzenders?${zoekParams}`);
 }
 
 export function getStatus(): Promise<StatusResponse> {
@@ -68,14 +68,14 @@ export function getStatus(): Promise<StatusResponse> {
 export function getTotalen(params: {
   categorie: string | null;
   subcategorie: string | null;
-  winkel: string | null;
+  afzender: string | null;
   granulariteit: Granulariteit;
   aantal: number;
 }): Promise<TotalenResponse> {
   const zoekParams = new URLSearchParams();
   if (params.categorie) zoekParams.set("categorie", params.categorie);
   if (params.subcategorie) zoekParams.set("subcategorie", params.subcategorie);
-  if (params.winkel) zoekParams.set("winkel", params.winkel);
+  if (params.afzender) zoekParams.set("afzender", params.afzender);
   zoekParams.set("granulariteit", params.granulariteit);
   zoekParams.set("aantal", String(params.aantal));
   return fetchJson<TotalenResponse>(`/api/rapportage/totalen?${zoekParams}`);
