@@ -1,8 +1,14 @@
 "use client";
 
-import type { CategorieGroep } from "@/lib/api";
+import type { CategorieGroep, Granulariteit } from "@/lib/api";
+import { EENHEID_MEERVOUD, PERIODE_PRESETS } from "@/lib/periode";
 
-const PERIODE_PRESETS = [3, 6, 12, 24];
+const GRANULARITEIT_LABEL: Record<Granulariteit, string> = {
+  dag: "Dag",
+  week: "Week",
+  maand: "Maand",
+  jaar: "Jaar",
+};
 
 interface FilterBalkProps {
   categorieen: CategorieGroep[];
@@ -10,11 +16,13 @@ interface FilterBalkProps {
   categorie: string | null;
   subcategorie: string | null;
   winkel: string | null;
-  periodeMaanden: number;
+  granulariteit: Granulariteit;
+  aantal: number;
   onCategorieChange: (categorie: string | null) => void;
   onSubcategorieChange: (subcategorie: string | null) => void;
   onWinkelChange: (winkel: string | null) => void;
-  onPeriodeChange: (maanden: number) => void;
+  onGranulariteitChange: (granulariteit: Granulariteit) => void;
+  onAantalChange: (aantal: number) => void;
 }
 
 export function FilterBalk({
@@ -23,11 +31,13 @@ export function FilterBalk({
   categorie,
   subcategorie,
   winkel,
-  periodeMaanden,
+  granulariteit,
+  aantal,
   onCategorieChange,
   onSubcategorieChange,
   onWinkelChange,
-  onPeriodeChange,
+  onGranulariteitChange,
+  onAantalChange,
 }: FilterBalkProps) {
   const subcategorieen = categorieen.find((g) => g.categorie === categorie)?.subcategorieen ?? [];
 
@@ -83,15 +93,30 @@ export function FilterBalk({
       </label>
 
       <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
+        Weergave
+        <select
+          className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+          value={granulariteit}
+          onChange={(e) => onGranulariteitChange(e.target.value as Granulariteit)}
+        >
+          {(Object.keys(GRANULARITEIT_LABEL) as Granulariteit[]).map((g) => (
+            <option key={g} value={g}>
+              {GRANULARITEIT_LABEL[g]}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
         Periode
         <select
           className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-          value={periodeMaanden}
-          onChange={(e) => onPeriodeChange(Number(e.target.value))}
+          value={aantal}
+          onChange={(e) => onAantalChange(Number(e.target.value))}
         >
-          {PERIODE_PRESETS.map((n) => (
+          {PERIODE_PRESETS[granulariteit].map((n) => (
             <option key={n} value={n}>
-              Laatste {n} maanden
+              Laatste {n} {EENHEID_MEERVOUD[granulariteit]}
             </option>
           ))}
         </select>

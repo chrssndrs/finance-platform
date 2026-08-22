@@ -21,16 +21,17 @@ class StatusResponse(BaseModel):
     laatste_transactie: date | None
 
 
-class MaandTotaal(BaseModel):
-    maand: str
+class PeriodeTotaal(BaseModel):
+    periode_start: date
     inkomsten: float
     uitgaven: float
     totaal: float
 
 
-class MaandTotalenResponse(BaseModel):
+class TotalenResponse(BaseModel):
     categorie: str | None
     subcategorie: str | None
     winkel: str | None
-    periode_maanden: int
-    reeks: list[MaandTotaal]
+    granulariteit: str
+    aantal: int
+    reeks: list[PeriodeTotaal]

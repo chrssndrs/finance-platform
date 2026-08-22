@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 SQL_CATEGORIEEN = """
     SELECT DISTINCT categorie, subcategorie
@@ -10,6 +10,8 @@ SQL_WINKELS = """
     SELECT DISTINCT winkel
     FROM gold.transacties
     WHERE winkel IS NOT NULL
+      AND ($categorie::VARCHAR IS NULL OR categorie = $categorie)
+      AND ($subcategorie::VARCHAR IS NULL OR subcategorie = $subcategorie)
     ORDER BY winkel
 """
 
@@ -19,27 +21,47 @@ SQL_STATUS = """
         (SELECT MAX(datum) FROM gold.transacties) AS laatste_transactie
 """
 
-SQL_MAANDTOTALEN = """
-    WITH maanden AS (
-        SELECT unnest($maand_starts::DATE[]) AS maand_start
+# Vertaalt de gebruiksvriendelijke granulariteit-waarden naar DuckDB's date_trunc-eenheden.
+GRANULARITEIT_NAAR_DUCKDB_EENHEID = {
+    "dag": "day",
+    "week": "week",
+    "maand": "month",
+    "jaar": "year",
+}
+
+SQL_TOTALEN = """
+    WITH perioden AS (
+        SELECT unnest($periode_starts::DATE[]) AS periode_start
     ),
     gefilterd AS (
-        SELECT date_trunc('month', datum) AS maand_start, bedrag_eur
+        SELECT date_trunc($duckdb_eenheid, datum) AS periode_start, bedrag_eur
         FROM gold.transacties
         WHERE ($categorie::VARCHAR IS NULL OR categorie = $categorie)
           AND ($subcategorie::VARCHAR IS NULL OR subcategorie = $subcategorie)
           AND ($winkel::VARCHAR IS NULL OR winkel = $winkel)
     )
     SELECT
-        strftime(m.maand_start, '%Y-%m') AS maand,
+        p.periode_start::DATE AS periode_start,
         COALESCE(SUM(CASE WHEN g.bedrag_eur > 0 THEN g.bedrag_eur ELSE 0 END), 0)::DOUBLE AS inkomsten,
         COALESCE(SUM(CASE WHEN g.bedrag_eur < 0 THEN -g.bedrag_eur ELSE 0 END), 0)::DOUBLE AS uitgaven,
         COALESCE(SUM(g.bedrag_eur), 0)::DOUBLE AS totaal
-    FROM maanden m
-    LEFT JOIN gefilterd g ON g.maand_start = m.maand_start
-    GROUP BY m.maand_start
-    ORDER BY m.maand_start
+    FROM perioden p
+    LEFT JOIN gefilterd g ON g.periode_start = p.periode_start
+    GROUP BY p.periode_start
+    ORDER BY p.periode_start
 """
+
+
+def _periode_start(vandaag: date, granulariteit: str) -> date:
+    if granulariteit == "dag":
+        return vandaag
+    if granulariteit == "week":
+        return vandaag - timedelta(days=vandaag.weekday())
+    if granulariteit == "maand":
+        return vandaag.replace(day=1)
+    if granulariteit == "jaar":
+        return vandaag.replace(month=1, day=1)
+    raise ValueError(f"Onbekende granulariteit: {granulariteit}")
 
 
 def _volgende_maand(eerste_van_maand: date, aantal_maanden: int) -> date:
@@ -49,6 +71,18 @@ def _volgende_maand(eerste_van_maand: date, aantal_maanden: int) -> date:
     return date(jaar, maand, 1)
 
 
-def maand_starts(aantal: int, vandaag: date | None = None) -> list[date]:
-    huidige_maand = (vandaag or date.today()).replace(day=1)
-    return [_volgende_maand(huidige_maand, -i) for i in range(aantal - 1, -1, -1)]
+def _volgende_periode(start: date, granulariteit: str, n: int) -> date:
+    if granulariteit == "dag":
+        return start + timedelta(days=n)
+    if granulariteit == "week":
+        return start + timedelta(weeks=n)
+    if granulariteit == "maand":
+        return _volgende_maand(start, n)
+    if granulariteit == "jaar":
+        return date(start.year + n, start.month, start.day)
+    raise ValueError(f"Onbekende granulariteit: {granulariteit}")
+
+
+def periode_starts(granulariteit: str, aantal: int, vandaag: date | None = None) -> list[date]:
+    huidige_periode = _periode_start(vandaag or date.today(), granulariteit)
+    return [_volgende_periode(huidige_periode, granulariteit, -i) for i in range(aantal - 1, -1, -1)]

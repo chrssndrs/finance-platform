@@ -2,21 +2,22 @@
 
 import { useMemo, useState } from "react";
 
-import type { MaandTotaal } from "@/lib/api";
+import type { Granulariteit, PeriodeTotaal } from "@/lib/api";
+import { formatteerPeriode } from "@/lib/periode";
 
 const bedragFormat = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
 
-type SortKey = keyof MaandTotaal;
+type SortKey = keyof PeriodeTotaal;
 
 const KOLOMMEN: { key: SortKey; label: string }[] = [
-  { key: "maand", label: "Maand" },
+  { key: "periode_start", label: "Periode" },
   { key: "inkomsten", label: "Inkomsten" },
   { key: "uitgaven", label: "Uitgaven" },
   { key: "totaal", label: "Totaal" },
 ];
 
-export function MaandTabel({ reeks }: { reeks: MaandTotaal[] }) {
-  const [sortKey, setSortKey] = useState<SortKey>("maand");
+export function TotalenTabel({ reeks, granulariteit }: { reeks: PeriodeTotaal[]; granulariteit: Granulariteit }) {
+  const [sortKey, setSortKey] = useState<SortKey>("periode_start");
   const [aflopend, setAflopend] = useState(true);
 
   const gesorteerd = useMemo(() => {
@@ -59,8 +60,8 @@ export function MaandTabel({ reeks }: { reeks: MaandTotaal[] }) {
       </thead>
       <tbody>
         {gesorteerd.map((r) => (
-          <tr key={r.maand} className="border-b border-neutral-200 dark:border-neutral-800">
-            <td className="py-2">{r.maand}</td>
+          <tr key={r.periode_start} className="border-b border-neutral-200 dark:border-neutral-800">
+            <td className="py-2">{formatteerPeriode(r.periode_start, granulariteit)}</td>
             <td className="py-2 tabular-nums">{bedragFormat.format(r.inkomsten)}</td>
             <td className="py-2 tabular-nums">{bedragFormat.format(r.uitgaven)}</td>
             <td className="py-2 tabular-nums">{bedragFormat.format(r.totaal)}</td>

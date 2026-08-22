@@ -3,18 +3,20 @@
 import { useEffect, useState } from "react";
 
 import { FilterBalk } from "@/app/components/FilterBalk";
-import { MaandChart } from "@/app/components/MaandChart";
-import { MaandTabel } from "@/app/components/MaandTabel";
+import { TotalenChart } from "@/app/components/TotalenChart";
+import { TotalenTabel } from "@/app/components/TotalenTabel";
 import {
   ApiError,
   getCategorieen,
-  getMaandTotalen,
   getStatus,
+  getTotalen,
   getWinkels,
   type CategorieGroep,
-  type MaandTotaal,
+  type Granulariteit,
+  type PeriodeTotaal,
   type StatusResponse,
 } from "@/lib/api";
+import { PERIODE_PRESETS } from "@/lib/periode";
 
 const datumTijdFormat = new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short" });
 const datumFormat = new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium" });
@@ -27,9 +29,10 @@ export default function Home() {
   const [categorie, setCategorie] = useState<string | null>(null);
   const [subcategorie, setSubcategorie] = useState<string | null>(null);
   const [winkel, setWinkel] = useState<string | null>(null);
-  const [periodeMaanden, setPeriodeMaanden] = useState(6);
+  const [granulariteit, setGranulariteit] = useState<Granulariteit>("maand");
+  const [aantal, setAantal] = useState(6);
 
-  const [reeks, setReeks] = useState<MaandTotaal[]>([]);
+  const [reeks, setReeks] = useState<PeriodeTotaal[]>([]);
   const [laden, setLaden] = useState(true);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
 
@@ -37,20 +40,26 @@ export default function Home() {
     getCategorieen()
       .then((res) => setCategorieen(res.categorieen))
       .catch((err) => setFoutmelding(err instanceof ApiError ? err.message : "Kon categorieën niet laden."));
-    getWinkels()
-      .then((res) => setWinkels(res.winkels))
-      .catch(() => {});
     getStatus()
       .then(setStatus)
       .catch(() => {});
   }, []);
 
   useEffect(() => {
-    getMaandTotalen({ categorie, subcategorie, winkel, maanden: periodeMaanden })
+    getWinkels({ categorie, subcategorie })
+      .then((res) => {
+        setWinkels(res.winkels);
+        setWinkel((huidig) => (huidig && !res.winkels.includes(huidig) ? null : huidig));
+      })
+      .catch(() => {});
+  }, [categorie, subcategorie]);
+
+  useEffect(() => {
+    getTotalen({ categorie, subcategorie, winkel, granulariteit, aantal })
       .then((res) => setReeks(res.reeks))
-      .catch((err) => setFoutmelding(err instanceof ApiError ? err.message : "Kon maandtotalen niet laden."))
+      .catch((err) => setFoutmelding(err instanceof ApiError ? err.message : "Kon totalen niet laden."))
       .finally(() => setLaden(false));
-  }, [categorie, subcategorie, winkel, periodeMaanden]);
+  }, [categorie, subcategorie, winkel, granulariteit, aantal]);
 
   function wijzigFilter(bijwerken: () => void) {
     setLaden(true);
@@ -62,7 +71,7 @@ export default function Home() {
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-10">
       <div>
         <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-          Inkomsten &amp; uitgaven per maand
+          Inkomsten &amp; uitgaven
         </h1>
         {status && (
           <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
@@ -79,7 +88,8 @@ export default function Home() {
         categorie={categorie}
         subcategorie={subcategorie}
         winkel={winkel}
-        periodeMaanden={periodeMaanden}
+        granulariteit={granulariteit}
+        aantal={aantal}
         onCategorieChange={(c) =>
           wijzigFilter(() => {
             setCategorie(c);
@@ -88,7 +98,13 @@ export default function Home() {
         }
         onSubcategorieChange={(s) => wijzigFilter(() => setSubcategorie(s))}
         onWinkelChange={(w) => wijzigFilter(() => setWinkel(w))}
-        onPeriodeChange={(m) => wijzigFilter(() => setPeriodeMaanden(m))}
+        onGranulariteitChange={(g) =>
+          wijzigFilter(() => {
+            setGranulariteit(g);
+            setAantal(PERIODE_PRESETS[g][0]);
+          })
+        }
+        onAantalChange={(n) => wijzigFilter(() => setAantal(n))}
       />
 
       {foutmelding && (
@@ -98,10 +114,10 @@ export default function Home() {
       )}
 
       <div className={laden ? "opacity-50 transition-opacity" : "transition-opacity"}>
-        <MaandChart reeks={reeks} />
+        <TotalenChart reeks={reeks} granulariteit={granulariteit} />
       </div>
 
-      <MaandTabel reeks={reeks} />
+      <TotalenTabel reeks={reeks} granulariteit={granulariteit} />
     </main>
   );
 }

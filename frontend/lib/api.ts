@@ -1,5 +1,7 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
+export type Granulariteit = "dag" | "week" | "maand" | "jaar";
+
 export interface CategorieGroep {
   categorie: string;
   subcategorieen: string[];
@@ -18,19 +20,20 @@ export interface StatusResponse {
   laatste_transactie: string | null;
 }
 
-export interface MaandTotaal {
-  maand: string;
+export interface PeriodeTotaal {
+  periode_start: string;
   inkomsten: number;
   uitgaven: number;
   totaal: number;
 }
 
-export interface MaandTotalenResponse {
+export interface TotalenResponse {
   categorie: string | null;
   subcategorie: string | null;
   winkel: string | null;
-  periode_maanden: number;
-  reeks: MaandTotaal[];
+  granulariteit: Granulariteit;
+  aantal: number;
+  reeks: PeriodeTotaal[];
 }
 
 export class ApiError extends Error {}
@@ -48,24 +51,32 @@ export function getCategorieen(): Promise<CategorieenResponse> {
   return fetchJson<CategorieenResponse>("/api/rapportage/categorieen");
 }
 
-export function getWinkels(): Promise<WinkelsResponse> {
-  return fetchJson<WinkelsResponse>("/api/rapportage/winkels");
+export function getWinkels(params: {
+  categorie: string | null;
+  subcategorie: string | null;
+}): Promise<WinkelsResponse> {
+  const zoekParams = new URLSearchParams();
+  if (params.categorie) zoekParams.set("categorie", params.categorie);
+  if (params.subcategorie) zoekParams.set("subcategorie", params.subcategorie);
+  return fetchJson<WinkelsResponse>(`/api/rapportage/winkels?${zoekParams}`);
 }
 
 export function getStatus(): Promise<StatusResponse> {
   return fetchJson<StatusResponse>("/api/rapportage/status");
 }
 
-export function getMaandTotalen(params: {
+export function getTotalen(params: {
   categorie: string | null;
   subcategorie: string | null;
   winkel: string | null;
-  maanden: number;
-}): Promise<MaandTotalenResponse> {
+  granulariteit: Granulariteit;
+  aantal: number;
+}): Promise<TotalenResponse> {
   const zoekParams = new URLSearchParams();
   if (params.categorie) zoekParams.set("categorie", params.categorie);
   if (params.subcategorie) zoekParams.set("subcategorie", params.subcategorie);
   if (params.winkel) zoekParams.set("winkel", params.winkel);
-  zoekParams.set("maanden", String(params.maanden));
-  return fetchJson<MaandTotalenResponse>(`/api/rapportage/maandtotalen?${zoekParams}`);
+  zoekParams.set("granulariteit", params.granulariteit);
+  zoekParams.set("aantal", String(params.aantal));
+  return fetchJson<TotalenResponse>(`/api/rapportage/totalen?${zoekParams}`);
 }
