@@ -4,12 +4,14 @@ import duckdb
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.api.deps import get_db
-from src.api.queries import SQL_CATEGORIEEN, SQL_MAANDTOTALEN, maand_starts
+from src.api.queries import SQL_CATEGORIEEN, SQL_MAANDTOTALEN, SQL_STATUS, SQL_WINKELS, maand_starts
 from src.api.schemas import (
     CategorieenResponse,
     CategorieGroep,
     MaandTotaal,
     MaandTotalenResponse,
+    StatusResponse,
+    WinkelsResponse,
 )
 
 router = APIRouter(prefix="/api/rapportage")
@@ -25,10 +27,23 @@ def get_categorieen(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> Categor
     return CategorieenResponse(categorieen=groepen)
 
 
+@router.get("/winkels", response_model=WinkelsResponse)
+def get_winkels(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> WinkelsResponse:
+    rijen = con.execute(SQL_WINKELS).fetchall()
+    return WinkelsResponse(winkels=[r[0] for r in rijen])
+
+
+@router.get("/status", response_model=StatusResponse)
+def get_status(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> StatusResponse:
+    laatste_refresh, laatste_transactie = con.execute(SQL_STATUS).fetchone()
+    return StatusResponse(laatste_refresh=laatste_refresh, laatste_transactie=laatste_transactie)
+
+
 @router.get("/maandtotalen", response_model=MaandTotalenResponse)
 def get_maandtotalen(
     categorie: str | None = None,
     subcategorie: str | None = None,
+    winkel: str | None = None,
     maanden: int = Query(default=6, ge=1, le=60),
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ) -> MaandTotalenResponse:
@@ -41,12 +56,18 @@ def get_maandtotalen(
     starts = maand_starts(maanden)
     rijen = con.execute(
         SQL_MAANDTOTALEN,
-        {"maand_starts": starts, "categorie": categorie, "subcategorie": subcategorie},
+        {
+            "maand_starts": starts,
+            "categorie": categorie,
+            "subcategorie": subcategorie,
+            "winkel": winkel,
+        },
     ).fetchall()
 
     return MaandTotalenResponse(
         categorie=categorie,
         subcategorie=subcategorie,
+        winkel=winkel,
         periode_maanden=maanden,
         reeks=[
             MaandTotaal(maand=maand, inkomsten=inkomsten, uitgaven=uitgaven, totaal=totaal)

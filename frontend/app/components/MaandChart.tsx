@@ -2,9 +2,10 @@
 
 import {
   Bar,
-  BarChart,
   CartesianGrid,
+  ComposedChart,
   Legend,
+  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -24,7 +25,19 @@ const compactBedragFormat = new Intl.NumberFormat("nl-NL", {
 const SERIE_LABELS: Record<string, string> = {
   inkomsten: "Inkomsten",
   uitgaven: "Uitgaven",
+  gemiddelde: "Gemiddelde (3 mnd)",
 };
+
+const TREND_VENSTER = 3;
+
+function berekenVoortschrijdendGemiddelde(reeks: MaandTotaal[]): number[] {
+  return reeks.map((_, i) => {
+    const start = Math.max(0, i - TREND_VENSTER + 1);
+    const venster = reeks.slice(start, i + 1);
+    const som = venster.reduce((acc, r) => acc + r.totaal, 0);
+    return som / venster.length;
+  });
+}
 
 function CustomTooltip({ active, payload, label }: TooltipContentProps) {
   if (!active || !payload?.length) return null;
@@ -50,15 +63,17 @@ function CustomTooltip({ active, payload, label }: TooltipContentProps) {
 }
 
 export function MaandChart({ reeks }: { reeks: MaandTotaal[] }) {
-  const data = reeks.map((r) => ({
+  const gemiddelden = berekenVoortschrijdendGemiddelde(reeks);
+  const data = reeks.map((r, i) => ({
     maand: r.maand,
     inkomsten: r.inkomsten,
     uitgaven: r.uitgaven,
+    gemiddelde: gemiddelden[i],
   }));
 
   return (
     <ResponsiveContainer width="100%" height={280}>
-      <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+      <ComposedChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
         <CartesianGrid
           vertical={false}
           stroke="var(--chart-gridline)"
@@ -84,15 +99,30 @@ export function MaandChart({ reeks }: { reeks: MaandTotaal[] }) {
             </span>
           )}
         />
-        <Bar dataKey="inkomsten" stackId="maand" fill="var(--chart-series-1)" maxBarSize={24} />
+        <Bar
+          dataKey="inkomsten"
+          stackId="maand"
+          fill="var(--chart-series-1)"
+          maxBarSize={24}
+          isAnimationActive={false}
+        />
         <Bar
           dataKey="uitgaven"
           stackId="maand"
           fill="var(--chart-series-2)"
           radius={[4, 4, 0, 0]}
           maxBarSize={24}
+          isAnimationActive={false}
         />
-      </BarChart>
+        <Line
+          dataKey="gemiddelde"
+          stroke="var(--chart-series-3)"
+          strokeWidth={2}
+          dot={false}
+          activeDot={{ r: 4 }}
+          isAnimationActive={false}
+        />
+      </ComposedChart>
     </ResponsiveContainer>
   );
 }

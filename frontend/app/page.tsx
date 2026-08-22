@@ -9,14 +9,24 @@ import {
   ApiError,
   getCategorieen,
   getMaandTotalen,
+  getStatus,
+  getWinkels,
   type CategorieGroep,
   type MaandTotaal,
+  type StatusResponse,
 } from "@/lib/api";
+
+const datumTijdFormat = new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short" });
+const datumFormat = new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium" });
 
 export default function Home() {
   const [categorieen, setCategorieen] = useState<CategorieGroep[]>([]);
+  const [winkels, setWinkels] = useState<string[]>([]);
+  const [status, setStatus] = useState<StatusResponse | null>(null);
+
   const [categorie, setCategorie] = useState<string | null>(null);
   const [subcategorie, setSubcategorie] = useState<string | null>(null);
+  const [winkel, setWinkel] = useState<string | null>(null);
   const [periodeMaanden, setPeriodeMaanden] = useState(6);
 
   const [reeks, setReeks] = useState<MaandTotaal[]>([]);
@@ -27,14 +37,20 @@ export default function Home() {
     getCategorieen()
       .then((res) => setCategorieen(res.categorieen))
       .catch((err) => setFoutmelding(err instanceof ApiError ? err.message : "Kon categorieën niet laden."));
+    getWinkels()
+      .then((res) => setWinkels(res.winkels))
+      .catch(() => {});
+    getStatus()
+      .then(setStatus)
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
-    getMaandTotalen({ categorie, subcategorie, maanden: periodeMaanden })
+    getMaandTotalen({ categorie, subcategorie, winkel, maanden: periodeMaanden })
       .then((res) => setReeks(res.reeks))
       .catch((err) => setFoutmelding(err instanceof ApiError ? err.message : "Kon maandtotalen niet laden."))
       .finally(() => setLaden(false));
-  }, [categorie, subcategorie, periodeMaanden]);
+  }, [categorie, subcategorie, winkel, periodeMaanden]);
 
   function wijzigFilter(bijwerken: () => void) {
     setLaden(true);
@@ -44,14 +60,25 @@ export default function Home() {
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-10">
-      <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-        Inkomsten &amp; uitgaven per maand
-      </h1>
+      <div>
+        <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+          Inkomsten &amp; uitgaven per maand
+        </h1>
+        {status && (
+          <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+            {status.laatste_refresh && `Data bijgewerkt op ${datumTijdFormat.format(new Date(status.laatste_refresh))}`}
+            {status.laatste_refresh && status.laatste_transactie && " · "}
+            {status.laatste_transactie && `laatste transactie ${datumFormat.format(new Date(status.laatste_transactie))}`}
+          </p>
+        )}
+      </div>
 
       <FilterBalk
         categorieen={categorieen}
+        winkels={winkels}
         categorie={categorie}
         subcategorie={subcategorie}
+        winkel={winkel}
         periodeMaanden={periodeMaanden}
         onCategorieChange={(c) =>
           wijzigFilter(() => {
@@ -60,6 +87,7 @@ export default function Home() {
           })
         }
         onSubcategorieChange={(s) => wijzigFilter(() => setSubcategorie(s))}
+        onWinkelChange={(w) => wijzigFilter(() => setWinkel(w))}
         onPeriodeChange={(m) => wijzigFilter(() => setPeriodeMaanden(m))}
       />
 

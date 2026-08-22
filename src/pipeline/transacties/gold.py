@@ -32,11 +32,13 @@ def run_gold(
     regels_df.insert(0, "regel_id", range(1, len(regels_df) + 1))
     if "richting" not in regels_df.columns:
         regels_df["richting"] = None
+    if "winkel" not in regels_df.columns:
+        regels_df["winkel"] = None
 
     con.register("regels_temp", regels_df)
     con.execute("""
         CREATE OR REPLACE TABLE gold.categorisatie_regels AS
-        SELECT regel_id, prioriteit, categorie, subcategorie, patroon, richting
+        SELECT regel_id, prioriteit, categorie, subcategorie, patroon, richting, winkel
         FROM regels_temp
     """)
     logger.info("gold.categorisatie_regels herladen (%d regels)", len(regels_df))
@@ -65,6 +67,7 @@ def run_gold(
                 s.transactie_id,
                 r.categorie,
                 r.subcategorie,
+                r.winkel,
                 r.prioriteit,
                 ROW_NUMBER() OVER (
                     PARTITION BY s.transactie_id
@@ -83,7 +86,7 @@ def run_gold(
                 )
         ),
         beste_match AS (
-            SELECT transactie_id, categorie, subcategorie
+            SELECT transactie_id, categorie, subcategorie, winkel
             FROM regel_matches
             WHERE rn = 1
         )
@@ -91,7 +94,8 @@ def run_gold(
             s.*,
             COALESCE(o.categorie, b.categorie, 'Overig')               AS categorie,
             COALESCE(o.subcategorie, b.subcategorie, 'Ongecategoriseerd') AS subcategorie,
-            (o.transactie_id IS NOT NULL)                                AS handmatig_overschreven
+            (o.transactie_id IS NOT NULL)                                AS handmatig_overschreven,
+            b.winkel                                                     AS winkel
         FROM silver.transacties s
         LEFT JOIN beste_match b ON b.transactie_id = s.transactie_id
         LEFT JOIN gold.categorie_overrides o ON o.transactie_id = s.transactie_id

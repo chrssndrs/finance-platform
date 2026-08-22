@@ -15,6 +15,7 @@
 :root {
   --chart-series-1: #2a78d6;
   --chart-series-2: #eb6834;
+  --chart-series-3: #1baf7a;
   --chart-text-primary: #0b0b0b;
   --chart-text-secondary: #52514e;
   --chart-text-muted: #898781;
@@ -29,6 +30,7 @@
     --foreground: #ededed;
     --chart-series-1: #3987e5;
     --chart-series-2: #d95926;
+    --chart-series-3: #199e70;
     --chart-text-primary: #ffffff;
     --chart-text-secondary: #c3c2b7;
     --chart-text-muted: #898781;

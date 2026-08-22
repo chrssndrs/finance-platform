@@ -9,6 +9,15 @@ export interface CategorieenResponse {
   categorieen: CategorieGroep[];
 }
 
+export interface WinkelsResponse {
+  winkels: string[];
+}
+
+export interface StatusResponse {
+  laatste_refresh: string | null;
+  laatste_transactie: string | null;
+}
+
 export interface MaandTotaal {
   maand: string;
   inkomsten: number;
@@ -19,6 +28,7 @@ export interface MaandTotaal {
 export interface MaandTotalenResponse {
   categorie: string | null;
   subcategorie: string | null;
+  winkel: string | null;
   periode_maanden: number;
   reeks: MaandTotaal[];
 }
@@ -38,14 +48,24 @@ export function getCategorieen(): Promise<CategorieenResponse> {
   return fetchJson<CategorieenResponse>("/api/rapportage/categorieen");
 }
 
+export function getWinkels(): Promise<WinkelsResponse> {
+  return fetchJson<WinkelsResponse>("/api/rapportage/winkels");
+}
+
+export function getStatus(): Promise<StatusResponse> {
+  return fetchJson<StatusResponse>("/api/rapportage/status");
+}
+
 export function getMaandTotalen(params: {
   categorie: string | null;
   subcategorie: string | null;
+  winkel: string | null;
   maanden: number;
 }): Promise<MaandTotalenResponse> {
   const zoekParams = new URLSearchParams();
   if (params.categorie) zoekParams.set("categorie", params.categorie);
   if (params.subcategorie) zoekParams.set("subcategorie", params.subcategorie);
+  if (params.winkel) zoekParams.set("winkel", params.winkel);
   zoekParams.set("maanden", String(params.maanden));
   return fetchJson<MaandTotalenResponse>(`/api/rapportage/maandtotalen?${zoekParams}`);
 }

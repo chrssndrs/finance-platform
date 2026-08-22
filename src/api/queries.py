@@ -6,6 +6,19 @@ SQL_CATEGORIEEN = """
     ORDER BY categorie, subcategorie
 """
 
+SQL_WINKELS = """
+    SELECT DISTINCT winkel
+    FROM gold.transacties
+    WHERE winkel IS NOT NULL
+    ORDER BY winkel
+"""
+
+SQL_STATUS = """
+    SELECT
+        (SELECT MAX(afgerond_op) FROM meta.pipeline_runs WHERE status = 'geslaagd') AS laatste_refresh,
+        (SELECT MAX(datum) FROM gold.transacties) AS laatste_transactie
+"""
+
 SQL_MAANDTOTALEN = """
     WITH maanden AS (
         SELECT unnest($maand_starts::DATE[]) AS maand_start
@@ -15,6 +28,7 @@ SQL_MAANDTOTALEN = """
         FROM gold.transacties
         WHERE ($categorie::VARCHAR IS NULL OR categorie = $categorie)
           AND ($subcategorie::VARCHAR IS NULL OR subcategorie = $subcategorie)
+          AND ($winkel::VARCHAR IS NULL OR winkel = $winkel)
     )
     SELECT
         strftime(m.maand_start, '%Y-%m') AS maand,
