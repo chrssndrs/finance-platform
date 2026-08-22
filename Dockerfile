@@ -4,8 +4,12 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
+# TZ zorgt dat de crontab (03:00) en Python's lokale tijd overeenkomen met NL-tijd,
+# in plaats van de UTC-default van het base image.
+ENV TZ=Europe/Amsterdam
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends cron \
+    && apt-get install -y --no-install-recommends cron tzdata \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
