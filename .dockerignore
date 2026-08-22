@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+.git/
+notebooks/
+frontend/
+data/
+db/
+config/categorisatie_regels.yaml
+*.log
+.DS_Store

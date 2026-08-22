@@ -1,0 +1,7 @@
+duckdb
+pandas
+jupyter
+jupyterlab
+pyyaml
+fastapi
+uvicorn[standard]

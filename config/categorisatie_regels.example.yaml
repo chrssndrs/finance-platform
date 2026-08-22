@@ -1,0 +1,79 @@
+# Voorbeeldbestand — kopieer dit naar categorisatie_regels.yaml en pas het aan
+# naar je eigen bank-export en winkels. Het echte bestand staat in .gitignore,
+# dus je persoonlijke regels komen nooit in git terecht.
+#
+# Elke regel matcht een regex (case-insensitive) tegen de samengevoegde tekst van
+# naam_omschrijving + mededelingen + tegenrekening uit silver.transacties.
+#
+# prioriteit: lager = wordt eerst geprobeerd. Bij meerdere matches wint de laagste prioriteit.
+# Zorg dat specifieke regels een lagere prioriteit (dus eerder) hebben dan brede regels.
+#
+# richting (optioneel): "in" = regel matcht alleen bedragen > 0, "uit" = alleen < 0.
+# Weggelaten = matcht beide richtingen. Handig voor tegenpartijen die zowel geld
+# sturen (bv. een oud-werkgever) als ontvangen (bv. een aankoop bij diezelfde partij).
+
+regels:
+  - categorie: Boodschappen
+    subcategorie: Supermarkt
+    prioriteit: 10
+    patroon: "albert heijn|jumbo|lidl|aldi|plus supermarkt|dirk|coop"
+
+  - categorie: Wonen
+    subcategorie: Huur/Hypotheek
+    prioriteit: 10
+    patroon: "hypotheek|hypotheekrente"
+
+  - categorie: Wonen
+    subcategorie: Energie
+    prioriteit: 10
+    patroon: "eneco|vattenfall|essent|greenchoice|energiedirect"
+
+  - categorie: Wonen
+    subcategorie: Gemeente/Belasting
+    prioriteit: 10
+    patroon: "gemeente|belasting|waterschap"
+
+  - categorie: Abonnementen
+    subcategorie: Streaming
+    prioriteit: 10
+    patroon: "netflix|spotify|disney\\+|videoland|nlziet|hbo max"
+
+  - categorie: Abonnementen
+    subcategorie: Telecom
+    prioriteit: 10
+    patroon: "kpn|vodafone|t-mobile|tele2|simyo|odido"
+
+  - categorie: Vervoer
+    subcategorie: Brandstof/Parkeren
+    prioriteit: 10
+    patroon: "shell|bp |esso|tango|q-park|parkmobile|totalenergies"
+
+  - categorie: Verzekeringen
+    subcategorie: Zorgverzekering
+    prioriteit: 10
+    patroon: "zilveren kruis|cz zorgverzeker|vgz|menzis|ohra|ditzo"
+
+  - categorie: Verzekeringen
+    subcategorie: Overig
+    prioriteit: 20
+    patroon: "verzeker"
+
+  - categorie: Vrije tijd
+    subcategorie: Uit eten/Bezorgen
+    prioriteit: 10
+    patroon: "thuisbezorgd|uber eats|deliveroo|new york pizza|dominos"
+
+  - categorie: Inkomen
+    subcategorie: Salaris
+    prioriteit: 10
+    patroon: "salaris|loon "
+
+  - categorie: Sparen/Beleggen
+    subcategorie: Overboeking eigen rekening
+    prioriteit: 5
+    patroon: "spaarrekening"
+
+  - categorie: Contant
+    subcategorie: Geldopname
+    prioriteit: 10
+    patroon: "geldautomaat|ophaalbedrag"
