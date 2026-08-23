@@ -81,17 +81,26 @@ export function NavBalk() {
   return (
     <nav ref={containerRef} className="relative border-b border-neutral-200 dark:border-neutral-800">
       <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-6">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-label="Menu"
-          aria-expanded={open}
-          className="-ml-2 p-2 text-neutral-600 sm:hidden dark:text-neutral-300"
-        >
-          <span className="block h-0.5 w-5 bg-current" />
-          <span className="mt-1 block h-0.5 w-5 bg-current" />
-          <span className="mt-1 block h-0.5 w-5 bg-current" />
-        </button>
+        <div className="flex items-center">
+          <Link
+            href="/"
+            aria-label="Home"
+            className="-ml-2 rounded-md p-2 text-lg text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          >
+            🏠
+          </Link>
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-label="Menu"
+            aria-expanded={open}
+            className="p-2 text-neutral-600 sm:hidden dark:text-neutral-300"
+          >
+            <span className="block h-0.5 w-5 bg-current" />
+            <span className="mt-1 block h-0.5 w-5 bg-current" />
+            <span className="mt-1 block h-0.5 w-5 bg-current" />
+          </button>
+        </div>
 
         <div className="hidden gap-1 sm:flex">
           {DOMEINEN.map((d) => {

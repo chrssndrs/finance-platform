@@ -23,6 +23,7 @@ class BankConfig:
     richting_kolom: str
     richting_negatief_waarde: str
     mededelingen_kolom: str
+    saldo_kolom: str | None = None
 
 
 def laad_bank_config(bank: str) -> BankConfig:
@@ -46,6 +47,7 @@ def laad_bank_config(bank: str) -> BankConfig:
         richting_kolom=data["richting_kolom"],
         richting_negatief_waarde=data["richting_negatief_waarde"],
         mededelingen_kolom=data["mededelingen_kolom"],
+        saldo_kolom=data.get("saldo_kolom"),
     )
 
 

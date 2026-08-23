@@ -10,6 +10,7 @@ from src.api.queries import (
     SQL_AFZENDERS,
     SQL_CATEGORIEEN,
     SQL_DATUM_BEREIK,
+    SQL_LAATSTE_SALDO,
     SQL_STATUS,
     SQL_TOTALEN,
     SQL_TRANSACTIES,
@@ -17,6 +18,7 @@ from src.api.queries import (
 )
 from src.api.schemas import (
     AfzendersResponse,
+    Banksaldo,
     CategorieenResponse,
     CategorieGroep,
     PeriodeTotaal,
@@ -53,6 +55,15 @@ def get_afzenders(
 def get_status(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> StatusResponse:
     laatste_refresh, laatste_transactie = con.execute(SQL_STATUS).fetchone()
     return StatusResponse(laatste_refresh=laatste_refresh, laatste_transactie=laatste_transactie)
+
+
+@router.get("/banksaldo", response_model=Banksaldo)
+def get_banksaldo(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> Banksaldo:
+    resultaat = con.execute(SQL_LAATSTE_SALDO).fetchone()
+    if resultaat is None:
+        return Banksaldo(bedrag=None, datum=None)
+    bedrag, datum = resultaat
+    return Banksaldo(bedrag=bedrag, datum=datum)
 
 
 @router.get("/totalen", response_model=TotalenResponse)

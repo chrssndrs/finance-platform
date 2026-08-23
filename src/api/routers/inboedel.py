@@ -4,8 +4,8 @@ import duckdb
 from fastapi import APIRouter, Depends, HTTPException, Response
 
 from src.api.deps import get_db, get_write_db
+from src.api.inboedel_berekening import DAGEN_PER_MAAND, bereken_restwaarde
 from src.api.queries_inboedel import (
-    DAGEN_PER_MAAND,
     SQL_ARTIKEL_BIJWERKEN,
     SQL_ARTIKEL_INVOEGEN,
     SQL_ARTIKEL_VERWIJDEREN,
@@ -48,8 +48,7 @@ def _naar_artikel(
         percentage_leven = min(1.0, max(0.0, leeftijd_dagen / levensduur_dagen))
         is_afgeschreven = leeftijd_dagen >= levensduur_dagen
         maanden_tot_afschrijving = levensduur_maanden - leeftijd_maanden
-        if bedrag is not None:
-            restwaarde = round(bedrag * (1 - percentage_leven), 2)
+        restwaarde = bereken_restwaarde(bedrag, datum, levensduur_maanden, vandaag)
 
     return InboedelArtikel(
         id=id_,

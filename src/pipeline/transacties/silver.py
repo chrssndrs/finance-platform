@@ -37,6 +37,13 @@ def _naar_silver_rij(ruwe_rij: str, cfg: BankConfig, transactie_id: str, rij_has
     except (KeyError, ValueError, TypeError, AttributeError):
         pass
 
+    saldo_na_mutatie = None
+    if cfg.saldo_kolom:
+        try:
+            saldo_na_mutatie = float(ruwe[cfg.saldo_kolom].replace(cfg.bedrag_decimaal_teken, "."))
+        except (KeyError, ValueError, TypeError, AttributeError):
+            pass
+
     return {
         "transactie_id": transactie_id,
         "datum": datum,
@@ -45,6 +52,7 @@ def _naar_silver_rij(ruwe_rij: str, cfg: BankConfig, transactie_id: str, rij_has
         "tegenrekening": (ruwe.get(cfg.tegenrekening_kolom) or "").strip().upper(),
         "mededelingen": (ruwe.get(cfg.mededelingen_kolom) or "").strip(),
         "bedrag_eur": bedrag_eur,
+        "saldo_na_mutatie": saldo_na_mutatie,
         "rij_hash": rij_hash,
         "bronbestand": bronbestand,
         "ingelezen_op": ingelezen_op,
@@ -77,7 +85,7 @@ def run_silver(con: duckdb.DuckDBPyConnection) -> SilverResultaat:
 
     resultaat_df = pd.DataFrame(resultaat_rijen, columns=[
         "transactie_id", "datum", "naam_omschrijving", "rekening", "tegenrekening",
-        "mededelingen", "bedrag_eur", "rij_hash", "bronbestand", "ingelezen_op",
+        "mededelingen", "bedrag_eur", "saldo_na_mutatie", "rij_hash", "bronbestand", "ingelezen_op",
     ])
     if not resultaat_df.empty:
         resultaat_df["datum"] = pd.to_datetime(resultaat_df["datum"]).dt.date

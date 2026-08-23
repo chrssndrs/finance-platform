@@ -31,3 +31,4 @@ bedrag_decimaal_teken: ","
 richting_kolom: "Af Bij"
 richting_negatief_waarde: "Af"
 mededelingen_kolom: Mededelingen
+saldo_kolom: "Saldo na mutatie"

@@ -31,8 +31,3 @@ SQL_ARTIKEL_BIJWERKEN = """
 SQL_ARTIKEL_VERWIJDEREN = """
     DELETE FROM inboedel.artikelen WHERE id = $id RETURNING id
 """
-
-# Gemiddelde dagen per maand — zelfde conventie als bij de abonnementen-
-# intervallen (src/pipeline/abonnementen/detectie.py), voor consistente
-# maand-conversies door de hele app heen.
-DAGEN_PER_MAAND = 30.44

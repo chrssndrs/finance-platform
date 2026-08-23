@@ -25,6 +25,17 @@ SQL_DATUM_BEREIK = """
     SELECT MIN(datum), MAX(datum) FROM gold.transacties
 """
 
+# Meest recente bekende banksaldo — niet elke bank/rij heeft een
+# saldo_na_mutatie (afhankelijk van bank_config.saldo_kolom), dus expliciet
+# filteren i.p.v. aannemen dat de laatste rij op datum 'm heeft.
+SQL_LAATSTE_SALDO = """
+    SELECT saldo_na_mutatie::DOUBLE, datum
+    FROM gold.transacties
+    WHERE saldo_na_mutatie IS NOT NULL
+    ORDER BY datum DESC, ingelezen_op DESC
+    LIMIT 1
+"""
+
 SQL_TRANSACTIES = """
     SELECT transactie_id, datum, afzender, bedrag_eur::DOUBLE, mededelingen
     FROM gold.transacties

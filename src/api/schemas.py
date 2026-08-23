@@ -49,3 +49,8 @@ class Transactie(BaseModel):
 class TransactiesResponse(BaseModel):
     transacties: list[Transactie]
 
+
+class Banksaldo(BaseModel):
+    bedrag: float | None
+    datum: date | None
+

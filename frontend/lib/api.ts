@@ -20,6 +20,11 @@ export interface StatusResponse {
   laatste_transactie: string | null;
 }
 
+export interface Banksaldo {
+  bedrag: number | null;
+  datum: string | null;
+}
+
 export interface PeriodeTotaal {
   periode_start: string;
   inkomsten: number;
@@ -341,6 +346,10 @@ export function getStatus(): Promise<StatusResponse> {
   return fetchJson<StatusResponse>("/api/rapportage/status");
 }
 
+export function getBanksaldo(): Promise<Banksaldo> {
+  return fetchJson<Banksaldo>("/api/rapportage/banksaldo");
+}
+
 export function getTotalen(params: {
   categorie: string | null;
   subcategorie: string | null;
@@ -490,6 +499,81 @@ export function deleteLeningdeel(id: number): Promise<void> {
 
 export function getSchuldverloop(): Promise<SchuldResponse> {
   return fetchJson<SchuldResponse>("/api/hypotheek/verloop");
+}
+
+export interface VermogenOnderdeel {
+  label: string;
+  bedrag: number;
+  laatst_bijgewerkt: string | null;
+  type: "bezit" | "schuld";
+}
+
+export interface VermogenResponse {
+  totaal: number;
+  onderdelen: VermogenOnderdeel[];
+}
+
+export interface Sparen {
+  bedrag: number;
+  aangepast_op: string | null;
+}
+
+export interface SparenInvoer {
+  bedrag: number;
+}
+
+export type WidgetWeergave = "totaal" | "grafiek" | "transacties";
+export type WidgetPeriodeModus = "relatief" | "alles" | "aangepast";
+
+export interface WidgetInvoer {
+  titel: string | null;
+  categorie: string | null;
+  subcategorie: string | null;
+  afzender: string | null;
+  granulariteit: Granulariteit;
+  periode_modus: WidgetPeriodeModus;
+  periode_aantal: number | null;
+  periode_eenheid: Granulariteit | null;
+  periode_vanaf: string | null;
+  periode_tot: string | null;
+  weergave: WidgetWeergave;
+  volgorde: number;
+}
+
+export interface Widget extends WidgetInvoer {
+  id: number;
+}
+
+export interface WidgetenResponse {
+  widgets: Widget[];
+}
+
+export function getVermogen(): Promise<VermogenResponse> {
+  return fetchJson<VermogenResponse>("/api/overzicht/vermogen");
+}
+
+export function getSparen(): Promise<Sparen> {
+  return fetchJson<Sparen>("/api/overzicht/sparen");
+}
+
+export function putSparen(sparen: SparenInvoer): Promise<Sparen> {
+  return zendJson<Sparen>("/api/overzicht/sparen", "PUT", sparen);
+}
+
+export function getWidgets(): Promise<WidgetenResponse> {
+  return fetchJson<WidgetenResponse>("/api/overzicht/widgets");
+}
+
+export function postWidget(widget: WidgetInvoer): Promise<Widget> {
+  return zendJson<Widget>("/api/overzicht/widgets", "POST", widget);
+}
+
+export function putWidget(id: number, widget: WidgetInvoer): Promise<Widget> {
+  return zendJson<Widget>(`/api/overzicht/widgets/${id}`, "PUT", widget);
+}
+
+export function deleteWidget(id: number): Promise<void> {
+  return verwijder(`/api/overzicht/widgets/${id}`);
 }
 
 export function getInboedelArtikelen(): Promise<InboedelArtikelenResponse> {

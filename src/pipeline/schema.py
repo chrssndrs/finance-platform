@@ -3,7 +3,7 @@ import pandas as pd
 
 
 def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
-    for naam in ("meta", "landing", "bronze", "silver", "gold", "inboedel", "abonnementen", "instellingen", "vastgoed", "beleggingen", "hypotheek"):
+    for naam in ("meta", "landing", "bronze", "silver", "gold", "inboedel", "abonnementen", "instellingen", "vastgoed", "beleggingen", "hypotheek", "overzicht"):
         con.execute(f"CREATE SCHEMA IF NOT EXISTS {naam}")
 
     con.execute("CREATE SEQUENCE IF NOT EXISTS meta.bestanden_log_seq START 1")
@@ -192,6 +192,41 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
             startdatum DATE NOT NULL,
             looptijd_maanden INTEGER NOT NULL,
             rentevast_tot DATE,
+            aangemaakt_op TIMESTAMP NOT NULL
+        )
+    """)
+
+    # Eén handmatig bedrag — geen bron in de bankexport (aparte
+    # spaarrekening, niet dit rekening-overzicht), dus net als
+    # vastgoed.woning een singleton die je zelf bijwerkt.
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS overzicht.sparen (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            bedrag DECIMAL(12,2) NOT NULL DEFAULT 0,
+            aangepast_op TIMESTAMP
+        )
+    """)
+    con.execute("""
+        INSERT INTO overzicht.sparen (id, aangepast_op) VALUES (1, now())
+        ON CONFLICT (id) DO NOTHING
+    """)
+
+    con.execute("CREATE SEQUENCE IF NOT EXISTS overzicht.widgets_seq START 1")
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS overzicht.widgets (
+            id INTEGER PRIMARY KEY DEFAULT nextval('overzicht.widgets_seq'),
+            titel VARCHAR,
+            categorie VARCHAR,
+            subcategorie VARCHAR,
+            afzender VARCHAR,
+            granulariteit VARCHAR NOT NULL DEFAULT 'maand',
+            periode_modus VARCHAR NOT NULL DEFAULT 'relatief',
+            periode_aantal INTEGER,
+            periode_eenheid VARCHAR,
+            periode_vanaf DATE,
+            periode_tot DATE,
+            weergave VARCHAR NOT NULL DEFAULT 'totaal',
+            volgorde INTEGER NOT NULL,
             aangemaakt_op TIMESTAMP NOT NULL
         )
     """)

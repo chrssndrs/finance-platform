@@ -1,4 +1,4 @@
-import type { Granulariteit } from "@/lib/api";
+import type { Granulariteit, WidgetInvoer, WidgetPeriodeModus } from "@/lib/api";
 
 const dagFormat = new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "short" });
 const maandFormat = new Intl.DateTimeFormat("nl-NL", { month: "short", year: "numeric" });
@@ -138,4 +138,48 @@ export function berekenPeriodeBereik(periodeStart: string, granulariteit: Granul
   }
   eind.setDate(eind.getDate() - 1);
   return { vanaf: periodeStart, tot: naarIsoDatum(eind) };
+}
+
+// --- Widgets (overzichtspagina) slaan hun periode als losse velden op
+// (voor DB-opslag) i.p.v. als de PeriodeSelectie-union — deze twee helpers
+// converteren ertussen, zodat FilterBalk/resolveerPeriodeSelectie gewoon
+// hergebruikt kunnen worden voor de widget-configuratie/weergave. ---
+
+type WidgetPeriodeVelden = Pick<
+  WidgetInvoer,
+  "periode_modus" | "periode_aantal" | "periode_eenheid" | "periode_vanaf" | "periode_tot"
+>;
+
+export function widgetPeriodeNaarSelectie(widget: WidgetPeriodeVelden): PeriodeSelectie {
+  if (widget.periode_modus === "alles") return { modus: "alles" };
+  if (widget.periode_modus === "aangepast" && widget.periode_vanaf && widget.periode_tot) {
+    return { modus: "aangepast", vanaf: widget.periode_vanaf, tot: widget.periode_tot };
+  }
+  if (widget.periode_modus === "relatief" && widget.periode_aantal && widget.periode_eenheid) {
+    return { modus: "relatief", aantal: widget.periode_aantal, eenheid: widget.periode_eenheid };
+  }
+  return STANDAARD_PERIODE_SELECTIE;
+}
+
+export function selectieNaarWidgetPeriode(selectie: PeriodeSelectie): {
+  periode_modus: WidgetPeriodeModus;
+  periode_aantal: number | null;
+  periode_eenheid: Granulariteit | null;
+  periode_vanaf: string | null;
+  periode_tot: string | null;
+} {
+  switch (selectie.modus) {
+    case "alles":
+      return { periode_modus: "alles", periode_aantal: null, periode_eenheid: null, periode_vanaf: null, periode_tot: null };
+    case "relatief":
+      return {
+        periode_modus: "relatief", periode_aantal: selectie.aantal, periode_eenheid: selectie.eenheid,
+        periode_vanaf: null, periode_tot: null,
+      };
+    case "aangepast":
+      return {
+        periode_modus: "aangepast", periode_aantal: null, periode_eenheid: null,
+        periode_vanaf: selectie.vanaf, periode_tot: selectie.tot,
+      };
+  }
 }
