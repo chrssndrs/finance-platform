@@ -22,6 +22,7 @@ export function InboedelFormulier({ merken, winkels, onToegevoegd }: InboedelFor
   const [bedrag, setBedrag] = useState("");
   const [datum, setDatum] = useState("");
   const [levensduur, setLevensduur] = useState("60");
+  const [serienummer, setSerienummer] = useState("");
   const [bezig, setBezig] = useState(false);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
 
@@ -33,6 +34,7 @@ export function InboedelFormulier({ merken, winkels, onToegevoegd }: InboedelFor
     setBedrag("");
     setDatum("");
     setLevensduur("60");
+    setSerienummer("");
   }
 
   async function versturen(e: React.FormEvent) {
@@ -52,6 +54,7 @@ export function InboedelFormulier({ merken, winkels, onToegevoegd }: InboedelFor
         bedrag: bedrag.trim() ? Number(bedrag.replace(",", ".")) : null,
         datum: datum || null,
         levensduur_maanden: levensduur.trim() ? Number(levensduur) : null,
+        serienummer: serienummer.trim() || null,
       });
       onToegevoegd(artikel);
       reset();
@@ -118,6 +121,16 @@ export function InboedelFormulier({ merken, winkels, onToegevoegd }: InboedelFor
           min={1}
           value={levensduur}
           onChange={(e) => setLevensduur(e.target.value)}
+          className={inputKlasse}
+        />
+      </label>
+
+      <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
+        Serienummer
+        <input
+          type="text"
+          value={serienummer}
+          onChange={(e) => setSerienummer(e.target.value)}
           className={inputKlasse}
         />
       </label>

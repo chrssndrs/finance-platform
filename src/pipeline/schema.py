@@ -49,6 +49,9 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
             aangemaakt_op TIMESTAMP
         )
     """)
+    # ALTER ... IF NOT EXISTS omdat de tabel hierboven al bestond vóór dit veld
+    # werd toegevoegd — CREATE TABLE IF NOT EXISTS raakt een bestaande tabel niet aan.
+    con.execute("ALTER TABLE inboedel.artikelen ADD COLUMN IF NOT EXISTS serienummer VARCHAR")
 
 
 def log_run(

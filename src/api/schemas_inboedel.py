@@ -11,6 +11,7 @@ class InboedelArtikelInvoer(BaseModel):
     bedrag: float | None = None
     datum: date | None = None
     levensduur_maanden: int | None = None
+    serienummer: str | None = None
 
 
 class InboedelArtikel(BaseModel):
@@ -22,6 +23,7 @@ class InboedelArtikel(BaseModel):
     bedrag: float | None
     datum: date | None
     levensduur_maanden: int | None
+    serienummer: str | None
     leeftijd_maanden: float | None
     percentage_leven: float | None
     restwaarde: float | None

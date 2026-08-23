@@ -72,6 +72,7 @@ export interface InboedelArtikel {
   bedrag: number | null;
   datum: string | null;
   levensduur_maanden: number | null;
+  serienummer: string | null;
   leeftijd_maanden: number | null;
   percentage_leven: number | null;
   restwaarde: number | null;
@@ -96,6 +97,7 @@ export interface InboedelArtikelInvoer {
   bedrag: number | null;
   datum: string | null;
   levensduur_maanden: number | null;
+  serienummer: string | null;
 }
 
 export class ApiError extends Error {}
@@ -113,13 +115,21 @@ async function fetchJson<T>(pad: string): Promise<T> {
   return afhandelenResponse<T>(response);
 }
 
-async function postJson<T>(pad: string, body: unknown): Promise<T> {
+async function zendJson<T>(pad: string, methode: "POST" | "PUT", body: unknown): Promise<T> {
   const response = await fetch(`${API_BASE}${pad}`, {
-    method: "POST",
+    method: methode,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   return afhandelenResponse<T>(response);
+}
+
+async function verwijder(pad: string): Promise<void> {
+  const response = await fetch(`${API_BASE}${pad}`, { method: "DELETE" });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new ApiError(body?.detail ?? `API-fout (${response.status})`);
+  }
 }
 
 export function getCategorieen(): Promise<CategorieenResponse> {
@@ -187,5 +197,13 @@ export function getInboedelOpties(): Promise<InboedelOptiesResponse> {
 }
 
 export function postInboedelArtikel(artikel: InboedelArtikelInvoer): Promise<InboedelArtikel> {
-  return postJson<InboedelArtikel>("/api/inboedel/artikelen", artikel);
+  return zendJson<InboedelArtikel>("/api/inboedel/artikelen", "POST", artikel);
+}
+
+export function putInboedelArtikel(id: number, artikel: InboedelArtikelInvoer): Promise<InboedelArtikel> {
+  return zendJson<InboedelArtikel>(`/api/inboedel/artikelen/${id}`, "PUT", artikel);
+}
+
+export function deleteInboedelArtikel(id: number): Promise<void> {
+  return verwijder(`/api/inboedel/artikelen/${id}`);
 }

@@ -12,6 +12,31 @@ import {
 } from "@/lib/api";
 
 const BINNEN_MAANDEN_DREMPEL = 6;
+const bedragFormat = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
+
+interface SectieProps {
+  titel: string;
+  aantal: number;
+  kleur?: string;
+  children: React.ReactNode;
+}
+
+function Sectie({ titel, aantal, kleur, children }: SectieProps) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`mb-2 flex items-center gap-1.5 text-sm font-semibold ${kleur ?? "text-neutral-900 dark:text-neutral-100"}`}
+      >
+        <span className="text-xs">{open ? "▼" : "▶"}</span>
+        {titel} ({aantal})
+      </button>
+      {open && children}
+    </div>
+  );
+}
 
 export default function InboedelPagina() {
   const [artikelen, setArtikelen] = useState<InboedelArtikel[]>([]);
@@ -43,10 +68,25 @@ export default function InboedelPagina() {
     setToonFormulier(false);
   }
 
+  function artikelBijgewerkt(bijgewerkt: InboedelArtikel) {
+    setArtikelen((huidig) => huidig.map((a) => (a.id === bijgewerkt.id ? bijgewerkt : a)));
+    if (bijgewerkt.merk && !merken.includes(bijgewerkt.merk)) {
+      setMerken((huidig) => [...huidig, bijgewerkt.merk as string].sort());
+    }
+    if (bijgewerkt.winkel && !winkels.includes(bijgewerkt.winkel)) {
+      setWinkels((huidig) => [...huidig, bijgewerkt.winkel as string].sort());
+    }
+  }
+
+  function artikelVerwijderd(id: number) {
+    setArtikelen((huidig) => huidig.filter((a) => a.id !== id));
+  }
+
   const afgeschreven = artikelen.filter((a) => a.is_afgeschreven);
   const binnenkortAfgeschreven = artikelen.filter(
     (a) => !a.is_afgeschreven && a.maanden_tot_afschrijving !== null && a.maanden_tot_afschrijving <= BINNEN_MAANDEN_DREMPEL
   );
+  const totaalRestwaarde = artikelen.reduce((som, a) => som + (a.restwaarde ?? 0), 0);
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-10">
@@ -72,33 +112,55 @@ export default function InboedelPagina() {
         </p>
       )}
 
+      {!laden && !foutmelding && (
+        <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+          <div className="text-sm text-neutral-500 dark:text-neutral-400">Totale restwaarde</div>
+          <div className="text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-100">
+            {bedragFormat.format(totaalRestwaarde)}
+          </div>
+        </div>
+      )}
+
       {toonFormulier && <InboedelFormulier merken={merken} winkels={winkels} onToegevoegd={artikelToegevoegd} />}
 
       <div className={laden ? "flex flex-col gap-6 opacity-50 transition-opacity" : "flex flex-col gap-6 transition-opacity"}>
         {binnenkortAfgeschreven.length > 0 && (
-          <div>
-            <h2 className="mb-2 text-sm font-semibold text-amber-700 dark:text-amber-400">
-              Binnen {BINNEN_MAANDEN_DREMPEL} maanden afgeschreven ({binnenkortAfgeschreven.length})
-            </h2>
-            <InboedelTabel artikelen={binnenkortAfgeschreven} />
-          </div>
+          <Sectie
+            titel={`Binnen ${BINNEN_MAANDEN_DREMPEL} maanden afgeschreven`}
+            aantal={binnenkortAfgeschreven.length}
+            kleur="text-amber-700 dark:text-amber-400"
+          >
+            <InboedelTabel
+              artikelen={binnenkortAfgeschreven}
+              merken={merken}
+              winkels={winkels}
+              onBijgewerkt={artikelBijgewerkt}
+              onVerwijderd={artikelVerwijderd}
+            />
+          </Sectie>
         )}
 
         {afgeschreven.length > 0 && (
-          <div>
-            <h2 className="mb-2 text-sm font-semibold text-neutral-500 dark:text-neutral-400">
-              Afgeschreven ({afgeschreven.length})
-            </h2>
-            <InboedelTabel artikelen={afgeschreven} />
-          </div>
+          <Sectie titel="Afgeschreven" aantal={afgeschreven.length} kleur="text-neutral-500 dark:text-neutral-400">
+            <InboedelTabel
+              artikelen={afgeschreven}
+              merken={merken}
+              winkels={winkels}
+              onBijgewerkt={artikelBijgewerkt}
+              onVerwijderd={artikelVerwijderd}
+            />
+          </Sectie>
         )}
 
-        <div>
-          <h2 className="mb-2 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-            Alle artikelen ({artikelen.length})
-          </h2>
-          <InboedelTabel artikelen={artikelen} />
-        </div>
+        <Sectie titel="Alle artikelen" aantal={artikelen.length}>
+          <InboedelTabel
+            artikelen={artikelen}
+            merken={merken}
+            winkels={winkels}
+            onBijgewerkt={artikelBijgewerkt}
+            onVerwijderd={artikelVerwijderd}
+          />
+        </Sectie>
       </div>
     </main>
   );

@@ -7,8 +7,7 @@ bevat, tenzij forceer=True.
 De bron-CSV bevat ook een aantal afgeleide/berekende kolommen (Leeftijd,
 Prio, Afschrijving, Afgeschreven, %Leven, Restwaarde) die hier bewust NIET
 worden overgenomen — dat zijn momentopnames die stilaan verouderen; de API
-berekent ze live uit datum + bedrag + levensduur. Serienummer wordt ook niet
-overgenomen (buiten de afgesproken velden, en vrijwel altijd leeg).
+berekent ze live uit datum + bedrag + levensduur.
 
 Verwacht formaat: zie config/inboedel_import.example.csv (dummy-data, veilig
 voor git — je eigen inboedel-CSV hoort thuis in data/inboedel/, dat staat in
@@ -101,13 +100,14 @@ def run_import(con: duckdb.DuckDBPyConnection, csv_pad: Path, forceer: bool = Fa
                 _parse_bedrag(row.get("Bedrag", "")),
                 _parse_datum(row.get("Datum", "")),
                 _parse_int(row.get("Levensduur", "")),
+                _parse_tekst(row.get("Serienummer", "")),
                 datetime.now(),
             ))
 
     con.executemany(
         """INSERT INTO inboedel.artikelen
-           (omschrijving, merk, model, winkel, bedrag, datum, levensduur_maanden, aangemaakt_op)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+           (omschrijving, merk, model, winkel, bedrag, datum, levensduur_maanden, serienummer, aangemaakt_op)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         rijen,
     )
     logger.info("inboedel: %d artikelen geïmporteerd uit %s (%d overgeslagen)", len(rijen), csv_pad, aantal_overgeslagen)

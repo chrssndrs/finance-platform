@@ -1,12 +1,14 @@
 from datetime import date
 
 import duckdb
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Response
 
 from src.api.deps import get_db, get_write_db
 from src.api.queries_inboedel import (
     DAGEN_PER_MAAND,
+    SQL_ARTIKEL_BIJWERKEN,
     SQL_ARTIKEL_INVOEGEN,
+    SQL_ARTIKEL_VERWIJDEREN,
     SQL_ARTIKELEN,
     SQL_MERKEN,
     SQL_WINKELS,
@@ -30,6 +32,7 @@ def _naar_artikel(
     bedrag: float | None,
     datum: date | None,
     levensduur_maanden: int | None,
+    serienummer: str | None,
     vandaag: date,
 ) -> InboedelArtikel:
     leeftijd_maanden = None
@@ -57,6 +60,7 @@ def _naar_artikel(
         bedrag=bedrag,
         datum=datum,
         levensduur_maanden=levensduur_maanden,
+        serienummer=serienummer,
         leeftijd_maanden=leeftijd_maanden,
         percentage_leven=percentage_leven,
         restwaarde=restwaarde,
@@ -96,6 +100,7 @@ def post_artikel(
             "bedrag": artikel.bedrag,
             "datum": artikel.datum,
             "levensduur_maanden": artikel.levensduur_maanden,
+            "serienummer": artikel.serienummer,
         },
     ).fetchone()[0]
 
@@ -108,5 +113,54 @@ def post_artikel(
         artikel.bedrag,
         artikel.datum,
         artikel.levensduur_maanden,
+        artikel.serienummer,
         vandaag=date.today(),
     )
+
+
+@router.put("/artikelen/{artikel_id}", response_model=InboedelArtikel)
+def put_artikel(
+    artikel_id: int,
+    artikel: InboedelArtikelInvoer,
+    con: duckdb.DuckDBPyConnection = Depends(get_write_db),
+) -> InboedelArtikel:
+    resultaat = con.execute(
+        SQL_ARTIKEL_BIJWERKEN,
+        {
+            "id": artikel_id,
+            "omschrijving": artikel.omschrijving,
+            "merk": artikel.merk,
+            "model": artikel.model,
+            "winkel": artikel.winkel,
+            "bedrag": artikel.bedrag,
+            "datum": artikel.datum,
+            "levensduur_maanden": artikel.levensduur_maanden,
+            "serienummer": artikel.serienummer,
+        },
+    ).fetchone()
+    if resultaat is None:
+        raise HTTPException(status_code=404, detail="Artikel niet gevonden.")
+
+    return _naar_artikel(
+        artikel_id,
+        artikel.omschrijving,
+        artikel.merk,
+        artikel.model,
+        artikel.winkel,
+        artikel.bedrag,
+        artikel.datum,
+        artikel.levensduur_maanden,
+        artikel.serienummer,
+        vandaag=date.today(),
+    )
+
+
+@router.delete("/artikelen/{artikel_id}", status_code=204)
+def delete_artikel(
+    artikel_id: int,
+    con: duckdb.DuckDBPyConnection = Depends(get_write_db),
+) -> Response:
+    resultaat = con.execute(SQL_ARTIKEL_VERWIJDEREN, {"id": artikel_id}).fetchone()
+    if resultaat is None:
+        raise HTTPException(status_code=404, detail="Artikel niet gevonden.")
+    return Response(status_code=204)
