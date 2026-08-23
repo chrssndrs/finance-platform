@@ -21,6 +21,21 @@ SQL_STATUS = """
         (SELECT MAX(datum) FROM gold.transacties) AS laatste_transactie
 """
 
+SQL_DATUM_BEREIK = """
+    SELECT MIN(datum), MAX(datum) FROM gold.transacties
+"""
+
+SQL_TRANSACTIES = """
+    SELECT transactie_id, datum, afzender, bedrag_eur::DOUBLE, mededelingen
+    FROM gold.transacties
+    WHERE ($categorie::VARCHAR IS NULL OR categorie = $categorie)
+      AND ($subcategorie::VARCHAR IS NULL OR subcategorie = $subcategorie)
+      AND ($afzender::VARCHAR IS NULL OR afzender = $afzender)
+      AND ($vanaf::DATE IS NULL OR datum >= $vanaf)
+      AND ($tot::DATE IS NULL OR datum <= $tot)
+    ORDER BY datum DESC
+"""
+
 # Vertaalt de gebruiksvriendelijke granulariteit-waarden naar DuckDB's date_trunc-eenheden.
 GRANULARITEIT_NAAR_DUCKDB_EENHEID = {
     "dag": "day",
@@ -86,3 +101,18 @@ def _volgende_periode(start: date, granulariteit: str, n: int) -> date:
 def periode_starts(granulariteit: str, aantal: int, vandaag: date | None = None) -> list[date]:
     huidige_periode = _periode_start(vandaag or date.today(), granulariteit)
     return [_volgende_periode(huidige_periode, granulariteit, -i) for i in range(aantal - 1, -1, -1)]
+
+
+def periode_starts_tussen(granulariteit: str, vanaf: date, tot: date) -> list[date]:
+    """Alle periode-starts (getrunceerd op granulariteit) tussen vanaf en tot, inclusief beide."""
+    start = _periode_start(vanaf, granulariteit)
+    eind = _periode_start(tot, granulariteit)
+    resultaat = []
+    n = 0
+    while True:
+        p = _volgende_periode(start, granulariteit, n)
+        if p > eind:
+            break
+        resultaat.append(p)
+        n += 1
+    return resultaat

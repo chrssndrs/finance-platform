@@ -16,7 +16,14 @@ const KOLOMMEN: { key: SortKey; label: string }[] = [
   { key: "totaal", label: "Totaal" },
 ];
 
-export function TotalenTabel({ reeks, granulariteit }: { reeks: PeriodeTotaal[]; granulariteit: Granulariteit }) {
+interface TotalenTabelProps {
+  reeks: PeriodeTotaal[];
+  granulariteit: Granulariteit;
+  geselecteerdePeriode?: string | null;
+  onPeriodeKlik?: (periodeStart: string) => void;
+}
+
+export function TotalenTabel({ reeks, granulariteit, geselecteerdePeriode, onPeriodeKlik }: TotalenTabelProps) {
   const [sortKey, setSortKey] = useState<SortKey>("periode_start");
   const [aflopend, setAflopend] = useState(true);
 
@@ -60,7 +67,15 @@ export function TotalenTabel({ reeks, granulariteit }: { reeks: PeriodeTotaal[];
       </thead>
       <tbody>
         {gesorteerd.map((r) => (
-          <tr key={r.periode_start} className="border-b border-neutral-200 dark:border-neutral-800">
+          <tr
+            key={r.periode_start}
+            onClick={() => onPeriodeKlik?.(r.periode_start)}
+            className={
+              "border-b border-neutral-200 dark:border-neutral-800" +
+              (onPeriodeKlik ? " cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-900" : "") +
+              (geselecteerdePeriode === r.periode_start ? " bg-neutral-100 dark:bg-neutral-800" : "")
+            }
+          >
             <td className="py-2">{formatteerPeriode(r.periode_start, granulariteit)}</td>
             <td className="py-2 tabular-nums">{bedragFormat.format(r.inkomsten)}</td>
             <td className="py-2 tabular-nums">{bedragFormat.format(r.uitgaven)}</td>

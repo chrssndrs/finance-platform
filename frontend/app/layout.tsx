@@ -1,7 +1,20 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import { NavBalk } from "@/app/components/NavBalk";
 import "./globals.css";
+
+// Zet de .dark class vóór hydratie, anders flitst de pagina eerst in het
+// verkeerde thema (lichte flash bij een donker-thema-voorkeur, of andersom).
+const THEMA_INIT_SCRIPT = `
+(function () {
+  try {
+    var thema = localStorage.getItem("thema");
+    var donker = thema === "donker" || (thema !== "licht" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.classList.toggle("dark", donker);
+  } catch (e) {}
+})();
+`;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,7 +36,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="nl"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        <Script id="thema-init" strategy="beforeInteractive">
+          {THEMA_INIT_SCRIPT}
+        </Script>
+      </head>
       <body className="min-h-full flex flex-col">
         <NavBalk />
         {children}

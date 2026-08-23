@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Laat de dark: variant reageren op een .dark class (gezet door ThemeToggle),
+   i.p.v. alleen op prefers-color-scheme — zo kan de gebruiker het overstemmen. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -24,20 +28,18 @@
   --chart-surface: #fcfcfb;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --chart-series-1: #3987e5;
-    --chart-series-2: #d95926;
-    --chart-series-3: #199e70;
-    --chart-text-primary: #ffffff;
-    --chart-text-secondary: #c3c2b7;
-    --chart-text-muted: #898781;
-    --chart-gridline: #2c2c2a;
-    --chart-baseline: #383835;
-    --chart-surface: #1a1a19;
-  }
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --chart-series-1: #3987e5;
+  --chart-series-2: #d95926;
+  --chart-series-3: #199e70;
+  --chart-text-primary: #ffffff;
+  --chart-text-secondary: #c3c2b7;
+  --chart-text-muted: #898781;
+  --chart-gridline: #2c2c2a;
+  --chart-baseline: #383835;
+  --chart-surface: #1a1a19;
 }
 
 body {

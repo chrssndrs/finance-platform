@@ -1,3 +1,4 @@
+from datetime import date
 from itertools import groupby
 
 import duckdb
@@ -8,9 +9,11 @@ from src.api.queries import (
     GRANULARITEIT_NAAR_DUCKDB_EENHEID,
     SQL_AFZENDERS,
     SQL_CATEGORIEEN,
+    SQL_DATUM_BEREIK,
     SQL_STATUS,
     SQL_TOTALEN,
-    periode_starts,
+    SQL_TRANSACTIES,
+    periode_starts_tussen,
 )
 from src.api.schemas import (
     AfzendersResponse,
@@ -18,6 +21,8 @@ from src.api.schemas import (
     CategorieGroep,
     PeriodeTotaal,
     StatusResponse,
+    Transactie,
+    TransactiesResponse,
     TotalenResponse,
 )
 
@@ -56,7 +61,8 @@ def get_totalen(
     subcategorie: str | None = None,
     afzender: str | None = None,
     granulariteit: str = Query(default="maand"),
-    aantal: int = Query(default=6, ge=1, le=100),
+    vanaf: date | None = None,
+    tot: date | None = None,
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ) -> TotalenResponse:
     if subcategorie is not None and categorie is None:
@@ -69,8 +75,27 @@ def get_totalen(
             status_code=400,
             detail="granulariteit moet dag, week, maand of jaar zijn.",
         )
+    if vanaf is not None and tot is not None and vanaf > tot:
+        raise HTTPException(status_code=400, detail="vanaf moet voor of gelijk aan tot liggen.")
 
-    starts = periode_starts(granulariteit, aantal)
+    if vanaf is None or tot is None:
+        min_datum, max_datum = con.execute(SQL_DATUM_BEREIK).fetchone()
+        if min_datum is None:
+            return TotalenResponse(
+                categorie=categorie,
+                subcategorie=subcategorie,
+                afzender=afzender,
+                granulariteit=granulariteit,
+                vanaf=vanaf,
+                tot=tot,
+                reeks=[],
+            )
+        vanaf_effectief = vanaf or min_datum
+        tot_effectief = tot or max_datum
+    else:
+        vanaf_effectief, tot_effectief = vanaf, tot
+
+    starts = periode_starts_tussen(granulariteit, vanaf_effectief, tot_effectief)
     rijen = con.execute(
         SQL_TOTALEN,
         {
@@ -87,9 +112,52 @@ def get_totalen(
         subcategorie=subcategorie,
         afzender=afzender,
         granulariteit=granulariteit,
-        aantal=aantal,
+        vanaf=vanaf,
+        tot=tot,
         reeks=[
             PeriodeTotaal(periode_start=periode_start, inkomsten=inkomsten, uitgaven=uitgaven, totaal=totaal)
             for periode_start, inkomsten, uitgaven, totaal in rijen
         ],
+    )
+
+
+@router.get("/transacties", response_model=TransactiesResponse)
+def get_transacties(
+    categorie: str | None = None,
+    subcategorie: str | None = None,
+    afzender: str | None = None,
+    vanaf: date | None = None,
+    tot: date | None = None,
+    con: duckdb.DuckDBPyConnection = Depends(get_db),
+) -> TransactiesResponse:
+    if subcategorie is not None and categorie is None:
+        raise HTTPException(
+            status_code=400,
+            detail="subcategorie vereist dat categorie ook is opgegeven.",
+        )
+    if vanaf is not None and tot is not None and vanaf > tot:
+        raise HTTPException(status_code=400, detail="vanaf moet voor of gelijk aan tot liggen.")
+
+    rijen = con.execute(
+        SQL_TRANSACTIES,
+        {
+            "categorie": categorie,
+            "subcategorie": subcategorie,
+            "afzender": afzender,
+            "vanaf": vanaf,
+            "tot": tot,
+        },
+    ).fetchall()
+
+    return TransactiesResponse(
+        transacties=[
+            Transactie(
+                transactie_id=transactie_id,
+                datum=datum,
+                afzender=afzender_naam,
+                bedrag_eur=bedrag_eur,
+                mededelingen=mededelingen,
+            )
+            for transactie_id, datum, afzender_naam, bedrag_eur, mededelingen in rijen
+        ]
     )

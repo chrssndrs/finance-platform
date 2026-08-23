@@ -32,8 +32,21 @@ export interface TotalenResponse {
   subcategorie: string | null;
   afzender: string | null;
   granulariteit: Granulariteit;
-  aantal: number;
+  vanaf: string | null;
+  tot: string | null;
   reeks: PeriodeTotaal[];
+}
+
+export interface Transactie {
+  transactie_id: string;
+  datum: string;
+  afzender: string;
+  bedrag_eur: number;
+  mededelingen: string | null;
+}
+
+export interface TransactiesResponse {
+  transacties: Transactie[];
 }
 
 export class ApiError extends Error {}
@@ -70,13 +83,31 @@ export function getTotalen(params: {
   subcategorie: string | null;
   afzender: string | null;
   granulariteit: Granulariteit;
-  aantal: number;
+  vanaf: string | null;
+  tot: string | null;
 }): Promise<TotalenResponse> {
   const zoekParams = new URLSearchParams();
   if (params.categorie) zoekParams.set("categorie", params.categorie);
   if (params.subcategorie) zoekParams.set("subcategorie", params.subcategorie);
   if (params.afzender) zoekParams.set("afzender", params.afzender);
   zoekParams.set("granulariteit", params.granulariteit);
-  zoekParams.set("aantal", String(params.aantal));
+  if (params.vanaf) zoekParams.set("vanaf", params.vanaf);
+  if (params.tot) zoekParams.set("tot", params.tot);
   return fetchJson<TotalenResponse>(`/api/rapportage/totalen?${zoekParams}`);
+}
+
+export function getTransacties(params: {
+  categorie: string | null;
+  subcategorie: string | null;
+  afzender: string | null;
+  vanaf: string;
+  tot: string;
+}): Promise<TransactiesResponse> {
+  const zoekParams = new URLSearchParams();
+  if (params.categorie) zoekParams.set("categorie", params.categorie);
+  if (params.subcategorie) zoekParams.set("subcategorie", params.subcategorie);
+  if (params.afzender) zoekParams.set("afzender", params.afzender);
+  zoekParams.set("vanaf", params.vanaf);
+  zoekParams.set("tot", params.tot);
+  return fetchJson<TransactiesResponse>(`/api/rapportage/transacties?${zoekParams}`);
 }

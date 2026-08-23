@@ -33,5 +33,18 @@ class TotalenResponse(BaseModel):
     subcategorie: str | None
     afzender: str | None
     granulariteit: str
-    aantal: int
+    vanaf: date | None
+    tot: date | None
     reeks: list[PeriodeTotaal]
+
+
+class Transactie(BaseModel):
+    transactie_id: str
+    datum: date
+    afzender: str
+    bedrag_eur: float
+    mededelingen: str | None
+
+
+class TransactiesResponse(BaseModel):
+    transacties: list[Transactie]

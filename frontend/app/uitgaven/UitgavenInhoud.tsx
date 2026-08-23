@@ -6,18 +6,27 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FilterBalk } from "@/app/components/FilterBalk";
 import { TotalenChart } from "@/app/components/TotalenChart";
 import { TotalenTabel } from "@/app/components/TotalenTabel";
+import { TransactieTabel } from "@/app/components/TransactieTabel";
 import {
   ApiError,
   getAfzenders,
   getCategorieen,
   getStatus,
   getTotalen,
+  getTransacties,
   type CategorieGroep,
   type Granulariteit,
   type PeriodeTotaal,
   type StatusResponse,
+  type Transactie,
 } from "@/lib/api";
-import { PERIODE_PRESETS } from "@/lib/periode";
+import {
+  berekenPeriodeBereik,
+  formatteerPeriode,
+  resolveerPeriodeSelectie,
+  STANDAARD_PERIODE_SELECTIE,
+  type PeriodeSelectie,
+} from "@/lib/periode";
 
 const datumTijdFormat = new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short" });
 const datumFormat = new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium" });
@@ -28,7 +37,25 @@ function isGranulariteit(waarde: string | null): waarde is Granulariteit {
   return waarde !== null && (GRANULARITEITEN as string[]).includes(waarde);
 }
 
-export function TransactiesInhoud() {
+function leesPeriodeSelectieUitQuery(searchParams: URLSearchParams): PeriodeSelectie {
+  const modus = searchParams.get("periode");
+  if (modus === "alles") return { modus: "alles" };
+  if (modus === "aangepast") {
+    const vanaf = searchParams.get("vanaf");
+    const tot = searchParams.get("tot");
+    if (vanaf && tot) return { modus: "aangepast", vanaf, tot };
+  }
+  if (modus === "relatief") {
+    const aantal = Number(searchParams.get("periode_aantal"));
+    const eenheid = searchParams.get("periode_eenheid");
+    if (Number.isInteger(aantal) && aantal > 0 && isGranulariteit(eenheid)) {
+      return { modus: "relatief", aantal, eenheid };
+    }
+  }
+  return STANDAARD_PERIODE_SELECTIE;
+}
+
+export function UitgavenInhoud() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -42,14 +69,15 @@ export function TransactiesInhoud() {
   const [granulariteit, setGranulariteit] = useState<Granulariteit>(
     isGranulariteit(searchParams.get("granulariteit")) ? (searchParams.get("granulariteit") as Granulariteit) : "maand"
   );
-  const [aantal, setAantal] = useState(() => {
-    const uitQuery = Number(searchParams.get("aantal"));
-    return Number.isInteger(uitQuery) && uitQuery > 0 ? uitQuery : 6;
-  });
+  const [periodeSelectie, setPeriodeSelectie] = useState<PeriodeSelectie>(() => leesPeriodeSelectieUitQuery(searchParams));
 
   const [reeks, setReeks] = useState<PeriodeTotaal[]>([]);
   const [laden, setLaden] = useState(true);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
+
+  const [geselecteerdePeriode, setGeselecteerdePeriode] = useState<string | null>(null);
+  const [transacties, setTransacties] = useState<Transactie[]>([]);
+  const [ladenTransacties, setLadenTransacties] = useState(false);
 
   useEffect(() => {
     getCategorieen()
@@ -69,12 +97,14 @@ export function TransactiesInhoud() {
       .catch(() => {});
   }, [categorie, subcategorie]);
 
+  const { vanaf, tot } = resolveerPeriodeSelectie(periodeSelectie);
+
   useEffect(() => {
-    getTotalen({ categorie, subcategorie, afzender, granulariteit, aantal })
+    getTotalen({ categorie, subcategorie, afzender, granulariteit, vanaf, tot })
       .then((res) => setReeks(res.reeks))
       .catch((err) => setFoutmelding(err instanceof ApiError ? err.message : "Kon totalen niet laden."))
       .finally(() => setLaden(false));
-  }, [categorie, subcategorie, afzender, granulariteit, aantal]);
+  }, [categorie, subcategorie, afzender, granulariteit, vanaf, tot]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -82,14 +112,36 @@ export function TransactiesInhoud() {
     if (subcategorie) params.set("subcategorie", subcategorie);
     if (afzender) params.set("afzender", afzender);
     params.set("granulariteit", granulariteit);
-    params.set("aantal", String(aantal));
-    router.replace(`/transacties?${params}`);
-  }, [categorie, subcategorie, afzender, granulariteit, aantal, router]);
+    params.set("periode", periodeSelectie.modus);
+    if (periodeSelectie.modus === "relatief") {
+      params.set("periode_aantal", String(periodeSelectie.aantal));
+      params.set("periode_eenheid", periodeSelectie.eenheid);
+    } else if (periodeSelectie.modus === "aangepast") {
+      params.set("vanaf", periodeSelectie.vanaf);
+      params.set("tot", periodeSelectie.tot);
+    }
+    router.replace(`/uitgaven?${params}`);
+  }, [categorie, subcategorie, afzender, granulariteit, periodeSelectie, router]);
 
   function wijzigFilter(bijwerken: () => void) {
     setLaden(true);
     setFoutmelding(null);
+    setGeselecteerdePeriode(null);
     bijwerken();
+  }
+
+  function klikPeriode(periodeStart: string) {
+    if (geselecteerdePeriode === periodeStart) {
+      setGeselecteerdePeriode(null);
+      return;
+    }
+    setGeselecteerdePeriode(periodeStart);
+    setLadenTransacties(true);
+    const bereik = berekenPeriodeBereik(periodeStart, granulariteit);
+    getTransacties({ categorie, subcategorie, afzender, vanaf: bereik.vanaf, tot: bereik.tot })
+      .then((res) => setTransacties(res.transacties))
+      .catch(() => setTransacties([]))
+      .finally(() => setLadenTransacties(false));
   }
 
   return (
@@ -114,7 +166,7 @@ export function TransactiesInhoud() {
         subcategorie={subcategorie}
         afzender={afzender}
         granulariteit={granulariteit}
-        aantal={aantal}
+        periodeSelectie={periodeSelectie}
         onCategorieChange={(c) =>
           wijzigFilter(() => {
             setCategorie(c);
@@ -123,13 +175,8 @@ export function TransactiesInhoud() {
         }
         onSubcategorieChange={(s) => wijzigFilter(() => setSubcategorie(s))}
         onAfzenderChange={(a) => wijzigFilter(() => setAfzender(a))}
-        onGranulariteitChange={(g) =>
-          wijzigFilter(() => {
-            setGranulariteit(g);
-            setAantal(PERIODE_PRESETS[g][0]);
-          })
-        }
-        onAantalChange={(n) => wijzigFilter(() => setAantal(n))}
+        onGranulariteitChange={(g) => wijzigFilter(() => setGranulariteit(g))}
+        onPeriodeSelectieChange={(p) => wijzigFilter(() => setPeriodeSelectie(p))}
       />
 
       {foutmelding && (
@@ -142,7 +189,21 @@ export function TransactiesInhoud() {
         <TotalenChart reeks={reeks} granulariteit={granulariteit} />
       </div>
 
-      <TotalenTabel reeks={reeks} granulariteit={granulariteit} />
+      <TotalenTabel
+        reeks={reeks}
+        granulariteit={granulariteit}
+        geselecteerdePeriode={geselecteerdePeriode}
+        onPeriodeKlik={klikPeriode}
+      />
+
+      {geselecteerdePeriode && (
+        <TransactieTabel
+          titel={`Transacties — ${formatteerPeriode(geselecteerdePeriode, granulariteit)}`}
+          transacties={transacties}
+          laden={ladenTransacties}
+          onSluiten={() => setGeselecteerdePeriode(null)}
+        />
+      )}
     </main>
   );
 }
