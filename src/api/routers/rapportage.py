@@ -174,14 +174,14 @@ def get_abonnementen(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> Abonne
 
     abonnementen = [
         Abonnement(
-            naam=afzender,
+            naam=naam,
             logo_url=f"/logos/{logo_bestand}" if logo_bestand else None,
             bedrag=bedrag,
             interval=interval,
             eerstvolgende_afschrijving=eerstvolgende_afschrijving,
             dagen_tot_afschrijving=(eerstvolgende_afschrijving - vandaag).days,
         )
-        for afzender, bedrag, interval, eerstvolgende_afschrijving, logo_bestand in rijen
+        for naam, bedrag, interval, eerstvolgende_afschrijving, logo_bestand in rijen
     ]
     totaal_per_maand = sum(a.bedrag * INTERVAL_NAAR_MAAND_FACTOR[a.interval] for a in abonnementen)
 

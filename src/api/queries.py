@@ -26,7 +26,7 @@ SQL_DATUM_BEREIK = """
 """
 
 SQL_ABONNEMENTEN = """
-    SELECT afzender, bedrag, interval, eerstvolgende_afschrijving, logo_bestand
+    SELECT naam, bedrag, interval, eerstvolgende_afschrijving, logo_bestand
     FROM gold.abonnementen
     ORDER BY eerstvolgende_afschrijving ASC
 """
@@ -36,6 +36,7 @@ SQL_ABONNEMENTEN = """
 INTERVAL_NAAR_MAAND_FACTOR = {
     "wekelijks": 52 / 12,
     "maandelijks": 1,
+    "tweemaandelijks": 1 / 2,
     "per_kwartaal": 1 / 3,
     "jaarlijks": 1 / 12,
 }

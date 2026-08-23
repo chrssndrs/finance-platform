@@ -9,6 +9,7 @@ const bedragFormat = new Intl.NumberFormat("nl-NL", { style: "currency", currenc
 const INTERVAL_LABEL: Record<string, string> = {
   wekelijks: "Wekelijks",
   maandelijks: "Maandelijks",
+  tweemaandelijks: "Tweemaandelijks",
   per_kwartaal: "Per kwartaal",
   jaarlijks: "Jaarlijks",
 };

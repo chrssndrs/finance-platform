@@ -1,0 +1,95 @@
+# Handmatige aanvullingen/overrides voor de abonnementen-detectie (zie
+# src/pipeline/abonnementen/detectie.py). De automatische detectie (vast
+# bedrag + regelmatig interval, een paar keer voorgekomen) mist twee dingen:
+# - Jaarlijkse abonnementen: met te weinig geschiedenis nog niet automatisch
+#   te herkennen (en zelfs met genoeg geschiedenis kan het jaren duren).
+# - Prijswijzigingen: de automatische detectie groepeert op exact bedrag, dus
+#   een prijsverhoging "reset" de teller tot er weer genoeg treffers op de
+#   nieuwe prijs zijn.
+#
+# Twee soorten regels, per afzender:
+#
+# 1) Naam-/logo-hint (geen `interval`): de automatische detectie vindt deze
+#    afzender al prima, dit voegt alleen een weergavenaam en/of logo toe.
+#      - afzender: "FBTO"
+#        domein: fbto.nl
+#
+# 2) Volledige override (`interval` opgegeven): omzeilt de automatische
+#    drempel/regelmaat-check helemaal — voor de twee gevallen hierboven.
+#    Gebruikt de meest recente matchende transactie, ongeacht bedrag, tenzij
+#    je zelf `bedrag` opgeeft (nodig bij een afzender met meerdere losse
+#    abonnementen/polissen, of om een incidentele correctieregel te negeren).
+#      - afzender: "Een Bedrijf B.V."
+#        naam: "Wat ik herken"      # optioneel
+#        interval: maandelijks      # wekelijks/maandelijks/tweemaandelijks/per_kwartaal/jaarlijks
+#        bedrag: 12.34              # optioneel
+#        domein: eenbedrijf.nl      # optioneel, voor het logo
+#
+# afzender is altijd een exacte match op de (al geconsolideerde) afzender-
+# kolom in gold.transacties.
+#
+# `genegeerd`: afzendernamen die de automatische detectie ten onrechte als
+# abonnement herkent — hier toevoegen om ze te onderdrukken.
+
+abonnementen:
+  # --- naam-/logo-hints: automatische detectie werkt al goed ---
+  - afzender: "FBTO"
+    domein: fbto.nl
+
+  - afzender: "ASR LEVENSVERZEKERING"
+    domein: asr.nl
+
+  - afzender: "STAATSLOTERIJ"
+    naam: "Staatsloterij"
+    domein: nederlandseloterij.nl
+
+  # --- volledige overrides: jaarlijks met te weinig historie, of prijzen die schuiven ---
+  - afzender: "iptiQ EMEA P.C S.A., Nederlandse vestiging"
+    naam: "Woonverzekering"
+    interval: maandelijks
+
+  - afzender: "Nationale-Nederlanden"
+    interval: maandelijks
+    domein: nn.nl
+
+  - afzender: "De Internationale Verz."
+    interval: maandelijks
+
+  - afzender: "Goudse Schadeverzekeringen NV"
+    interval: tweemaandelijks
+
+  - afzender: "VinkVink"
+    interval: maandelijks
+    bedrag: 288.68
+
+  - afzender: "Youfone Nederland B.V."
+    interval: maandelijks
+    domein: youfone.nl
+
+  - afzender: "ODIDO NETHERLANDS B.V."
+    interval: maandelijks
+    domein: odido.nl
+
+  - afzender: "Storytel NL"
+    naam: "Storytel"
+    interval: maandelijks
+    domein: storytel.com
+
+  - afzender: "Spotify"
+    interval: maandelijks
+    domein: spotify.com
+
+  - afzender: "STICHTING KINDERDAGVERBLIJF?BRABANT"
+    naam: "Kinderdagverblijf Brabant"
+    interval: maandelijks
+
+  - afzender: "Brabant Water"
+    interval: maandelijks
+    domein: brabantwater.nl
+
+  - afzender: "DELTA ENERGIE B.V."
+    naam: "Delta Energie"
+    interval: maandelijks
+    domein: deltaenergie.nl
+
+genegeerd: []
