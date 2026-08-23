@@ -63,15 +63,63 @@ export interface AbonnementenResponse {
   totaal_per_maand: number;
 }
 
+export interface InboedelArtikel {
+  id: number;
+  omschrijving: string;
+  merk: string | null;
+  model: string | null;
+  winkel: string | null;
+  bedrag: number | null;
+  datum: string | null;
+  levensduur_maanden: number | null;
+  leeftijd_maanden: number | null;
+  percentage_leven: number | null;
+  restwaarde: number | null;
+  is_afgeschreven: boolean;
+  maanden_tot_afschrijving: number | null;
+}
+
+export interface InboedelArtikelenResponse {
+  artikelen: InboedelArtikel[];
+}
+
+export interface InboedelOptiesResponse {
+  merken: string[];
+  winkels: string[];
+}
+
+export interface InboedelArtikelInvoer {
+  omschrijving: string;
+  merk: string | null;
+  model: string | null;
+  winkel: string | null;
+  bedrag: number | null;
+  datum: string | null;
+  levensduur_maanden: number | null;
+}
+
 export class ApiError extends Error {}
 
-async function fetchJson<T>(pad: string): Promise<T> {
-  const response = await fetch(`${API_BASE}${pad}`);
+async function afhandelenResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     throw new ApiError(body?.detail ?? `API-fout (${response.status})`);
   }
   return response.json() as Promise<T>;
+}
+
+async function fetchJson<T>(pad: string): Promise<T> {
+  const response = await fetch(`${API_BASE}${pad}`);
+  return afhandelenResponse<T>(response);
+}
+
+async function postJson<T>(pad: string, body: unknown): Promise<T> {
+  const response = await fetch(`${API_BASE}${pad}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return afhandelenResponse<T>(response);
 }
 
 export function getCategorieen(): Promise<CategorieenResponse> {
@@ -128,4 +176,16 @@ export function getTransacties(params: {
 
 export function getAbonnementen(): Promise<AbonnementenResponse> {
   return fetchJson<AbonnementenResponse>("/api/rapportage/abonnementen");
+}
+
+export function getInboedelArtikelen(): Promise<InboedelArtikelenResponse> {
+  return fetchJson<InboedelArtikelenResponse>("/api/inboedel/artikelen");
+}
+
+export function getInboedelOpties(): Promise<InboedelOptiesResponse> {
+  return fetchJson<InboedelOptiesResponse>("/api/inboedel/opties");
+}
+
+export function postInboedelArtikel(artikel: InboedelArtikelInvoer): Promise<InboedelArtikel> {
+  return postJson<InboedelArtikel>("/api/inboedel/artikelen", artikel);
 }

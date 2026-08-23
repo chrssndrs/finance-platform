@@ -10,9 +10,20 @@ interface ComboboxProps {
   waarde: string | null;
   onChange: (waarde: string | null) => void;
   placeholder?: string;
+  /** Sta toe dat een getypte waarde die niet in `opties` voorkomt alsnog
+   * gekozen wordt (bv. een nieuw merk) — i.p.v. alleen kunnen kiezen uit
+   * bestaande opties. */
+  vrijeInvoer?: boolean;
 }
 
-export function Combobox({ label, opties, waarde, onChange, placeholder = "Alle" }: ComboboxProps) {
+export function Combobox({
+  label,
+  opties,
+  waarde,
+  onChange,
+  placeholder = "Alle",
+  vrijeInvoer = false,
+}: ComboboxProps) {
   const [open, setOpen] = useState(false);
   const [zoektekst, setZoektekst] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -20,13 +31,16 @@ export function Combobox({ label, opties, waarde, onChange, placeholder = "Alle"
   useEffect(() => {
     function klikBuiten(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        if (vrijeInvoer && zoektekst.trim()) {
+          onChange(zoektekst.trim());
+        }
         setOpen(false);
         setZoektekst("");
       }
     }
     document.addEventListener("mousedown", klikBuiten);
     return () => document.removeEventListener("mousedown", klikBuiten);
-  }, []);
+  }, [vrijeInvoer, zoektekst, onChange]);
 
   const gefilterd = useMemo(() => {
     if (!zoektekst) return opties.slice(0, MAX_RESULTATEN);
@@ -37,6 +51,9 @@ export function Combobox({ label, opties, waarde, onChange, placeholder = "Alle"
   const totaalMatches = zoektekst
     ? opties.filter((o) => o.toLowerCase().includes(zoektekst.toLowerCase())).length
     : opties.length;
+
+  const exacteMatch = opties.some((o) => o.toLowerCase() === zoektekst.trim().toLowerCase());
+  const toonToevoegen = vrijeInvoer && zoektekst.trim() && !exacteMatch;
 
   function selecteer(o: string | null) {
     onChange(o);
@@ -63,8 +80,12 @@ export function Combobox({ label, opties, waarde, onChange, placeholder = "Alle"
               setOpen(false);
               setZoektekst("");
             }
-            if (e.key === "Enter" && gefilterd.length > 0) {
-              selecteer(gefilterd[0]);
+            if (e.key === "Enter") {
+              if (gefilterd.length > 0) {
+                selecteer(gefilterd[0]);
+              } else if (vrijeInvoer && zoektekst.trim()) {
+                selecteer(zoektekst.trim());
+              }
             }
           }}
         />
@@ -98,12 +119,21 @@ export function Combobox({ label, opties, waarde, onChange, placeholder = "Alle"
               {o}
             </button>
           ))}
+          {toonToevoegen && (
+            <button
+              type="button"
+              onClick={() => selecteer(zoektekst.trim())}
+              className="block w-full truncate border-t border-neutral-200 px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-100 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            >
+              + Nieuw: “{zoektekst.trim()}”
+            </button>
+          )}
           {totaalMatches > MAX_RESULTATEN && (
             <div className="px-3 py-2 text-xs text-neutral-400">
               {totaalMatches - MAX_RESULTATEN} meer — typ om te verfijnen
             </div>
           )}
-          {gefilterd.length === 0 && (
+          {gefilterd.length === 0 && !toonToevoegen && (
             <div className="px-3 py-2 text-sm text-neutral-400">Geen resultaten</div>
           )}
         </div>

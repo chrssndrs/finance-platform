@@ -3,7 +3,7 @@ import pandas as pd
 
 
 def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
-    for naam in ("meta", "landing", "bronze", "silver", "gold"):
+    for naam in ("meta", "landing", "bronze", "silver", "gold", "inboedel"):
         con.execute(f"CREATE SCHEMA IF NOT EXISTS {naam}")
 
     con.execute("CREATE SEQUENCE IF NOT EXISTS meta.bestanden_log_seq START 1")
@@ -28,6 +28,25 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
             afgerond_op TIMESTAMP,
             status VARCHAR,
             samenvatting VARCHAR
+        )
+    """)
+
+    # Geen bronze/silver/gold-medallion hier: inboedel komt niet uit een
+    # bankexport, maar wordt rechtstreeks door de gebruiker beheerd (CSV-
+    # eenmalige import + toevoegen via de frontend).
+    con.execute("CREATE SEQUENCE IF NOT EXISTS inboedel.artikelen_seq START 1")
+
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS inboedel.artikelen (
+            id INTEGER PRIMARY KEY DEFAULT nextval('inboedel.artikelen_seq'),
+            omschrijving VARCHAR NOT NULL,
+            merk VARCHAR,
+            model VARCHAR,
+            winkel VARCHAR,
+            bedrag DECIMAL(10,2),
+            datum DATE,
+            levensduur_maanden INTEGER,
+            aangemaakt_op TIMESTAMP
         )
     """)
 

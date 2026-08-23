@@ -8,6 +8,7 @@ __pycache__/
 db/
 data/landing/
 data/logos/
+data/inboedel/
 config/categorisatie_regels.yaml
 .env
 

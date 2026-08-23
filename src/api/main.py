@@ -1,13 +1,30 @@
 import os
+from contextlib import asynccontextmanager
 
+import duckdb
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from src.api.routers import rapportage
-from src.pipeline.paths import LOGOS_PAD
+from src.api.routers import inboedel, rapportage
+from src.pipeline import schema
+from src.pipeline.paths import DB_PAD, LOGOS_PAD
 
-app = FastAPI(title="Finance Platform API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # idempotent (CREATE ... IF NOT EXISTS) — nodig zodat de API ook op een
+    # verse install werkt vóórdat de pipeline ooit gedraaid heeft (bv.
+    # inboedel.artikelen moet bestaan voordat je er iets aan kunt toevoegen).
+    con = duckdb.connect(str(DB_PAD))
+    try:
+        schema.init_schemas(con)
+    finally:
+        con.close()
+    yield
+
+
+app = FastAPI(title="Finance Platform API", lifespan=lifespan)
 
 # gedownloade abonnement-logo's (zie src/pipeline/abonnementen/detectie.py) —
 # map moet bestaan vóórdat StaticFiles hem mount, ook bij een verse install
@@ -23,8 +40,9 @@ cors_origins = os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(","
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
 app.include_router(rapportage.router)
+app.include_router(inboedel.router)
