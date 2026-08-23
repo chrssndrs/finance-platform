@@ -208,6 +208,44 @@ export interface PositiesResponse {
   posities: Positie[];
 }
 
+export type HypotheekType = "annuiteit" | "lineair" | "aflossingsvrij";
+
+export interface LeningdeelInvoer {
+  naam: string;
+  type: HypotheekType;
+  hoofdsom: number;
+  rente_percentage: number;
+  startdatum: string;
+  looptijd_maanden: number;
+  rentevast_tot: string | null;
+}
+
+export interface Leningdeel {
+  id: number;
+  naam: string;
+  type: HypotheekType;
+  hoofdsom: number;
+  rente_percentage: number;
+  startdatum: string;
+  looptijd_maanden: number;
+  rentevast_tot: string | null;
+  actuele_schuld: number;
+}
+
+export interface LeningdelenResponse {
+  leningdelen: Leningdeel[];
+}
+
+export interface SchuldPunt {
+  datum: string;
+  schuld: number;
+}
+
+export interface SchuldResponse {
+  reeks: SchuldPunt[];
+  actuele_schuld_totaal: number;
+}
+
 export interface InboedelArtikel {
   id: number;
   omschrijving: string;
@@ -432,6 +470,26 @@ export function getPortfolio(code: string | null): Promise<PortfolioResponse> {
 
 export function getPosities(): Promise<PositiesResponse> {
   return fetchJson<PositiesResponse>("/api/beleggingen/posities");
+}
+
+export function getLeningdelen(): Promise<LeningdelenResponse> {
+  return fetchJson<LeningdelenResponse>("/api/hypotheek/leningdelen");
+}
+
+export function postLeningdeel(leningdeel: LeningdeelInvoer): Promise<Leningdeel> {
+  return zendJson<Leningdeel>("/api/hypotheek/leningdelen", "POST", leningdeel);
+}
+
+export function putLeningdeel(id: number, leningdeel: LeningdeelInvoer): Promise<Leningdeel> {
+  return zendJson<Leningdeel>(`/api/hypotheek/leningdelen/${id}`, "PUT", leningdeel);
+}
+
+export function deleteLeningdeel(id: number): Promise<void> {
+  return verwijder(`/api/hypotheek/leningdelen/${id}`);
+}
+
+export function getSchuldverloop(): Promise<SchuldResponse> {
+  return fetchJson<SchuldResponse>("/api/hypotheek/verloop");
 }
 
 export function getInboedelArtikelen(): Promise<InboedelArtikelenResponse> {

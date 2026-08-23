@@ -12,6 +12,7 @@ const DOMEINEN = [
   { pad: "/abonnementen", label: "Abonnementen" },
   { pad: "/beleggingen", label: "Beleggingen" },
   { pad: "/vastgoed", label: "Vastgoed" },
+  { pad: "/hypotheek", label: "Hypotheek" },
   { pad: "/instellingen", label: "Instellingen" },
 ];
 

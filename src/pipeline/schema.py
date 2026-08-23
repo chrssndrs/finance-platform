@@ -3,7 +3,7 @@ import pandas as pd
 
 
 def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
-    for naam in ("meta", "landing", "bronze", "silver", "gold", "inboedel", "abonnementen", "instellingen", "vastgoed", "beleggingen"):
+    for naam in ("meta", "landing", "bronze", "silver", "gold", "inboedel", "abonnementen", "instellingen", "vastgoed", "beleggingen", "hypotheek"):
         con.execute(f"CREATE SCHEMA IF NOT EXISTS {naam}")
 
     con.execute("CREATE SEQUENCE IF NOT EXISTS meta.bestanden_log_seq START 1")
@@ -178,6 +178,21 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
             datum DATE NOT NULL,
             koers DECIMAL(18,6) NOT NULL,
             PRIMARY KEY (valuta, datum)
+        )
+    """)
+
+    con.execute("CREATE SEQUENCE IF NOT EXISTS hypotheek.leningdelen_seq START 1")
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS hypotheek.leningdelen (
+            id INTEGER PRIMARY KEY DEFAULT nextval('hypotheek.leningdelen_seq'),
+            naam VARCHAR NOT NULL,
+            type VARCHAR NOT NULL,
+            hoofdsom DECIMAL(12,2) NOT NULL,
+            rente_percentage DECIMAL(6,4) NOT NULL,
+            startdatum DATE NOT NULL,
+            looptijd_maanden INTEGER NOT NULL,
+            rentevast_tot DATE,
+            aangemaakt_op TIMESTAMP NOT NULL
         )
     """)
 
