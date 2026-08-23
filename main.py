@@ -6,6 +6,7 @@ import pandas as pd
 
 from src.pipeline import schema
 from src.pipeline.abonnementen import detectie as abonnementen
+from src.pipeline.beleggingen import koersen
 from src.pipeline.paths import DB_PAD
 from src.pipeline.transacties import bronze, gold, silver
 
@@ -66,6 +67,17 @@ def main() -> int:
             schema.log_run(con, gestart_op, "gefaald", "abonnementen gefaald")
             return 1
         logger.info("Stap 'abonnementen' geslaagd: %s", resultaten["abonnementen"])
+
+        # Draait ook altijd: onafhankelijk van bronze-data, en fail-soft per
+        # code (een gehapert ticker mag de rest niet blokkeren).
+        logger.info("Start stap: koersen")
+        try:
+            resultaten["koersen"] = koersen.run_koersen(con)
+        except Exception:
+            logger.exception("Stap 'koersen' gefaald — pipeline gestopt (fail-fast)")
+            schema.log_run(con, gestart_op, "gefaald", "koersen gefaald")
+            return 1
+        logger.info("Stap 'koersen' geslaagd: %s", resultaten["koersen"])
 
         logger.info("Pipeline geslaagd. Samenvatting: %s", resultaten)
         schema.log_run(con, gestart_op, "geslaagd", str(resultaten))

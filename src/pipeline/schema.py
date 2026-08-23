@@ -3,7 +3,7 @@ import pandas as pd
 
 
 def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
-    for naam in ("meta", "landing", "bronze", "silver", "gold", "inboedel", "abonnementen", "instellingen", "vastgoed"):
+    for naam in ("meta", "landing", "bronze", "silver", "gold", "inboedel", "abonnementen", "instellingen", "vastgoed", "beleggingen"):
         con.execute(f"CREATE SCHEMA IF NOT EXISTS {naam}")
 
     con.execute("CREATE SEQUENCE IF NOT EXISTS meta.bestanden_log_seq START 1")
@@ -140,6 +140,44 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
             bron VARCHAR,
             opmerking VARCHAR,
             aangemaakt_op TIMESTAMP NOT NULL
+        )
+    """)
+
+    con.execute("CREATE SEQUENCE IF NOT EXISTS beleggingen.transacties_seq START 1")
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS beleggingen.transacties (
+            id INTEGER PRIMARY KEY DEFAULT nextval('beleggingen.transacties_seq'),
+            datum DATE NOT NULL,
+            type VARCHAR NOT NULL,
+            code VARCHAR NOT NULL,
+            naam VARCHAR,
+            aantal DECIMAL(18,6) NOT NULL,
+            prijs_per_stuk DECIMAL(18,4) NOT NULL,
+            valuta VARCHAR NOT NULL DEFAULT 'EUR',
+            kosten DECIMAL(10,2),
+            aangemaakt_op TIMESTAMP NOT NULL
+        )
+    """)
+
+    # Gedeelde koers-cache (niet per transactie) — alle koersen die ooit voor
+    # een code opgehaald zijn, incrementeel aangevuld door
+    # src/pipeline/beleggingen/koersen.py.
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS beleggingen.koersen (
+            code VARCHAR NOT NULL,
+            datum DATE NOT NULL,
+            slotkoers DECIMAL(18,4) NOT NULL,
+            PRIMARY KEY (code, datum)
+        )
+    """)
+
+    # Eenheden `valuta` per 1 EUR — EUR-bedrag = bedrag_in_valuta / koers.
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS beleggingen.wisselkoersen (
+            valuta VARCHAR NOT NULL,
+            datum DATE NOT NULL,
+            koers DECIMAL(18,6) NOT NULL,
+            PRIMARY KEY (valuta, datum)
         )
     """)
 

@@ -146,6 +146,68 @@ export interface WaardenResponse {
   waardes: Waarde[];
 }
 
+export interface BeleggingTransactieInvoer {
+  datum: string;
+  type: "koop" | "verkoop";
+  code: string;
+  naam: string | null;
+  aantal: number;
+  prijs_per_stuk: number;
+  valuta: string;
+  kosten: number | null;
+}
+
+export interface BeleggingTransactie {
+  id: number;
+  datum: string;
+  type: "koop" | "verkoop";
+  code: string;
+  naam: string | null;
+  aantal: number;
+  prijs_per_stuk: number;
+  valuta: string;
+  kosten: number | null;
+}
+
+export interface BeleggingTransactiesResponse {
+  transacties: BeleggingTransactie[];
+}
+
+export interface TickerZoekResultaat {
+  symbol: string;
+  naam: string;
+  beurs: string;
+}
+
+export interface TickerZoekResponse {
+  resultaten: TickerZoekResultaat[];
+}
+
+export interface PortfolioPunt {
+  datum: string;
+  waarde: number;
+}
+
+export interface PortfolioResponse {
+  code: string | null;
+  reeks: PortfolioPunt[];
+}
+
+export interface Positie {
+  code: string;
+  naam: string;
+  aantal: number;
+  gem_aankoopprijs: number;
+  valuta: string;
+  laatste_koers: number | null;
+  huidige_waarde: number | null;
+  resultaat: number | null;
+}
+
+export interface PositiesResponse {
+  posities: Positie[];
+}
+
 export interface InboedelArtikel {
   id: number;
   omschrijving: string;
@@ -340,6 +402,36 @@ export function putWaarde(id: number, waarde: WaardeInvoer): Promise<Waarde> {
 
 export function deleteWaarde(id: number): Promise<void> {
   return verwijder(`/api/vastgoed/waardes/${id}`);
+}
+
+export function getBeleggingTransacties(): Promise<BeleggingTransactiesResponse> {
+  return fetchJson<BeleggingTransactiesResponse>("/api/beleggingen/transacties");
+}
+
+export function postBeleggingTransactie(transactie: BeleggingTransactieInvoer): Promise<BeleggingTransactie> {
+  return zendJson<BeleggingTransactie>("/api/beleggingen/transacties", "POST", transactie);
+}
+
+export function putBeleggingTransactie(id: number, transactie: BeleggingTransactieInvoer): Promise<BeleggingTransactie> {
+  return zendJson<BeleggingTransactie>(`/api/beleggingen/transacties/${id}`, "PUT", transactie);
+}
+
+export function deleteBeleggingTransactie(id: number): Promise<void> {
+  return verwijder(`/api/beleggingen/transacties/${id}`);
+}
+
+export function zoekTicker(q: string): Promise<TickerZoekResponse> {
+  return fetchJson<TickerZoekResponse>(`/api/beleggingen/zoek?q=${encodeURIComponent(q)}`);
+}
+
+export function getPortfolio(code: string | null): Promise<PortfolioResponse> {
+  const zoekParams = new URLSearchParams();
+  if (code) zoekParams.set("code", code);
+  return fetchJson<PortfolioResponse>(`/api/beleggingen/portfolio?${zoekParams}`);
+}
+
+export function getPosities(): Promise<PositiesResponse> {
+  return fetchJson<PositiesResponse>("/api/beleggingen/posities");
 }
 
 export function getInboedelArtikelen(): Promise<InboedelArtikelenResponse> {
