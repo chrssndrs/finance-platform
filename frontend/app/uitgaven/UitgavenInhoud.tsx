@@ -177,6 +177,15 @@ export function UitgavenInhoud() {
         onAfzenderChange={(a) => wijzigFilter(() => setAfzender(a))}
         onGranulariteitChange={(g) => wijzigFilter(() => setGranulariteit(g))}
         onPeriodeSelectieChange={(p) => wijzigFilter(() => setPeriodeSelectie(p))}
+        onReset={() =>
+          wijzigFilter(() => {
+            setCategorie(null);
+            setSubcategorie(null);
+            setAfzender(null);
+            setGranulariteit("maand");
+            setPeriodeSelectie(STANDAARD_PERIODE_SELECTIE);
+          })
+        }
       />
 
       {foutmelding && (
@@ -186,7 +195,12 @@ export function UitgavenInhoud() {
       )}
 
       <div className={laden ? "opacity-50 transition-opacity" : "transition-opacity"}>
-        <TotalenChart reeks={reeks} granulariteit={granulariteit} />
+        <TotalenChart
+          reeks={reeks}
+          granulariteit={granulariteit}
+          geselecteerdePeriode={geselecteerdePeriode}
+          onPeriodeKlik={klikPeriode}
+        />
       </div>
 
       <TotalenTabel

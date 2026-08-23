@@ -3,6 +3,7 @@
 import {
   Bar,
   CartesianGrid,
+  Cell,
   ComposedChart,
   Legend,
   Line,
@@ -62,16 +63,33 @@ function maakCustomTooltip(serieLabels: Record<string, string>) {
   };
 }
 
-export function TotalenChart({ reeks, granulariteit }: { reeks: PeriodeTotaal[]; granulariteit: Granulariteit }) {
+interface TotalenChartProps {
+  reeks: PeriodeTotaal[];
+  granulariteit: Granulariteit;
+  geselecteerdePeriode?: string | null;
+  onPeriodeKlik?: (periodeStart: string) => void;
+}
+
+export function TotalenChart({ reeks, granulariteit, geselecteerdePeriode, onPeriodeKlik }: TotalenChartProps) {
   const gemiddelden = berekenVoortschrijdendGemiddelde(reeks);
   const data = reeks.map((r, i) => ({
     periode: formatteerPeriode(r.periode_start, granulariteit),
+    periodeStart: r.periode_start,
     inkomsten: r.inkomsten,
     uitgaven: r.uitgaven,
     gemiddelde: gemiddelden[i],
   }));
   const serieLabels = maakSerieLabels(granulariteit);
   const CustomTooltip = maakCustomTooltip(serieLabels);
+
+  function klikBalk(item: { payload?: { periodeStart: string } }) {
+    if (item.payload) onPeriodeKlik?.(item.payload.periodeStart);
+  }
+
+  function celOpacity(periodeStart: string): number {
+    if (!geselecteerdePeriode) return 1;
+    return periodeStart === geselecteerdePeriode ? 1 : 0.4;
+  }
 
   return (
     <ResponsiveContainer width="100%" height={280}>
@@ -101,7 +119,12 @@ export function TotalenChart({ reeks, granulariteit }: { reeks: PeriodeTotaal[];
           fill="var(--chart-series-1)"
           maxBarSize={24}
           isAnimationActive={false}
-        />
+          onClick={onPeriodeKlik ? klikBalk : undefined}
+          style={onPeriodeKlik ? { cursor: "pointer" } : undefined}
+        >
+          {onPeriodeKlik &&
+            data.map((d) => <Cell key={d.periodeStart} fillOpacity={celOpacity(d.periodeStart)} />)}
+        </Bar>
         <Bar
           dataKey="uitgaven"
           stackId="periode"
@@ -109,7 +132,12 @@ export function TotalenChart({ reeks, granulariteit }: { reeks: PeriodeTotaal[];
           radius={[4, 4, 0, 0]}
           maxBarSize={24}
           isAnimationActive={false}
-        />
+          onClick={onPeriodeKlik ? klikBalk : undefined}
+          style={onPeriodeKlik ? { cursor: "pointer" } : undefined}
+        >
+          {onPeriodeKlik &&
+            data.map((d) => <Cell key={d.periodeStart} fillOpacity={celOpacity(d.periodeStart)} />)}
+        </Bar>
         <Line
           dataKey="gemiddelde"
           stroke="var(--chart-series-3)"

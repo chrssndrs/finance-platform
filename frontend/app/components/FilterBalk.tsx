@@ -25,6 +25,7 @@ interface FilterBalkProps {
   onAfzenderChange: (afzender: string | null) => void;
   onGranulariteitChange: (granulariteit: Granulariteit) => void;
   onPeriodeSelectieChange: (selectie: PeriodeSelectie) => void;
+  onReset: () => void;
 }
 
 export function FilterBalk({
@@ -40,6 +41,7 @@ export function FilterBalk({
   onAfzenderChange,
   onGranulariteitChange,
   onPeriodeSelectieChange,
+  onReset,
 }: FilterBalkProps) {
   const subcategorieen = categorieen.find((g) => g.categorie === categorie)?.subcategorieen ?? [];
 
@@ -96,6 +98,17 @@ export function FilterBalk({
       </label>
 
       <DatumRangeKiezer selectie={periodeSelectie} onChange={onPeriodeSelectieChange} />
+
+      <div className="flex flex-col gap-1">
+        <span className="invisible text-sm">Reset</span>
+        <button
+          type="button"
+          onClick={onReset}
+          className="rounded-md border border-neutral-300 px-3 py-2 text-base text-neutral-600 hover:bg-neutral-100 sm:text-sm dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800"
+        >
+          Filters wissen
+        </button>
+      </div>
     </div>
   );
 }
