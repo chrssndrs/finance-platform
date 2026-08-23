@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { DemoBanner } from "@/app/components/DemoBanner";
 import { NavBalk } from "@/app/components/NavBalk";
@@ -27,8 +27,17 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Gebruikt alleen voor het "Libreo"-wordmark in de navbar — een lettertype
+// met karakter maakt het merk herkenbaar naast de neutrale Geist-UI-tekst.
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  weight: ["600"],
+  style: ["italic"],
+});
+
 export const metadata: Metadata = {
-  title: process.env.NEXT_PUBLIC_DEMO ? "Finance Platform (demo)" : "Finance Platform",
+  title: process.env.NEXT_PUBLIC_DEMO ? "Libreo (demo)" : "Libreo",
   description: "Rapportage over persoonlijke financiën",
 };
 
@@ -36,7 +45,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="nl"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>
