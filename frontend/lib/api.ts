@@ -119,6 +119,33 @@ export interface InstellingenResponse {
   beschikbare_banken: BeschikbareBank[];
 }
 
+export interface Woning {
+  adres: string;
+}
+
+export interface WoningInvoer {
+  adres: string;
+}
+
+export interface Waarde {
+  id: number;
+  datum: string;
+  waarde: number;
+  bron: string | null;
+  opmerking: string | null;
+}
+
+export interface WaardeInvoer {
+  datum: string;
+  waarde: number;
+  bron: string | null;
+  opmerking: string | null;
+}
+
+export interface WaardenResponse {
+  waardes: Waarde[];
+}
+
 export interface InboedelArtikel {
   id: number;
   omschrijving: string;
@@ -289,6 +316,30 @@ export function getInstellingen(): Promise<InstellingenResponse> {
 
 export function putInstellingen(instellingen: InstellingenInvoer): Promise<InstellingenResponse> {
   return zendJson<InstellingenResponse>("/api/instellingen", "PUT", instellingen);
+}
+
+export function getWoning(): Promise<Woning> {
+  return fetchJson<Woning>("/api/vastgoed/woning");
+}
+
+export function putWoning(woning: WoningInvoer): Promise<Woning> {
+  return zendJson<Woning>("/api/vastgoed/woning", "PUT", woning);
+}
+
+export function getWaardes(): Promise<WaardenResponse> {
+  return fetchJson<WaardenResponse>("/api/vastgoed/waardes");
+}
+
+export function postWaarde(waarde: WaardeInvoer): Promise<Waarde> {
+  return zendJson<Waarde>("/api/vastgoed/waardes", "POST", waarde);
+}
+
+export function putWaarde(id: number, waarde: WaardeInvoer): Promise<Waarde> {
+  return zendJson<Waarde>(`/api/vastgoed/waardes/${id}`, "PUT", waarde);
+}
+
+export function deleteWaarde(id: number): Promise<void> {
+  return verwijder(`/api/vastgoed/waardes/${id}`);
 }
 
 export function getInboedelArtikelen(): Promise<InboedelArtikelenResponse> {

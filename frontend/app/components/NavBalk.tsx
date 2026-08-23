@@ -11,6 +11,7 @@ const DOMEINEN = [
   { pad: "/inboedel", label: "Inboedel" },
   { pad: "/abonnementen", label: "Abonnementen" },
   { pad: "/beleggingen", label: "Beleggingen" },
+  { pad: "/vastgoed", label: "Vastgoed" },
   { pad: "/instellingen", label: "Instellingen" },
 ];
 

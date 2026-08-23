@@ -3,7 +3,7 @@ import pandas as pd
 
 
 def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
-    for naam in ("meta", "landing", "bronze", "silver", "gold", "inboedel", "abonnementen", "instellingen"):
+    for naam in ("meta", "landing", "bronze", "silver", "gold", "inboedel", "abonnementen", "instellingen", "vastgoed"):
         con.execute(f"CREATE SCHEMA IF NOT EXISTS {naam}")
 
     con.execute("CREATE SEQUENCE IF NOT EXISTS meta.bestanden_log_seq START 1")
@@ -115,6 +115,32 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("""
         INSERT INTO instellingen.instellingen (id, aangepast_op) VALUES (1, now())
         ON CONFLICT (id) DO NOTHING
+    """)
+
+    # Eén woning (adres in de databank, niet in code — dat wordt gecommit;
+    # zet 'm zelf via de Vastgoed-pagina).
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS vastgoed.woning (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            adres VARCHAR NOT NULL DEFAULT '',
+            aangepast_op TIMESTAMP
+        )
+    """)
+    con.execute("""
+        INSERT INTO vastgoed.woning (id, aangepast_op) VALUES (1, now())
+        ON CONFLICT (id) DO NOTHING
+    """)
+
+    con.execute("CREATE SEQUENCE IF NOT EXISTS vastgoed.waardes_seq START 1")
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS vastgoed.waardes (
+            id INTEGER PRIMARY KEY DEFAULT nextval('vastgoed.waardes_seq'),
+            datum DATE NOT NULL,
+            waarde DECIMAL(12,2) NOT NULL,
+            bron VARCHAR,
+            opmerking VARCHAR,
+            aangemaakt_op TIMESTAMP NOT NULL
+        )
     """)
 
 
