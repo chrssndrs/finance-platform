@@ -4,5 +4,6 @@ jupyter
 jupyterlab
 pyyaml
 fastapi
+python-multipart
 uvicorn[standard]
 requests

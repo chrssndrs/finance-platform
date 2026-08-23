@@ -98,6 +98,27 @@ export interface AanbevelingenResponse {
   aanbevelingen: Aanbeveling[];
 }
 
+export interface BeschikbareBank {
+  bank: string;
+  naam: string;
+}
+
+export interface Instellingen {
+  bank: string;
+  bank_naam: string;
+  export_locatie: string;
+}
+
+export interface InstellingenInvoer {
+  bank: string;
+  export_locatie: string;
+}
+
+export interface InstellingenResponse {
+  instellingen: Instellingen;
+  beschikbare_banken: BeschikbareBank[];
+}
+
 export interface InboedelArtikel {
   id: number;
   omschrijving: string;
@@ -253,6 +274,21 @@ export function accepteerAanbeveling(id: number): Promise<void> {
 
 export function weigerAanbeveling(id: number): Promise<void> {
   return postLeeg(`/api/abonnementen/aanbevelingen/${id}/weigeren`);
+}
+
+export async function postAbonnementLogo(id: number, bestand: File): Promise<Abonnement> {
+  const formData = new FormData();
+  formData.append("bestand", bestand);
+  const response = await fetch(`${API_BASE}/api/abonnementen/${id}/logo`, { method: "POST", body: formData });
+  return afhandelenResponse<Abonnement>(response);
+}
+
+export function getInstellingen(): Promise<InstellingenResponse> {
+  return fetchJson<InstellingenResponse>("/api/instellingen");
+}
+
+export function putInstellingen(instellingen: InstellingenInvoer): Promise<InstellingenResponse> {
+  return zendJson<InstellingenResponse>("/api/instellingen", "PUT", instellingen);
 }
 
 export function getInboedelArtikelen(): Promise<InboedelArtikelenResponse> {

@@ -1,7 +1,13 @@
+import hashlib
+import json
 import logging
 from dataclasses import dataclass
+from datetime import datetime
 
 import duckdb
+import pandas as pd
+
+from src.pipeline.bank_config import BankConfig, laad_bank_config
 
 logger = logging.getLogger(__name__)
 
@@ -13,36 +19,72 @@ class SilverResultaat:
     null_datum_of_bedrag: int
 
 
-def run_silver(con: duckdb.DuckDBPyConnection) -> SilverResultaat:
-    rijen_bronze = con.execute("SELECT COUNT(*) FROM bronze.transacties_ing").fetchone()[0]
+def _naar_silver_rij(ruwe_rij: str, cfg: BankConfig, transactie_id: str, rij_hash: str,
+                      bronbestand: str, ingelezen_op) -> dict:
+    ruwe = json.loads(ruwe_rij)
 
-    con.execute("""
-        CREATE OR REPLACE TABLE silver.transacties AS
-        WITH gededupliceerd AS (
-            SELECT
-                *,
-                ROW_NUMBER() OVER (PARTITION BY rij_hash ORDER BY ingelezen_op ASC) AS rn
-            FROM bronze.transacties_ing
+    datum = None
+    bedrag_eur = None
+    try:
+        datum = datetime.strptime(ruwe[cfg.datum_kolom], cfg.datum_formaat).date()
+    except (KeyError, ValueError, TypeError):
+        pass
+    try:
+        bedrag_str = ruwe[cfg.bedrag_kolom].replace(cfg.bedrag_decimaal_teken, ".")
+        bedrag_eur = float(bedrag_str)
+        if ruwe.get(cfg.richting_kolom) == cfg.richting_negatief_waarde:
+            bedrag_eur = -bedrag_eur
+    except (KeyError, ValueError, TypeError, AttributeError):
+        pass
+
+    return {
+        "transactie_id": transactie_id,
+        "datum": datum,
+        "naam_omschrijving": (ruwe.get(cfg.omschrijving_kolom) or "").strip(),
+        "rekening": (ruwe.get(cfg.rekening_kolom) or "").strip().upper(),
+        "tegenrekening": (ruwe.get(cfg.tegenrekening_kolom) or "").strip().upper(),
+        "mededelingen": (ruwe.get(cfg.mededelingen_kolom) or "").strip(),
+        "bedrag_eur": bedrag_eur,
+        "rij_hash": rij_hash,
+        "bronbestand": bronbestand,
+        "ingelezen_op": ingelezen_op,
+    }
+
+
+def run_silver(con: duckdb.DuckDBPyConnection) -> SilverResultaat:
+    rijen_bronze = con.execute("SELECT COUNT(*) FROM bronze.transacties").fetchone()[0]
+
+    gededupliceerd = con.execute("""
+        SELECT bank, ruwe_rij, rij_hash, bronbestand, ingelezen_op
+        FROM (
+            SELECT *, ROW_NUMBER() OVER (PARTITION BY rij_hash ORDER BY ingelezen_op ASC) AS rn
+            FROM bronze.transacties
         )
-        SELECT
-            md5(rij_hash)                                              AS transactie_id,
-            strptime("Datum", '%Y%m%d')::DATE                        AS datum,
-            trim("Naam / Omschrijving")                                AS naam_omschrijving,
-            upper(trim("Rekening"))                                    AS rekening,
-            upper(trim("Tegenrekening"))                                AS tegenrekening,
-            trim("Code")                                                AS code,
-            trim("Mutatiesoort")                                        AS mutatiesoort,
-            trim("Mededelingen")                                        AS mededelingen,
-            CASE
-                WHEN "Af Bij" = 'Af' THEN -1 * CAST(REPLACE("Bedrag (EUR)", ',', '.') AS DECIMAL(18,2))
-                ELSE CAST(REPLACE("Bedrag (EUR)", ',', '.') AS DECIMAL(18,2))
-            END                                                          AS bedrag_eur,
-            rij_hash,
-            bronbestand,
-            ingelezen_op
-        FROM gededupliceerd
         WHERE rn = 1
-    """)
+    """).df()
+
+    resultaat_rijen = []
+    configs: dict[str, BankConfig] = {}
+    for bank, groep in gededupliceerd.groupby("bank"):
+        if bank not in configs:
+            configs[bank] = laad_bank_config(bank)
+        cfg = configs[bank]
+        for rij in groep.itertuples(index=False):
+            transactie_id = hashlib.md5(rij.rij_hash.encode("utf-8")).hexdigest()
+            resultaat_rijen.append(_naar_silver_rij(
+                rij.ruwe_rij, cfg, transactie_id, rij.rij_hash, rij.bronbestand, rij.ingelezen_op,
+            ))
+
+    resultaat_df = pd.DataFrame(resultaat_rijen, columns=[
+        "transactie_id", "datum", "naam_omschrijving", "rekening", "tegenrekening",
+        "mededelingen", "bedrag_eur", "rij_hash", "bronbestand", "ingelezen_op",
+    ])
+    if not resultaat_df.empty:
+        resultaat_df["datum"] = pd.to_datetime(resultaat_df["datum"]).dt.date
+
+    con.register("silver_temp", resultaat_df)
+    con.execute("CREATE OR REPLACE TABLE silver.transacties AS SELECT * FROM silver_temp")
+    con.unregister("silver_temp")
     logger.info("silver.transacties gebouwd")
 
     rijen_silver = con.execute("SELECT COUNT(*) FROM silver.transacties").fetchone()[0]

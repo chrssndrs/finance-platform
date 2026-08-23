@@ -3,7 +3,14 @@
 import { useState } from "react";
 
 import { Combobox } from "@/app/components/Combobox";
-import { ApiError, postAbonnement, putAbonnement, type Abonnement, type AbonnementInvoer } from "@/lib/api";
+import {
+  ApiError,
+  postAbonnement,
+  postAbonnementLogo,
+  putAbonnement,
+  type Abonnement,
+  type AbonnementInvoer,
+} from "@/lib/api";
 
 const INTERVAL_OPTIES: { waarde: string; label: string }[] = [
   { waarde: "wekelijks", label: "Wekelijks" },
@@ -31,7 +38,23 @@ export function AbonnementFormulier({ afzenders, abonnement, onOpgeslagen, onAnn
   const [eerstvolgende, setEerstvolgende] = useState(abonnement?.eerstvolgende_afschrijving ?? "");
   const [domein, setDomein] = useState("");
   const [bezig, setBezig] = useState(false);
+  const [logoBezig, setLogoBezig] = useState(false);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
+
+  async function logoGekozen(e: React.ChangeEvent<HTMLInputElement>) {
+    const bestand = e.target.files?.[0];
+    if (!bestand || !abonnement) return;
+    setLogoBezig(true);
+    setFoutmelding(null);
+    try {
+      const resultaat = await postAbonnementLogo(abonnement.id, bestand);
+      onOpgeslagen(resultaat);
+    } catch (err) {
+      setFoutmelding(err instanceof ApiError ? err.message : "Logo uploaden mislukt.");
+    } finally {
+      setLogoBezig(false);
+    }
+  }
 
   async function versturen(e: React.FormEvent) {
     e.preventDefault();
@@ -129,6 +152,19 @@ export function AbonnementFormulier({ afzenders, abonnement, onOpgeslagen, onAnn
           className={inputKlasse}
         />
       </label>
+
+      {abonnement && (
+        <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
+          Of upload een logo
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+            disabled={logoBezig}
+            onChange={logoGekozen}
+            className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-neutral-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-neutral-700 hover:file:bg-neutral-200 dark:file:bg-neutral-800 dark:file:text-neutral-300"
+          />
+        </label>
+      )}
 
       <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-3">
         <button

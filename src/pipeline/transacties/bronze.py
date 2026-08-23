@@ -1,4 +1,5 @@
 import hashlib
+import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -6,11 +7,10 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
-from src.pipeline.paths import LANDING_ROOT
+from src.pipeline.bank_config import BankConfig, laad_bank_config
+from src.pipeline.paths import DATA_ROOT
 
 logger = logging.getLogger(__name__)
-
-LANDING_DIR_TRANSACTIES_ING = LANDING_ROOT / "transacties" / "ing"
 
 
 @dataclass
@@ -42,19 +42,15 @@ def rij_hash(row: pd.Series) -> str:
 
 
 def _zorg_voor_bronze_tabel(con: duckdb.DuckDBPyConnection) -> None:
+    # Bank-agnostisch: de ruwe CSV-rij wordt als JSON bewaard (kolomnaam ->
+    # waarde) i.p.v. als vaste, bank-specifieke kolommen — zo geeft een
+    # bank-wissel of een tweede bank nooit een DDL-conflict met wat er al
+    # in deze tabel staat. silver.py doet de veldextractie, per rij aan de
+    # hand van de bank-config die bij die rij's `bank`-waarde hoort.
     con.execute("""
-        CREATE TABLE IF NOT EXISTS bronze.transacties_ing (
-            "Datum" VARCHAR,
-            "Naam / Omschrijving" VARCHAR,
-            "Rekening" VARCHAR,
-            "Tegenrekening" VARCHAR,
-            "Code" VARCHAR,
-            "Af Bij" VARCHAR,
-            "Bedrag (EUR)" VARCHAR,
-            "Mutatiesoort" VARCHAR,
-            "Mededelingen" VARCHAR,
-            "Saldo na mutatie" VARCHAR,
-            "Tag" VARCHAR,
+        CREATE TABLE IF NOT EXISTS bronze.transacties (
+            bank VARCHAR NOT NULL,
+            ruwe_rij VARCHAR NOT NULL,
             rij_hash VARCHAR,
             bronbestand VARCHAR,
             ingelezen_op TIMESTAMP
@@ -62,7 +58,61 @@ def _zorg_voor_bronze_tabel(con: duckdb.DuckDBPyConnection) -> None:
     """)
 
 
-def verwerk_bestand(pad: Path, con: duckdb.DuckDBPyConnection) -> BestandResultaat:
+def _migreer_indien_nodig(con: duckdb.DuckDBPyConnection) -> int:
+    """Eenmalige migratie vanaf de oude, ING-specifieke bronze.transacties_ing
+    naar het nieuwe, bank-agnostische bronze.transacties. rij_hash blijft
+    ongewijzigd (berekend over dezelfde ruwe kolomwaarden), dus de bestaande
+    content-hashes in meta.landing_bestanden_log blijven geldig — een
+    volgende run herkent oude bestanden nog steeds als 'al verwerkt' i.p.v.
+    ze dubbel te importeren. Idempotent: slaat over als de nieuwe tabel al
+    rijen bevat, of als de oude tabel niet (meer) bestaat.
+    """
+    (aantal_bestaand,) = con.execute("SELECT count(*) FROM bronze.transacties").fetchone()
+    if aantal_bestaand > 0:
+        return 0
+
+    bestaat_oud = con.execute("""
+        SELECT count(*) FROM information_schema.tables
+        WHERE table_schema = 'bronze' AND table_name = 'transacties_ing'
+    """).fetchone()[0]
+    if not bestaat_oud:
+        return 0
+
+    oud = con.execute('SELECT * FROM bronze.transacties_ing').df()
+    if oud.empty:
+        return 0
+
+    kolom_kolommen = [c for c in oud.columns if c not in ("rij_hash", "bronbestand", "ingelezen_op")]
+    # oud[kolom_kolommen] zijn VARCHAR-kolommen die NULL kunnen bevatten — via
+    # pandas komt dat als NaN (float) binnen, en json.dumps zet een NaN niet
+    # om naar JSON-null maar naar het niet-standaard token `NaN`, dat er bij
+    # json.loads() als Python-float uitkomt i.p.v. None. Expliciet naar None
+    # omzetten voorkomt dat downstream (.strip() op een float) crasht.
+    kolommen_df = oud[kolom_kolommen].astype(object).where(oud[kolom_kolommen].notna(), None)
+    migratie_df = pd.DataFrame({
+        "bank": "ing",
+        "ruwe_rij": kolommen_df.apply(lambda r: json.dumps(r.to_dict(), ensure_ascii=False), axis=1),
+        "rij_hash": oud["rij_hash"],
+        "bronbestand": oud["bronbestand"],
+        "ingelezen_op": oud["ingelezen_op"],
+    })
+    con.register("bronze_migratie_temp", migratie_df)
+    con.execute("INSERT INTO bronze.transacties SELECT * FROM bronze_migratie_temp")
+    con.unregister("bronze_migratie_temp")
+    con.execute("DROP TABLE bronze.transacties_ing")
+
+    logger.info("Gemigreerd van bronze.transacties_ing naar bronze.transacties: %d rijen", len(oud))
+    return len(oud)
+
+
+def _lees_instellingen(con: duckdb.DuckDBPyConnection) -> tuple[str, Path]:
+    bank, export_locatie = con.execute(
+        "SELECT bank, export_locatie FROM instellingen.instellingen WHERE id = 1"
+    ).fetchone()
+    return bank, DATA_ROOT / export_locatie
+
+
+def verwerk_bestand(pad: Path, bank_config: BankConfig, con: duckdb.DuckDBPyConnection) -> BestandResultaat:
     bestandsnaam = Path(pad).name
     hash_ = bestand_hash(pad)
 
@@ -75,15 +125,27 @@ def verwerk_bestand(pad: Path, con: duckdb.DuckDBPyConnection) -> BestandResulta
         logger.info("Overslaan (al eerder verwerkt): %s", bestandsnaam)
         return BestandResultaat(bestandsnaam=bestandsnaam, verwerkt=False, aantal_rijen=0)
 
-    df = pd.read_csv(pad, dtype=str, sep=";")
-    df["rij_hash"] = df.apply(rij_hash, axis=1)
-    df["bronbestand"] = bestandsnaam
-    df["ingelezen_op"] = pd.Timestamp.now()
+    df = pd.read_csv(pad, dtype=str, sep=bank_config.separator)
+    rij_hashes = df.apply(rij_hash, axis=1)
+    # lege cellen komen ondanks dtype=str als NaN (float) binnen — expliciet
+    # naar None, anders zet json.dumps dat om naar het niet-standaard token
+    # `NaN` i.p.v. JSON-null, en komt er bij json.loads() weer een Python-
+    # float uit i.p.v. None (zie ook _migreer_indien_nodig hierboven).
+    json_df = df.astype(object).where(df.notna(), None)
+    ruwe_rijen = json_df.apply(lambda r: json.dumps(r.to_dict(), ensure_ascii=False), axis=1)
+
+    insert_df = pd.DataFrame({
+        "bank": bank_config.bank,
+        "ruwe_rij": ruwe_rijen,
+        "rij_hash": rij_hashes,
+        "bronbestand": bestandsnaam,
+        "ingelezen_op": pd.Timestamp.now(),
+    })
 
     try:
         con.execute("BEGIN TRANSACTION")
-        con.register("df_temp", df)
-        con.execute("INSERT INTO bronze.transacties_ing SELECT * FROM df_temp")
+        con.register("df_temp", insert_df)
+        con.execute("INSERT INTO bronze.transacties SELECT * FROM df_temp")
         con.execute(
             """INSERT INTO meta.landing_bestanden_log
                (bestandsnaam, content_hash, aantal_rijen, verwerkt_op, status)
@@ -97,18 +159,21 @@ def verwerk_bestand(pad: Path, con: duckdb.DuckDBPyConnection) -> BestandResulta
         con.execute("ROLLBACK")
         logger.exception("FOUT bij %s", bestandsnaam)
         raise
+    finally:
+        con.unregister("df_temp")
 
 
-def run_bronze(
-    con: duckdb.DuckDBPyConnection,
-    landing_dir: Path = LANDING_DIR_TRANSACTIES_ING,
-) -> BronzeResultaat:
+def run_bronze(con: duckdb.DuckDBPyConnection) -> BronzeResultaat:
     _zorg_voor_bronze_tabel(con)
+    _migreer_indien_nodig(con)
 
-    csv_bestanden = sorted(landing_dir.glob("*.csv"))
-    logger.info("Gevonden bestanden: %d", len(csv_bestanden))
+    bank, landing_dir = _lees_instellingen(con)
+    bank_config = laad_bank_config(bank)
 
-    resultaten = [verwerk_bestand(pad, con) for pad in csv_bestanden]
+    csv_bestanden = sorted(landing_dir.glob("*.csv")) if landing_dir.exists() else []
+    logger.info("Gevonden bestanden: %d (bank=%s, locatie=%s)", len(csv_bestanden), bank, landing_dir)
+
+    resultaten = [verwerk_bestand(pad, bank_config, con) for pad in csv_bestanden]
 
     return BronzeResultaat(
         bestanden_gevonden=len(csv_bestanden),

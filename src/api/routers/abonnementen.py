@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 
 import duckdb
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile
 
 from src.api.deps import get_db, get_write_db
 from src.api.queries_abonnementen import (
@@ -13,6 +13,7 @@ from src.api.queries_abonnementen import (
     SQL_ABONNEMENT_BIJWERKEN,
     SQL_ABONNEMENT_INVOEGEN,
     SQL_ABONNEMENT_INVOEGEN_VAN_AANBEVELING,
+    SQL_ABONNEMENT_LOGO_BIJWERKEN,
     SQL_ABONNEMENT_OPHALEN,
     SQL_ABONNEMENT_PRIJS_BIJWERKEN,
     SQL_ABONNEMENT_VERWIJDEREN,
@@ -25,8 +26,17 @@ from src.api.schemas_abonnementen import (
     AbonnementenResponse,
     AbonnementInvoer,
 )
+from src.pipeline.paths import LOGOS_PAD
 
 router = APIRouter(prefix="/api/abonnementen")
+
+TOEGESTANE_LOGO_TYPES = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/webp": ".webp",
+    "image/svg+xml": ".svg",
+}
+MAX_LOGO_BYTES = 2 * 1024 * 1024
 
 
 def _naar_abonnement(
@@ -115,6 +125,32 @@ def delete_abonnement(
     if resultaat is None:
         raise HTTPException(status_code=404, detail="Abonnement niet gevonden.")
     return Response(status_code=204)
+
+
+@router.post("/{abonnement_id}/logo", response_model=Abonnement)
+async def post_abonnement_logo(
+    abonnement_id: int,
+    bestand: UploadFile,
+    con: duckdb.DuckDBPyConnection = Depends(get_write_db),
+) -> Abonnement:
+    if con.execute(SQL_ABONNEMENT_OPHALEN, {"id": abonnement_id}).fetchone() is None:
+        raise HTTPException(status_code=404, detail="Abonnement niet gevonden.")
+
+    extensie = TOEGESTANE_LOGO_TYPES.get(bestand.content_type or "")
+    if extensie is None:
+        raise HTTPException(status_code=400, detail="Alleen PNG, JPEG, WebP of SVG toegestaan.")
+
+    inhoud = await bestand.read()
+    if len(inhoud) > MAX_LOGO_BYTES:
+        raise HTTPException(status_code=400, detail="Logo mag maximaal 2 MB zijn.")
+
+    LOGOS_PAD.mkdir(parents=True, exist_ok=True)
+    bestandsnaam = f"handmatig_{abonnement_id}{extensie}"
+    (LOGOS_PAD / bestandsnaam).write_bytes(inhoud)
+
+    con.execute(SQL_ABONNEMENT_LOGO_BIJWERKEN, {"id": abonnement_id, "logo_bestand": bestandsnaam})
+    rij = con.execute(SQL_ABONNEMENT_OPHALEN, {"id": abonnement_id}).fetchone()
+    return _naar_abonnement(*rij, vandaag=date.today())
 
 
 @router.get("/aanbevelingen", response_model=AanbevelingenResponse)

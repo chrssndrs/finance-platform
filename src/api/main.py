@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from src.api.routers import abonnementen, inboedel, rapportage
+from src.api.routers import abonnementen, inboedel, instellingen, rapportage
 from src.pipeline import schema
 from src.pipeline.paths import DB_PAD, LOGOS_PAD
 
@@ -47,3 +47,4 @@ app.add_middleware(
 app.include_router(rapportage.router)
 app.include_router(inboedel.router)
 app.include_router(abonnementen.router)
+app.include_router(instellingen.router)

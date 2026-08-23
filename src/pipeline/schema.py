@@ -3,7 +3,7 @@ import pandas as pd
 
 
 def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
-    for naam in ("meta", "landing", "bronze", "silver", "gold", "inboedel", "abonnementen"):
+    for naam in ("meta", "landing", "bronze", "silver", "gold", "inboedel", "abonnementen", "instellingen"):
         con.execute(f"CREATE SCHEMA IF NOT EXISTS {naam}")
 
     con.execute("CREATE SEQUENCE IF NOT EXISTS meta.bestanden_log_seq START 1")
@@ -100,6 +100,21 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
             aangemaakt_op TIMESTAMP NOT NULL,
             afgehandeld_op TIMESTAMP
         )
+    """)
+
+    # Eén rij: welke bank-config (config/banken/{bank}.yaml) en welke
+    # locatie (relatief aan de gemounte data-root) de pipeline gebruikt.
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS instellingen.instellingen (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            bank VARCHAR NOT NULL DEFAULT 'ing',
+            export_locatie VARCHAR NOT NULL DEFAULT 'data/landing/transacties/ing',
+            aangepast_op TIMESTAMP
+        )
+    """)
+    con.execute("""
+        INSERT INTO instellingen.instellingen (id, aangepast_op) VALUES (1, now())
+        ON CONFLICT (id) DO NOTHING
     """)
 
 

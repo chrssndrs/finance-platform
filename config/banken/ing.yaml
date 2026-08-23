@@ -1,0 +1,33 @@
+# Bank-config voor ING — kolommen/separator van hun CSV-export, plus de
+# semantische mapping die silver.py nodig heeft om er transacties uit te
+# bouwen. Een nieuwe bank toevoegen = een nieuw bestand hier, geen code.
+#
+# `kolommen` is puur informatief (welke kolommen de export bevat, in welke
+# volgorde) — de rest is de daadwerkelijke mapping. `code` en `mutatiesoort`
+# staan bewust niet in de mapping: die worden nergens verderop in de app
+# gebruikt.
+bank: ing
+naam: ING
+separator: ";"
+kolommen:
+  - Datum
+  - "Naam / Omschrijving"
+  - Rekening
+  - Tegenrekening
+  - Code
+  - "Af Bij"
+  - "Bedrag (EUR)"
+  - Mutatiesoort
+  - Mededelingen
+  - "Saldo na mutatie"
+  - Tag
+datum_kolom: Datum
+datum_formaat: "%Y%m%d"
+omschrijving_kolom: "Naam / Omschrijving"
+rekening_kolom: Rekening
+tegenrekening_kolom: Tegenrekening
+bedrag_kolom: "Bedrag (EUR)"
+bedrag_decimaal_teken: ","
+richting_kolom: "Af Bij"
+richting_negatief_waarde: "Af"
+mededelingen_kolom: Mededelingen

@@ -116,3 +116,8 @@ SQL_ABONNEMENT_PRIJS_BIJWERKEN = """
         eerstvolgende_afschrijving = $eerstvolgende_afschrijving
     WHERE id = $id
 """
+
+SQL_ABONNEMENT_LOGO_BIJWERKEN = """
+    UPDATE abonnementen.abonnementen SET logo_bestand = $logo_bestand WHERE id = $id
+    RETURNING id
+"""

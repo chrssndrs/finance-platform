@@ -15,13 +15,16 @@ i.p.v. handmatig bewerken, dan blijft dit script de bron van waarheid).
 
 import hashlib
 import random
+import shutil
 from datetime import date
 from pathlib import Path
 
-DEMO_ROOT = Path(__file__).resolve().parents[1] / "demo"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEMO_ROOT = REPO_ROOT / "demo"
 LANDING_DIR = DEMO_ROOT / "data" / "landing" / "transacties" / "ing"
 INBOEDEL_DIR = DEMO_ROOT / "data" / "inboedel"
 CONFIG_DIR = DEMO_ROOT / "config"
+ECHTE_BANKEN_DIR = REPO_ROOT / "config" / "banken"
 
 EIGEN_REKENING = "NL00DEMO0123456789"
 VANDAAG = date.today()
@@ -331,6 +334,10 @@ Televisie;Novadyne;OLED55;TechHoek;€\t799,00;18-11-2022;96;
 def schrijf_configs():
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     (CONFIG_DIR / "categorisatie_regels.yaml").write_text(CATEGORISATIE_REGELS, encoding="utf-8")
+    # Bank-configs zijn niet persoonlijk (zelfde bestanden als config/banken/
+    # in git) — gewoon overnemen i.p.v. hier dupliceren, dan blijft dat de
+    # enige bron van waarheid.
+    shutil.copytree(ECHTE_BANKEN_DIR, CONFIG_DIR / "banken", dirs_exist_ok=True)
     print(f"configs -> {CONFIG_DIR}")
 
 

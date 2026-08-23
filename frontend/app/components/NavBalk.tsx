@@ -11,6 +11,7 @@ const DOMEINEN = [
   { pad: "/inboedel", label: "Inboedel" },
   { pad: "/abonnementen", label: "Abonnementen" },
   { pad: "/beleggingen", label: "Beleggingen" },
+  { pad: "/instellingen", label: "Instellingen" },
 ];
 
 export function NavBalk() {
@@ -27,6 +28,53 @@ export function NavBalk() {
     document.addEventListener("mousedown", klikBuiten);
     return () => document.removeEventListener("mousedown", klikBuiten);
   }, []);
+
+  // Swipe vanaf de linkerrand opent het menu i.p.v. de browser/PWA-terug-
+  // navigatie te triggeren. preventDefault() op touchmove (non-passive
+  // listener, anders werkt preventDefault niet) onderdrukt dat native
+  // terug-gebaar zodra de swipe duidelijk horizontaal is.
+  useEffect(() => {
+    const RAND_PX = 24;
+    const MIN_AFSTAND = 40;
+    let start: { x: number; y: number } | null = null;
+    let volgt = false;
+
+    function touchStart(e: TouchEvent) {
+      if (open) return;
+      const t = e.touches[0];
+      if (!t || t.clientX > RAND_PX) return;
+      start = { x: t.clientX, y: t.clientY };
+      volgt = true;
+    }
+
+    function touchMove(e: TouchEvent) {
+      if (!volgt || !start) return;
+      const t = e.touches[0];
+      if (!t) return;
+      const dx = t.clientX - start.x;
+      const dy = t.clientY - start.y;
+      if (dx <= 0 || Math.abs(dx) <= Math.abs(dy)) return;
+      e.preventDefault();
+      if (dx > MIN_AFSTAND) {
+        setOpen(true);
+        volgt = false;
+      }
+    }
+
+    function touchEnd() {
+      volgt = false;
+      start = null;
+    }
+
+    document.addEventListener("touchstart", touchStart, { passive: true });
+    document.addEventListener("touchmove", touchMove, { passive: false });
+    document.addEventListener("touchend", touchEnd);
+    return () => {
+      document.removeEventListener("touchstart", touchStart);
+      document.removeEventListener("touchmove", touchMove);
+      document.removeEventListener("touchend", touchEnd);
+    };
+  }, [open]);
 
   return (
     <nav ref={containerRef} className="relative border-b border-neutral-200 dark:border-neutral-800">
