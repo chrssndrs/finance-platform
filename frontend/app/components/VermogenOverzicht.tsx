@@ -28,9 +28,12 @@ export function VermogenOverzicht({ totaal, onderdelen }: { totaal: number; onde
               >
                 {o.type === "schuld" ? "− " : ""}
                 {bedragFormat.format(o.bedrag)}
+                {o.is_geschat && <span className="ml-1 text-xs font-normal text-neutral-400">(geschat)</span>}
               </span>
               <div className="text-xs text-neutral-400">
-                {o.laatst_bijgewerkt ? `bijgewerkt op ${formatteerDatumKort(o.laatst_bijgewerkt)}` : "nog geen data"}
+                {o.laatst_bijgewerkt
+                  ? `${o.is_geschat ? "laatst bekend" : "bijgewerkt"} op ${formatteerDatumKort(o.laatst_bijgewerkt)}`
+                  : "nog geen data"}
               </div>
             </div>
           </div>

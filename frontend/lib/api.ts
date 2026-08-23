@@ -23,6 +23,7 @@ export interface StatusResponse {
 export interface Banksaldo {
   bedrag: number | null;
   datum: string | null;
+  geschat_bedrag: number | null;
 }
 
 export interface PeriodeTotaal {
@@ -506,6 +507,7 @@ export interface VermogenOnderdeel {
   bedrag: number;
   laatst_bijgewerkt: string | null;
   type: "bezit" | "schuld";
+  is_geschat: boolean;
 }
 
 export interface VermogenResponse {

@@ -36,6 +36,13 @@ SQL_LAATSTE_SALDO = """
     LIMIT 1
 """
 
+# Netto mutatie (inkomsten min uitgaven, niet alleen uitgaven — salaris e.d.
+# beïnvloedt het saldo net zo goed) over een venster, voor het schatten van
+# het actuele banksaldo tussen twee bank-exports in.
+SQL_NETTO_MUTATIE_VANAF = """
+    SELECT SUM(bedrag_eur)::DOUBLE FROM gold.transacties WHERE datum >= $vanaf
+"""
+
 SQL_TRANSACTIES = """
     SELECT transactie_id, datum, afzender, bedrag_eur::DOUBLE, mededelingen
     FROM gold.transacties

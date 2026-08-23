@@ -8,6 +8,7 @@ class VermogenOnderdeel(BaseModel):
     bedrag: float
     laatst_bijgewerkt: date | None
     type: str
+    is_geschat: bool = False
 
 
 class VermogenResponse(BaseModel):

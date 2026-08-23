@@ -53,4 +53,5 @@ class TransactiesResponse(BaseModel):
 class Banksaldo(BaseModel):
     bedrag: float | None
     datum: date | None
+    geschat_bedrag: float | None
 

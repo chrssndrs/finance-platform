@@ -4,13 +4,13 @@ from itertools import groupby
 import duckdb
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from src.api.banksaldo_berekening import bereken_banksaldo
 from src.api.deps import get_db
 from src.api.queries import (
     GRANULARITEIT_NAAR_DUCKDB_EENHEID,
     SQL_AFZENDERS,
     SQL_CATEGORIEEN,
     SQL_DATUM_BEREIK,
-    SQL_LAATSTE_SALDO,
     SQL_STATUS,
     SQL_TOTALEN,
     SQL_TRANSACTIES,
@@ -59,11 +59,7 @@ def get_status(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> StatusRespon
 
 @router.get("/banksaldo", response_model=Banksaldo)
 def get_banksaldo(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> Banksaldo:
-    resultaat = con.execute(SQL_LAATSTE_SALDO).fetchone()
-    if resultaat is None:
-        return Banksaldo(bedrag=None, datum=None)
-    bedrag, datum = resultaat
-    return Banksaldo(bedrag=bedrag, datum=datum)
+    return Banksaldo(**bereken_banksaldo(con))
 
 
 @router.get("/totalen", response_model=TotalenResponse)

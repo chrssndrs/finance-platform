@@ -8,20 +8,26 @@ from datetime import date
 
 import duckdb
 
+from src.api.banksaldo_berekening import bereken_banksaldo
 from src.api.beleggingen_berekening import bereken_posities
 from src.api.hypotheek_berekening import actuele_schuld_totaal
 from src.api.inboedel_berekening import dagwaarde_totaal
-from src.api.queries import SQL_LAATSTE_SALDO
 
 
 def bereken_overzicht(con: duckdb.DuckDBPyConnection) -> list[dict]:
     vandaag = date.today()
     onderdelen = []
 
-    saldo_rij = con.execute(SQL_LAATSTE_SALDO).fetchone()
-    if saldo_rij is not None:
-        bedrag, datum = saldo_rij
-        onderdelen.append({"label": "Banksaldo", "bedrag": bedrag, "laatst_bijgewerkt": datum, "type": "bezit"})
+    saldo = bereken_banksaldo(con, vandaag)
+    if saldo["bedrag"] is not None:
+        # geschat_bedrag i.p.v. het rauwe laatst-bekende bedrag voor het
+        # vermogenstotaal — laatst_bijgewerkt blijft wel de échte datadatum,
+        # niet "vandaag", zodat je nog steeds ziet hoe recent de onderliggende
+        # data is (is_geschat markeert dit onderdeel als extrapolatie).
+        onderdelen.append({
+            "label": "Banksaldo", "bedrag": saldo["geschat_bedrag"],
+            "laatst_bijgewerkt": saldo["datum"], "type": "bezit", "is_geschat": True,
+        })
 
     sparen_rij = con.execute("SELECT bedrag::DOUBLE, aangepast_op FROM overzicht.sparen WHERE id = 1").fetchone()
     if sparen_rij is not None:
