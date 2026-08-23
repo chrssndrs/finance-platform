@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { ThemeToggle } from "@/app/components/ThemeToggle";
 import { ApiError, getInstellingen, putInstellingen, type BeschikbareBank } from "@/lib/api";
 
 const inputKlasse =
@@ -51,6 +52,14 @@ export default function InstellingenPagina() {
         <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
           Welke bank-export de pipeline verwerkt en waar hij die bestanden zoekt.
         </p>
+      </div>
+
+      <div className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+        <div>
+          <div className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Weergave</div>
+          <div className="text-xs text-neutral-500 dark:text-neutral-400">Licht, donker of systeeminstelling volgen.</div>
+        </div>
+        <ThemeToggle />
       </div>
 
       {foutmelding && (

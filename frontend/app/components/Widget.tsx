@@ -18,9 +18,11 @@ interface WidgetProps {
   widget: WidgetData;
   onVerwijderd: (id: number) => void;
   onBewerken: () => void;
+  onOmhoog?: () => void;
+  onOmlaag?: () => void;
 }
 
-export function Widget({ widget, onVerwijderd, onBewerken }: WidgetProps) {
+export function Widget({ widget, onVerwijderd, onBewerken, onOmhoog, onOmlaag }: WidgetProps) {
   const [reeks, setReeks] = useState<PeriodeTotaal[]>([]);
   const [transacties, setTransacties] = useState<Transactie[]>([]);
   const [laden, setLaden] = useState(true);
@@ -62,7 +64,25 @@ export function Widget({ widget, onVerwijderd, onBewerken }: WidgetProps) {
     <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">{widgetTitel(widget)}</h3>
-        <div className="flex gap-2 text-xs">
+        <div className="flex items-center gap-2 text-xs">
+          <button
+            type="button"
+            disabled={!onOmhoog}
+            onClick={onOmhoog}
+            aria-label="Widget omhoog verplaatsen"
+            className="text-neutral-500 hover:text-neutral-900 disabled:opacity-25 dark:text-neutral-400 dark:hover:text-neutral-100"
+          >
+            ▲
+          </button>
+          <button
+            type="button"
+            disabled={!onOmlaag}
+            onClick={onOmlaag}
+            aria-label="Widget omlaag verplaatsen"
+            className="text-neutral-500 hover:text-neutral-900 disabled:opacity-25 dark:text-neutral-400 dark:hover:text-neutral-100"
+          >
+            ▼
+          </button>
           <button
             type="button"
             onClick={onBewerken}

@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { Widget as WidgetComponent } from "@/app/components/Widget";
 import { WidgetFormulier } from "@/app/components/WidgetFormulier";
-import type { Widget as WidgetData } from "@/lib/api";
+import { putWidget, type Widget as WidgetData } from "@/lib/api";
 
 export function WidgetenSectie({ widgets, onWidgetsGewijzigd }: { widgets: WidgetData[]; onWidgetsGewijzigd: () => void }) {
   const [toonFormulier, setToonFormulier] = useState(false);
@@ -14,6 +14,27 @@ export function WidgetenSectie({ widgets, onWidgetsGewijzigd }: { widgets: Widge
     setToonFormulier(false);
     setBewerktWidget(null);
     onWidgetsGewijzigd();
+  }
+
+  // widgets komt al gesorteerd op volgorde binnen (API: ORDER BY volgorde, id)
+  // — omhoog/omlaag wisselt de volgorde-waarde met de buur en slaat beide op.
+  async function verplaats(index: number, richting: -1 | 1) {
+    const buurIndex = index + richting;
+    if (buurIndex < 0 || buurIndex >= widgets.length) return;
+    const huidige = widgets[index];
+    const buur = widgets[buurIndex];
+    const { id: huidigeId, ...huidigeInvoer } = huidige;
+    const { id: buurId, ...buurInvoer } = buur;
+    try {
+      await Promise.all([
+        putWidget(huidigeId, { ...huidigeInvoer, volgorde: buur.volgorde }),
+        putWidget(buurId, { ...buurInvoer, volgorde: huidige.volgorde }),
+      ]);
+      onWidgetsGewijzigd();
+    } catch {
+      // reorder is een kleine interactie — bij een mislukking blijft de
+      // volgorde gewoon zoals 'ie was, geen aparte foutmelding-UI nodig.
+    }
   }
 
   return (
@@ -46,7 +67,7 @@ export function WidgetenSectie({ widgets, onWidgetsGewijzigd }: { widgets: Widge
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {widgets.map((w) =>
+          {widgets.map((w, index) =>
             bewerktWidget?.id === w.id ? (
               <WidgetFormulier
                 key={w.id}
@@ -64,6 +85,8 @@ export function WidgetenSectie({ widgets, onWidgetsGewijzigd }: { widgets: Widge
                   setToonFormulier(false);
                   setBewerktWidget(w);
                 }}
+                onOmhoog={index > 0 ? () => verplaats(index, -1) : undefined}
+                onOmlaag={index < widgets.length - 1 ? () => verplaats(index, 1) : undefined}
               />
             )
           )}

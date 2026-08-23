@@ -46,8 +46,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full flex flex-col">
         <DemoBanner />
-        <NavBalk />
-        {children}
+        <NavBalk>{children}</NavBalk>
       </body>
     </html>
   );
