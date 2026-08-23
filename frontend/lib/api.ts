@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 export type Granulariteit = "dag" | "week" | "maand" | "jaar";
 
@@ -47,6 +47,20 @@ export interface Transactie {
 
 export interface TransactiesResponse {
   transacties: Transactie[];
+}
+
+export interface Abonnement {
+  naam: string;
+  logo_url: string | null;
+  bedrag: number;
+  interval: string;
+  eerstvolgende_afschrijving: string;
+  dagen_tot_afschrijving: number;
+}
+
+export interface AbonnementenResponse {
+  abonnementen: Abonnement[];
+  totaal_per_maand: number;
 }
 
 export class ApiError extends Error {}
@@ -110,4 +124,8 @@ export function getTransacties(params: {
   zoekParams.set("vanaf", params.vanaf);
   zoekParams.set("tot", params.tot);
   return fetchJson<TransactiesResponse>(`/api/rapportage/transacties?${zoekParams}`);
+}
+
+export function getAbonnementen(): Promise<AbonnementenResponse> {
+  return fetchJson<AbonnementenResponse>("/api/rapportage/abonnementen");
 }

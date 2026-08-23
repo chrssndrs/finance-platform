@@ -25,6 +25,21 @@ SQL_DATUM_BEREIK = """
     SELECT MIN(datum), MAX(datum) FROM gold.transacties
 """
 
+SQL_ABONNEMENTEN = """
+    SELECT afzender, bedrag, interval, eerstvolgende_afschrijving, logo_bestand
+    FROM gold.abonnementen
+    ORDER BY eerstvolgende_afschrijving ASC
+"""
+
+# Genormaliseerd naar een maandbedrag, zodat abonnementen met verschillende
+# intervallen bij elkaar opgeteld een zinvol totaal geven.
+INTERVAL_NAAR_MAAND_FACTOR = {
+    "wekelijks": 52 / 12,
+    "maandelijks": 1,
+    "per_kwartaal": 1 / 3,
+    "jaarlijks": 1 / 12,
+}
+
 SQL_TRANSACTIES = """
     SELECT transactie_id, datum, afzender, bedrag_eur::DOUBLE, mededelingen
     FROM gold.transacties
@@ -96,11 +111,6 @@ def _volgende_periode(start: date, granulariteit: str, n: int) -> date:
     if granulariteit == "jaar":
         return date(start.year + n, start.month, start.day)
     raise ValueError(f"Onbekende granulariteit: {granulariteit}")
-
-
-def periode_starts(granulariteit: str, aantal: int, vandaag: date | None = None) -> list[date]:
-    huidige_periode = _periode_start(vandaag or date.today(), granulariteit)
-    return [_volgende_periode(huidige_periode, granulariteit, -i) for i in range(aantal - 1, -1, -1)]
 
 
 def periode_starts_tussen(granulariteit: str, vanaf: date, tot: date) -> list[date]:

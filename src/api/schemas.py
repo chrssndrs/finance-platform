@@ -48,3 +48,17 @@ class Transactie(BaseModel):
 
 class TransactiesResponse(BaseModel):
     transacties: list[Transactie]
+
+
+class Abonnement(BaseModel):
+    naam: str
+    logo_url: str | None
+    bedrag: float
+    interval: str
+    eerstvolgende_afschrijving: date
+    dagen_tot_afschrijving: int
+
+
+class AbonnementenResponse(BaseModel):
+    abonnementen: list[Abonnement]
+    totaal_per_maand: float

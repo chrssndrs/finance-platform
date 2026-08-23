@@ -7,6 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from src.api.deps import get_db
 from src.api.queries import (
     GRANULARITEIT_NAAR_DUCKDB_EENHEID,
+    INTERVAL_NAAR_MAAND_FACTOR,
+    SQL_ABONNEMENTEN,
     SQL_AFZENDERS,
     SQL_CATEGORIEEN,
     SQL_DATUM_BEREIK,
@@ -16,6 +18,8 @@ from src.api.queries import (
     periode_starts_tussen,
 )
 from src.api.schemas import (
+    Abonnement,
+    AbonnementenResponse,
     AfzendersResponse,
     CategorieenResponse,
     CategorieGroep,
@@ -161,3 +165,24 @@ def get_transacties(
             for transactie_id, datum, afzender_naam, bedrag_eur, mededelingen in rijen
         ]
     )
+
+
+@router.get("/abonnementen", response_model=AbonnementenResponse)
+def get_abonnementen(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> AbonnementenResponse:
+    rijen = con.execute(SQL_ABONNEMENTEN).fetchall()
+    vandaag = date.today()
+
+    abonnementen = [
+        Abonnement(
+            naam=afzender,
+            logo_url=f"/logos/{logo_bestand}" if logo_bestand else None,
+            bedrag=bedrag,
+            interval=interval,
+            eerstvolgende_afschrijving=eerstvolgende_afschrijving,
+            dagen_tot_afschrijving=(eerstvolgende_afschrijving - vandaag).days,
+        )
+        for afzender, bedrag, interval, eerstvolgende_afschrijving, logo_bestand in rijen
+    ]
+    totaal_per_maand = sum(a.bedrag * INTERVAL_NAAR_MAAND_FACTOR[a.interval] for a in abonnementen)
+
+    return AbonnementenResponse(abonnementen=abonnementen, totaal_per_maand=round(totaal_per_maand, 2))

@@ -5,6 +5,7 @@ import duckdb
 import pandas as pd
 
 from src.pipeline import schema
+from src.pipeline.abonnementen import detectie as abonnementen
 from src.pipeline.paths import DB_PAD
 from src.pipeline.transacties import bronze, gold, silver
 
@@ -54,6 +55,17 @@ def main() -> int:
             schema.log_run(con, gestart_op, "gefaald", "gold gefaald")
             return 1
         logger.info("Stap 'gold' geslaagd: %s", resultaten["gold"])
+
+        # Draait net als gold altijd: leest gold.transacties opnieuw, geen
+        # eigen bronze/silver-afhankelijkheid.
+        logger.info("Start stap: abonnementen")
+        try:
+            resultaten["abonnementen"] = abonnementen.run_abonnementen(con)
+        except Exception:
+            logger.exception("Stap 'abonnementen' gefaald — pipeline gestopt (fail-fast)")
+            schema.log_run(con, gestart_op, "gefaald", "abonnementen gefaald")
+            return 1
+        logger.info("Stap 'abonnementen' geslaagd: %s", resultaten["abonnementen"])
 
         logger.info("Pipeline geslaagd. Samenvatting: %s", resultaten)
         schema.log_run(con, gestart_op, "geslaagd", str(resultaten))
