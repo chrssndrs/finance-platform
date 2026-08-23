@@ -48,7 +48,7 @@ export function FilterBalk({
       <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
         Categorie
         <select
-          className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+          className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 sm:text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
           value={categorie ?? ""}
           onChange={(e) => onCategorieChange(e.target.value || null)}
         >
@@ -64,7 +64,7 @@ export function FilterBalk({
       <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
         Subcategorie
         <select
-          className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-neutral-900 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+          className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 disabled:opacity-50 sm:text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
           value={subcategorie ?? ""}
           onChange={(e) => onSubcategorieChange(e.target.value || null)}
           disabled={!categorie}
@@ -83,7 +83,7 @@ export function FilterBalk({
       <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
         Weergave
         <select
-          className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+          className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 sm:text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
           value={granulariteit}
           onChange={(e) => onGranulariteitChange(e.target.value as Granulariteit)}
         >

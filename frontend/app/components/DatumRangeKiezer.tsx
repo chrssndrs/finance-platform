@@ -52,7 +52,7 @@ export function DatumRangeKiezer({ selectie, onChange }: DatumRangeKiezerProps) 
       </button>
 
       {open && (
-        <div className="absolute top-full z-10 mt-1 w-72 rounded-md border border-neutral-300 bg-white p-3 shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
+        <div className="absolute top-full right-0 z-10 mt-1 w-72 max-w-[90vw] rounded-md border border-neutral-300 bg-white p-3 shadow-lg sm:right-auto dark:border-neutral-700 dark:bg-neutral-900">
           <button
             type="button"
             onClick={() => kies({ modus: "alles" })}
@@ -82,12 +82,12 @@ export function DatumRangeKiezer({ selectie, onChange }: DatumRangeKiezerProps) 
                 min={1}
                 value={aangepastAantal}
                 onChange={(e) => setAangepastAantal(Math.max(1, Number(e.target.value)))}
-                className="w-16 rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                className="w-16 rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-base text-neutral-900 sm:text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
               />
               <select
                 value={aangepastEenheid}
                 onChange={(e) => setAangepastEenheid(e.target.value as Granulariteit)}
-                className="flex-1 rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                className="flex-1 rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-base text-neutral-900 sm:text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
               >
                 {EENHEDEN.map((e) => (
                   <option key={e} value={e}>
@@ -112,14 +112,14 @@ export function DatumRangeKiezer({ selectie, onChange }: DatumRangeKiezerProps) 
                 type="date"
                 value={van}
                 onChange={(e) => setVan(e.target.value)}
-                className="w-full rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                className="w-full rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-base text-neutral-900 sm:text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
               />
               <span className="text-neutral-400">–</span>
               <input
                 type="date"
                 value={tot}
                 onChange={(e) => setTot(e.target.value)}
-                className="w-full rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                className="w-full rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-base text-neutral-900 sm:text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
               />
             </div>
             <button
