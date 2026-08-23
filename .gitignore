@@ -12,6 +12,10 @@ data/inboedel/
 config/categorisatie_regels.yaml
 .env
 
+# Demo-omgeving — volledig gegenereerd door scripts/genereer_demo_data.py,
+# regenereer i.p.v. committen
+demo/
+
 # Logs
 *.log
 

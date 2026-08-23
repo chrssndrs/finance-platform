@@ -1,0 +1,54 @@
+# Demo-stack met verzonnen data, los van je eigen stack (docker-compose.yml).
+# Draait op andere poorten (3010/8010) en andere data (./demo, gitignored,
+# gegenereerd door scripts/genereer_demo_data.py) — deelt niets met je echte
+# database of config.
+#
+# Opstarten:  docker compose -f docker-compose.demo.yml up -d --build
+# Stoppen:    docker compose -f docker-compose.demo.yml down
+name: finance-platform-demo
+
+services:
+  demo-pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: finance-platform-backend-demo
+    command: ["sh", "-c", "touch /var/log/cron.log && cron && tail -f /var/log/cron.log"]
+    environment:
+      FINANCE_DATA_ROOT: /data
+      FINANCE_CONFIG_ROOT: /app/config
+    volumes:
+      - ./demo:/data
+      - ./demo/config:/app/config
+    restart: unless-stopped
+
+  demo-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: finance-platform-backend-demo
+    command: ["python", "-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      FINANCE_DATA_ROOT: /data
+      FINANCE_CONFIG_ROOT: /app/config
+      CORS_ORIGINS: http://localhost:3010,http://192.168.1.140:3010
+    volumes:
+      - ./demo:/data
+      - ./demo/config:/app/config
+    ports:
+      - "8010:8000"
+    restart: unless-stopped
+
+  demo-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://192.168.1.140:8010
+        NEXT_PUBLIC_DEMO: "true"
+    image: finance-platform-frontend-demo
+    ports:
+      - "3010:3000"
+    depends_on:
+      - demo-api
+    restart: unless-stopped

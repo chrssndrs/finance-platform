@@ -14,6 +14,10 @@ COPY . .
 ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 
+# Alleen gezet door docker-compose.demo.yml — toont de demo-banner.
+ARG NEXT_PUBLIC_DEMO=""
+ENV NEXT_PUBLIC_DEMO=$NEXT_PUBLIC_DEMO
+
 RUN npm run build
 
 FROM node:22-slim AS runner

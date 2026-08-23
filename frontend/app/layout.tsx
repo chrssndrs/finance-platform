@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
+import { DemoBanner } from "@/app/components/DemoBanner";
 import { NavBalk } from "@/app/components/NavBalk";
 import "./globals.css";
 
@@ -27,7 +28,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Finance Platform",
+  title: process.env.NEXT_PUBLIC_DEMO ? "Finance Platform (demo)" : "Finance Platform",
   description: "Rapportage over persoonlijke financiën",
 };
 
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </Script>
       </head>
       <body className="min-h-full flex flex-col">
+        <DemoBanner />
         <NavBalk />
         {children}
       </body>
