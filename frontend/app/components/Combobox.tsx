@@ -80,7 +80,7 @@ export function Combobox({ label, opties, waarde, onChange, placeholder = "Alle"
         )}
       </div>
       {open && (
-        <div className="absolute top-full z-10 mt-1 max-h-72 w-full min-w-[16rem] overflow-y-auto rounded-md border border-neutral-300 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
+        <div className="fixed inset-x-4 top-1/2 z-20 max-h-72 -translate-y-1/2 overflow-y-auto rounded-md border border-neutral-300 bg-white shadow-lg sm:absolute sm:inset-x-auto sm:top-full sm:left-0 sm:z-10 sm:mt-1 sm:w-full sm:min-w-[16rem] sm:translate-y-0 dark:border-neutral-700 dark:bg-neutral-900">
           <button
             type="button"
             onClick={() => selecteer(null)}

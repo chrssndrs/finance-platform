@@ -52,7 +52,7 @@ export function DatumRangeKiezer({ selectie, onChange }: DatumRangeKiezerProps) 
       </button>
 
       {open && (
-        <div className="absolute top-full right-0 z-10 mt-1 w-72 max-w-[90vw] rounded-md border border-neutral-300 bg-white p-3 shadow-lg sm:right-auto dark:border-neutral-700 dark:bg-neutral-900">
+        <div className="fixed inset-x-4 top-1/2 z-20 -translate-y-1/2 rounded-md border border-neutral-300 bg-white p-3 shadow-lg sm:absolute sm:inset-x-auto sm:top-full sm:left-0 sm:z-10 sm:mt-1 sm:w-72 sm:translate-y-0 dark:border-neutral-700 dark:bg-neutral-900">
           <button
             type="button"
             onClick={() => kies({ modus: "alles" })}
