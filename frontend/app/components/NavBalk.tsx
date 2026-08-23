@@ -69,8 +69,8 @@ export function NavBalk({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <nav className="sticky top-0 z-30 border-b border-neutral-200 bg-[var(--background)] dark:border-neutral-800">
-        <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-6">
+      <nav className="sticky top-0 z-30 h-14 border-b border-neutral-200 bg-[var(--background)] dark:border-neutral-800">
+        <div className="mx-auto flex h-full w-full max-w-3xl items-center justify-between px-6">
           <div className="flex items-center">
             <button
               type="button"
@@ -117,7 +117,7 @@ export function NavBalk({ children }: { children: React.ReactNode }) {
       </nav>
 
       {/* Ligt "achter" de content — wordt zichtbaar zodra de content hieronder naar rechts schuift. */}
-      <div className="fixed inset-y-0 left-0 z-10 w-72 overflow-y-auto border-r border-neutral-200 bg-white pt-4 sm:hidden dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="fixed inset-y-0 left-0 z-10 w-72 overflow-y-auto border-r border-neutral-200 bg-white pt-14 sm:hidden dark:border-neutral-800 dark:bg-neutral-900">
         {DOMEINEN.map((d) => {
           const actief = pathname === d.pad;
           return (
