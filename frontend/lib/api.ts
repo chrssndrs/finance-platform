@@ -50,17 +50,52 @@ export interface TransactiesResponse {
 }
 
 export interface Abonnement {
+  id: number;
   naam: string;
+  afzender: string | null;
+  categorie: string | null;
+  subcategorie: string | null;
   logo_url: string | null;
   bedrag: number;
   interval: string;
   eerstvolgende_afschrijving: string;
   dagen_tot_afschrijving: number;
+  bron: string;
 }
 
 export interface AbonnementenResponse {
   abonnementen: Abonnement[];
   totaal_per_maand: number;
+}
+
+export interface AbonnementInvoer {
+  naam: string;
+  afzender: string | null;
+  categorie: string | null;
+  subcategorie: string | null;
+  bedrag: number;
+  interval: string;
+  eerstvolgende_afschrijving: string;
+  domein: string | null;
+}
+
+export interface Aanbeveling {
+  id: number;
+  type: "nieuw" | "prijswijziging";
+  afzender: string;
+  naam: string;
+  categorie: string | null;
+  subcategorie: string | null;
+  logo_url: string | null;
+  huidig_bedrag: number | null;
+  voorgesteld_bedrag: number;
+  interval: string | null;
+  eerstvolgende_afschrijving: string | null;
+  aantal_transacties: number | null;
+}
+
+export interface AanbevelingenResponse {
+  aanbevelingen: Aanbeveling[];
 }
 
 export interface InboedelArtikel {
@@ -132,6 +167,14 @@ async function verwijder(pad: string): Promise<void> {
   }
 }
 
+async function postLeeg(pad: string): Promise<void> {
+  const response = await fetch(`${API_BASE}${pad}`, { method: "POST" });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new ApiError(body?.detail ?? `API-fout (${response.status})`);
+  }
+}
+
 export function getCategorieen(): Promise<CategorieenResponse> {
   return fetchJson<CategorieenResponse>("/api/rapportage/categorieen");
 }
@@ -185,7 +228,31 @@ export function getTransacties(params: {
 }
 
 export function getAbonnementen(): Promise<AbonnementenResponse> {
-  return fetchJson<AbonnementenResponse>("/api/rapportage/abonnementen");
+  return fetchJson<AbonnementenResponse>("/api/abonnementen");
+}
+
+export function postAbonnement(abonnement: AbonnementInvoer): Promise<Abonnement> {
+  return zendJson<Abonnement>("/api/abonnementen", "POST", abonnement);
+}
+
+export function putAbonnement(id: number, abonnement: AbonnementInvoer): Promise<Abonnement> {
+  return zendJson<Abonnement>(`/api/abonnementen/${id}`, "PUT", abonnement);
+}
+
+export function deleteAbonnement(id: number): Promise<void> {
+  return verwijder(`/api/abonnementen/${id}`);
+}
+
+export function getAanbevelingen(): Promise<AanbevelingenResponse> {
+  return fetchJson<AanbevelingenResponse>("/api/abonnementen/aanbevelingen");
+}
+
+export function accepteerAanbeveling(id: number): Promise<void> {
+  return postLeeg(`/api/abonnementen/aanbevelingen/${id}/accepteren`);
+}
+
+export function weigerAanbeveling(id: number): Promise<void> {
+  return postLeeg(`/api/abonnementen/aanbevelingen/${id}/weigeren`);
 }
 
 export function getInboedelArtikelen(): Promise<InboedelArtikelenResponse> {

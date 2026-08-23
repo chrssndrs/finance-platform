@@ -1,7 +1,12 @@
 """Genereert alle dummy-data voor de demo-omgeving (zie docker-compose.demo.yml):
-een fictieve ING-bankexport, categorisatie-regels, een abonnementen-config en
-een inboedel-CSV. Alle namen/bedragen zijn verzonnen — bedoeld om de app te
-kunnen laten zien zonder ook maar iets echts prijs te geven.
+een fictieve ING-bankexport, categorisatie-regels en een inboedel-CSV. Alle
+namen/bedragen zijn verzonnen — bedoeld om de app te kunnen laten zien zonder
+ook maar iets echts prijs te geven.
+
+Abonnementen worden niet hier geconfigureerd (dat gebeurt nu via de
+databank/UI, niet via een config-bestand) — zie scripts/seed_demo_abonnementen.py,
+dat ná de pipeline draait om de aanbevelingen/prijswijziging/handmatig-flows
+te demonstreren.
 
 Los te draaien: python -m scripts.genereer_demo_data
 Schrijft alles naar demo/ (genegeerd in git — bij twijfel opnieuw genereren
@@ -129,12 +134,19 @@ def genereer_transacties() -> Rijen:
     r.maandelijks("ZekerVerzekerd", 2, -145.50, "IC", "Incasso algemeen doorlopend")
     r.maandelijks("Parkeerplus", 18, -25.00, "IC", "Incasso algemeen doorlopend")
     r.maandelijks("FilmFlex", 20, -12.99, "IC", "Incasso algemeen doorlopend")
-    # prijswijziging halverwege — laat zien waarom abonnementen.yaml nuttig is
+    # prijswijziging halverwege — blijft een geldig, automatisch te detecteren
+    # abonnement (elke prijs op zich komt vaak genoeg voor); laat zien dat de
+    # detectie ook gewoon prijswijzigingen in de bestaande, oudere data aankan.
     r.maandelijks("BeatStream", 8, lambda i: -9.99 if i < 20 else -11.99, "IC", "Incasso algemeen doorlopend")
     r.maandelijks("TeleConnect", 15, lambda i: -42.50 if i < 18 else -45.99, "IC", "Incasso algemeen doorlopend")
+    # blijft bewust ongemoeid door scripts/seed_demo_abonnementen.py — laat de
+    # "nieuw abonnement gevonden"-aanbeveling in de demo zien.
+    r.maandelijks("CloudGuard Backup", 22, -4.99, "IC", "Incasso algemeen doorlopend")
 
-    # jaarlijks, prijs stijgt ieder jaar — met maar 3-4 jaar historie precies
-    # het scenario waarvoor de handmatige override in abonnementen.yaml is bedoeld
+    # jaarlijks, prijs stijgt ieder jaar — met wisselend bedrag elk jaar
+    # onvindbaar voor de automatische detectie (elk bedrag komt maar 1x voor).
+    # Precies het scenario waarvoor handmatige invoer bedoeld is — zie
+    # scripts/seed_demo_abonnementen.py.
     r.jaarlijks("Autoclub NL", 4, 14, lambda j: -(89 + j * 5), "IC", "Incasso algemeen doorlopend")
 
     # --- onregelmatig, bewust NIET subscription-achtig ---
@@ -245,6 +257,11 @@ regels:
     prioriteit: 10
     patroon: "teleconnect"
 
+  - categorie: Abonnementen
+    subcategorie: Overig
+    prioriteit: 10
+    patroon: "cloudguard backup"
+
   - categorie: Vervoer
     subcategorie: Brandstof/Parkeren
     prioriteit: 10
@@ -300,18 +317,6 @@ regels:
     patroon: "geldautomaat"
 """
 
-ABONNEMENTEN_CONFIG = """\
-# Demo-config — laat dezelfde twee gevallen zien als in de echte
-# abonnementen.yaml: een naam-hint en een volledige override voor een
-# jaarlijks abonnement met te weinig historie voor automatische detectie.
-abonnementen:
-  - afzender: "Autoclub NL"
-    naam: "Autoclub NL — lidmaatschap"
-    interval: jaarlijks
-
-genegeerd: []
-"""
-
 INBOEDEL_CSV = """\
 Omschrijving;Merk;Model;Winkel;Bedrag;Datum;Levensduur;Serienummer
 Wasmachine;Whirltech;WT200;TechHoek;€\t489,00;15-03-2022;60;
@@ -326,7 +331,6 @@ Televisie;Novadyne;OLED55;TechHoek;€\t799,00;18-11-2022;96;
 def schrijf_configs():
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     (CONFIG_DIR / "categorisatie_regels.yaml").write_text(CATEGORISATIE_REGELS, encoding="utf-8")
-    (CONFIG_DIR / "abonnementen.yaml").write_text(ABONNEMENTEN_CONFIG, encoding="utf-8")
     print(f"configs -> {CONFIG_DIR}")
 
 

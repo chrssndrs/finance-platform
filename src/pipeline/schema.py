@@ -3,7 +3,7 @@ import pandas as pd
 
 
 def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
-    for naam in ("meta", "landing", "bronze", "silver", "gold", "inboedel"):
+    for naam in ("meta", "landing", "bronze", "silver", "gold", "inboedel", "abonnementen"):
         con.execute(f"CREATE SCHEMA IF NOT EXISTS {naam}")
 
     con.execute("CREATE SEQUENCE IF NOT EXISTS meta.bestanden_log_seq START 1")
@@ -52,6 +52,55 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
     # ALTER ... IF NOT EXISTS omdat de tabel hierboven al bestond vóór dit veld
     # werd toegevoegd — CREATE TABLE IF NOT EXISTS raakt een bestaande tabel niet aan.
     con.execute("ALTER TABLE inboedel.artikelen ADD COLUMN IF NOT EXISTS serienummer VARCHAR")
+
+    # De geaccepteerde/handmatige abonnementen-lijst — vervangt de oude,
+    # volledig herberekende gold.abonnementen. afzender NULL = puur
+    # handmatig (geen koppeling aan banktransacties, bv. contant betaald).
+    con.execute("CREATE SEQUENCE IF NOT EXISTS abonnementen.abonnementen_seq START 1")
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS abonnementen.abonnementen (
+            id INTEGER PRIMARY KEY DEFAULT nextval('abonnementen.abonnementen_seq'),
+            afzender VARCHAR,
+            naam VARCHAR NOT NULL,
+            categorie VARCHAR,
+            subcategorie VARCHAR,
+            bedrag DECIMAL(10,2) NOT NULL,
+            interval VARCHAR NOT NULL,
+            eerste_afschrijving DATE,
+            laatste_afschrijving DATE,
+            eerstvolgende_afschrijving DATE NOT NULL,
+            aantal_transacties INTEGER,
+            domein VARCHAR,
+            logo_bestand VARCHAR,
+            bron VARCHAR NOT NULL DEFAULT 'handmatig',
+            aangemaakt_op TIMESTAMP NOT NULL
+        )
+    """)
+
+    # Openstaande/afgehandelde suggesties uit de detectie (nieuw abonnement
+    # gevonden, of een prijswijziging bij een al-geaccepteerd abonnement).
+    con.execute("CREATE SEQUENCE IF NOT EXISTS abonnementen.aanbevelingen_seq START 1")
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS abonnementen.aanbevelingen (
+            id INTEGER PRIMARY KEY DEFAULT nextval('abonnementen.aanbevelingen_seq'),
+            type VARCHAR NOT NULL,
+            afzender VARCHAR NOT NULL,
+            abonnement_id INTEGER,
+            naam VARCHAR,
+            categorie VARCHAR,
+            subcategorie VARCHAR,
+            huidig_bedrag DECIMAL(10,2),
+            voorgesteld_bedrag DECIMAL(10,2) NOT NULL,
+            interval VARCHAR,
+            eerste_afschrijving DATE,
+            laatste_afschrijving DATE,
+            eerstvolgende_afschrijving DATE,
+            aantal_transacties INTEGER,
+            status VARCHAR NOT NULL DEFAULT 'open',
+            aangemaakt_op TIMESTAMP NOT NULL,
+            afgehandeld_op TIMESTAMP
+        )
+    """)
 
 
 def log_run(

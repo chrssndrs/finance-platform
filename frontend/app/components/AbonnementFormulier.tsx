@@ -1,0 +1,154 @@
+"use client";
+
+import { useState } from "react";
+
+import { Combobox } from "@/app/components/Combobox";
+import { ApiError, postAbonnement, putAbonnement, type Abonnement, type AbonnementInvoer } from "@/lib/api";
+
+const INTERVAL_OPTIES: { waarde: string; label: string }[] = [
+  { waarde: "wekelijks", label: "Wekelijks" },
+  { waarde: "maandelijks", label: "Maandelijks" },
+  { waarde: "tweemaandelijks", label: "Tweemaandelijks" },
+  { waarde: "per_kwartaal", label: "Per kwartaal" },
+  { waarde: "jaarlijks", label: "Jaarlijks" },
+];
+
+const inputKlasse =
+  "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 sm:text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100";
+
+interface AbonnementFormulierProps {
+  afzenders: string[];
+  abonnement?: Abonnement;
+  onOpgeslagen: (abonnement: Abonnement) => void;
+  onAnnuleren?: () => void;
+}
+
+export function AbonnementFormulier({ afzenders, abonnement, onOpgeslagen, onAnnuleren }: AbonnementFormulierProps) {
+  const [naam, setNaam] = useState(abonnement?.naam ?? "");
+  const [afzender, setAfzender] = useState<string | null>(abonnement?.afzender ?? null);
+  const [bedrag, setBedrag] = useState(abonnement ? String(abonnement.bedrag).replace(".", ",") : "");
+  const [interval, setInterval] = useState(abonnement?.interval ?? "maandelijks");
+  const [eerstvolgende, setEerstvolgende] = useState(abonnement?.eerstvolgende_afschrijving ?? "");
+  const [domein, setDomein] = useState("");
+  const [bezig, setBezig] = useState(false);
+  const [foutmelding, setFoutmelding] = useState<string | null>(null);
+
+  async function versturen(e: React.FormEvent) {
+    e.preventDefault();
+    if (!naam.trim()) {
+      setFoutmelding("Naam is verplicht.");
+      return;
+    }
+    if (!bedrag.trim() || !eerstvolgende) {
+      setFoutmelding("Bedrag en eerstvolgende afschrijving zijn verplicht.");
+      return;
+    }
+    setBezig(true);
+    setFoutmelding(null);
+    const invoer: AbonnementInvoer = {
+      naam: naam.trim(),
+      afzender,
+      categorie: abonnement?.categorie ?? null,
+      subcategorie: abonnement?.subcategorie ?? null,
+      bedrag: Number(bedrag.replace(",", ".")),
+      interval,
+      eerstvolgende_afschrijving: eerstvolgende,
+      domein: domein.trim() || null,
+    };
+    try {
+      const resultaat = abonnement ? await putAbonnement(abonnement.id, invoer) : await postAbonnement(invoer);
+      onOpgeslagen(resultaat);
+    } catch (err) {
+      setFoutmelding(err instanceof ApiError ? err.message : "Opslaan mislukt.");
+    } finally {
+      setBezig(false);
+    }
+  }
+
+  return (
+    <form
+      onSubmit={versturen}
+      className="grid grid-cols-1 gap-3 rounded-lg border border-neutral-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-3 dark:border-neutral-800 dark:bg-neutral-900"
+    >
+      <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
+        Naam
+        <input type="text" required value={naam} onChange={(e) => setNaam(e.target.value)} className={inputKlasse} />
+      </label>
+
+      <Combobox
+        label="Afzender (optioneel — koppelt aan banktransacties)"
+        opties={afzenders}
+        waarde={afzender}
+        onChange={setAfzender}
+        vrijeInvoer
+        placeholder="Geen koppeling (puur handmatig)"
+      />
+
+      <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
+        Bedrag
+        <input
+          type="text"
+          inputMode="decimal"
+          required
+          placeholder="0,00"
+          value={bedrag}
+          onChange={(e) => setBedrag(e.target.value)}
+          className={inputKlasse}
+        />
+      </label>
+
+      <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
+        Interval
+        <select value={interval} onChange={(e) => setInterval(e.target.value)} className={inputKlasse}>
+          {INTERVAL_OPTIES.map((o) => (
+            <option key={o.waarde} value={o.waarde}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
+        Eerstvolgende afschrijving
+        <input
+          type="date"
+          required
+          value={eerstvolgende}
+          onChange={(e) => setEerstvolgende(e.target.value)}
+          className={inputKlasse}
+        />
+      </label>
+
+      <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
+        Domein (voor logo, optioneel)
+        <input
+          type="text"
+          placeholder="bijv. spotify.com"
+          value={domein}
+          onChange={(e) => setDomein(e.target.value)}
+          className={inputKlasse}
+        />
+      </label>
+
+      <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-3">
+        <button
+          type="submit"
+          disabled={bezig}
+          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+        >
+          {bezig ? "Bezig..." : abonnement ? "Opslaan" : "Abonnement toevoegen"}
+        </button>
+        {onAnnuleren && (
+          <button
+            type="button"
+            onClick={onAnnuleren}
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800"
+          >
+            Annuleren
+          </button>
+        )}
+        {foutmelding && <p className="self-center text-sm text-red-700 dark:text-red-400">{foutmelding}</p>}
+      </div>
+    </form>
+  );
+}

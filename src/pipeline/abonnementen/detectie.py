@@ -13,27 +13,23 @@ from src.pipeline.paths import CONFIG_ROOT, LOGOS_PAD
 
 logger = logging.getLogger(__name__)
 
+# Alleen nog gelezen door de eenmalige migratie hieronder (_migreer_indien_nodig)
+# — de databank is nu de bron van waarheid, dit bestand bestaat niet meer.
 CONFIG_PAD = CONFIG_ROOT / "abonnementen.yaml"
 
 # Bewust uitgesloten: geen betaling aan een bedrijf (contant, eigen inkomen,
 # overboekingen naar spaarrekening/personen) of nog ongecategoriseerd
 # (te onbetrouwbaar om automatisch als "abonnement" te bestempelen).
 # Gemeentelijke belasting is geen overeenkomst met een bedrijf.
-# Geldt alleen voor de automatische detectie — een handmatige regel in
-# abonnementen.yaml omzeilt dit bewust (de gebruiker weet het beter).
 UITGESLOTEN_CATEGORIEEN = ("Contant", "Inkomen", "Sparen/Beleggen", "Overig")
 
 # Persoonsnaam-patroon (Nederlandse bank-export aanhef "Hr"/"Mw", gezamenlijke
 # rekeninghouders "... en Mw ...", of "e/o" tussen twee namen) — zelfs een
 # regelmatige overboeking naar een persoon is geen "abonnement" in de zin
-# van een overeenkomst met een bedrijf. Geldt alleen voor de automatische
-# detectie, net als de categorie-uitsluiting hierboven.
+# van een overeenkomst met een bedrijf.
 PERSOONSNAAM_PATROON = r"(?i)^(?:hr|mw|dhr|mevr)\.?\s|\ben\s+(?:hr|mw)\b|\be/?o\b"
 
 # (interval-naam, min-gemiddelde-dag-gap, max-gemiddelde-dag-gap, typische-dag-lengte)
-# De typische lengte wordt gebruikt om eerstvolgende_afschrijving te bepalen
-# wanneer er geen (betrouwbaar) gemeten gemiddelde is — bij een handmatige
-# override uit abonnementen.yaml, waar vaak maar 1-2 transacties bekend zijn.
 CADENCES: list[tuple[str, int, int, float]] = [
     ("wekelijks", 5, 9, 7),
     ("maandelijks", 25, 35, 30.44),
@@ -44,37 +40,28 @@ CADENCES: list[tuple[str, int, int, float]] = [
 INTERVAL_DAGEN = {naam: dagen for naam, _, _, dagen in CADENCES}
 INTERVAL_BAND = {naam: (lo, hi) for naam, lo, hi, _ in CADENCES}
 
-# Overwogen om dit voor jaarlijks te verlagen naar 2 (zodat je niet 3 jaar
-# hoeft te wachten) — leverde bij het testen alleen valse positieven op:
-# toevallig 2x eenzelfde afgeronde prijs bij een winkel (Wibra, Lidl, HEMA,
-# ...), zonder enig echt interval. Met maar 1 tussenliggende gap is er
-# domweg geen regelmaat te meten. Jaarlijkse abonnementen met minder dan 3
-# jaar historie horen daarom in abonnementen.yaml, niet hier.
+# Zie eerdere overweging: met minder dan 3 tussenliggende transacties is er
+# geen regelmaat te meten — dan moet de gebruiker het abonnement handmatig
+# toevoegen in plaats van te wachten tot de detectie genoeg data heeft.
 MIN_TRANSACTIES = 3
-
-GOLD_ABONNEMENTEN_KOLOMMEN = [
-    "afzender", "naam", "categorie", "subcategorie", "bedrag", "interval",
-    "eerste_afschrijving", "laatste_afschrijving", "eerstvolgende_afschrijving",
-    "aantal_transacties", "logo_bestand",
-]
 
 
 @dataclass
 class AbonnementenResultaat:
-    aantal_automatisch: int
-    aantal_handmatig: int
+    aantal_gemigreerd: int
+    aantal_ververst: int
+    aantal_doorgerold: int
+    aantal_nieuwe_aanbevelingen: int
+    aantal_prijswijziging_aanbevelingen: int
     aantal_logos_opgehaald: int
 
 
 def _laad_config() -> dict:
     if not CONFIG_PAD.exists():
-        return {"abonnementen": [], "genegeerd": []}
+        return {"abonnementen": []}
     with open(CONFIG_PAD, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
-    return {
-        "abonnementen": data.get("abonnementen") or [],
-        "genegeerd": data.get("genegeerd") or [],
-    }
+    return {"abonnementen": data.get("abonnementen") or []}
 
 
 def _is_actueel(eerstvolgende: date, interval: str, vandaag: date) -> bool:
@@ -82,6 +69,16 @@ def _is_actueel(eerstvolgende: date, interval: str, vandaag: date) -> bool:
     # afschrijving ligt te ver terug t.o.v. het interval.
     band_hi = INTERVAL_BAND[interval][1]
     return eerstvolgende >= vandaag - timedelta(days=band_hi * 0.5)
+
+
+def _laad_transacties(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
+    df = con.execute("""
+        SELECT afzender, bedrag_eur, datum, categorie, subcategorie
+        FROM gold.transacties
+        WHERE bedrag_eur < 0 AND afzender IS NOT NULL
+    """).df()
+    df["datum"] = pd.to_datetime(df["datum"]).dt.date
+    return df
 
 
 def _detecteer_automatisch(df: pd.DataFrame, vandaag: date) -> list[dict]:
@@ -130,46 +127,6 @@ def _detecteer_automatisch(df: pd.DataFrame, vandaag: date) -> list[dict]:
     return resultaten
 
 
-def _verwerk_handmatige_entry(entry: dict, alle_df: pd.DataFrame, vandaag: date) -> dict | None:
-    """Een volledige override uit abonnementen.yaml (interval opgegeven) —
-    omzeilt categorie-/persoonsnaam-uitsluiting, het minimum-aantal en de
-    regelmaat-check volledig: de gebruiker heeft dit al beoordeeld. Gebruikt
-    de meest recente matchende transactie, ongeacht bedrag (tenzij `bedrag`
-    is opgegeven) — zo heeft een prijswijziging geen invloed.
-    """
-    afzender = entry["afzender"]
-    interval = entry.get("interval", "maandelijks")
-    if interval not in INTERVAL_DAGEN:
-        logger.warning("Onbekend interval %r voor %r in abonnementen.yaml — overgeslagen", interval, afzender)
-        return None
-
-    subset = alle_df[alle_df["afzender"] == afzender]
-    if "bedrag" in entry:
-        subset = subset[abs(subset["bedrag_eur"] - (-abs(entry["bedrag"]))) < 0.005]
-    if subset.empty:
-        logger.warning("Geen transacties gevonden voor handmatig abonnement %r in abonnementen.yaml", afzender)
-        return None
-
-    laatste_rij = subset.sort_values("datum").iloc[-1]
-    laatste = laatste_rij["datum"]
-    eerstvolgende = laatste + timedelta(days=round(INTERVAL_DAGEN[interval]))
-    if not _is_actueel(eerstvolgende, interval, vandaag):
-        return None
-
-    return {
-        "afzender": afzender,
-        "naam": entry.get("naam") or afzender,
-        "categorie": laatste_rij["categorie"],
-        "subcategorie": laatste_rij["subcategorie"],
-        "bedrag": abs(float(laatste_rij["bedrag_eur"])),
-        "interval": interval,
-        "eerste_afschrijving": subset["datum"].min(),
-        "laatste_afschrijving": laatste,
-        "eerstvolgende_afschrijving": eerstvolgende,
-        "aantal_transacties": len(subset),
-    }
-
-
 def _domein_slug(domein: str) -> str:
     return re.sub(r"[^a-z0-9.]", "_", domein.lower())
 
@@ -190,79 +147,291 @@ def _haal_logo_op(domein: str) -> str | None:
     return None
 
 
+def _migreer_indien_nodig(con: duckdb.DuckDBPyConnection, vandaag: date) -> int:
+    """Eenmalige migratie vanaf de oude, volledig herberekende
+    gold.abonnementen + config/abonnementen.yaml naar de nieuwe, muteerbare
+    abonnementen.abonnementen-tabel. Alles wat er al herkend/geconfigureerd
+    stond wordt als 'al geaccepteerd' overgenomen — anders zou de gebruiker
+    al zijn gecureerde abonnementen opnieuw als aanbeveling voorgeschoteld
+    krijgen. Idempotent: slaat over zodra de nieuwe tabel niet meer leeg is.
+    """
+    (aantal_bestaand,) = con.execute("SELECT count(*) FROM abonnementen.abonnementen").fetchone()
+    if aantal_bestaand > 0:
+        return 0
+
+    bestaat_gold = con.execute("""
+        SELECT count(*) FROM information_schema.tables
+        WHERE table_schema = 'gold' AND table_name = 'abonnementen'
+    """).fetchone()[0]
+    if not bestaat_gold:
+        return 0
+
+    oud = con.execute("""
+        SELECT afzender, naam, categorie, subcategorie, bedrag, interval,
+               eerste_afschrijving, laatste_afschrijving, eerstvolgende_afschrijving,
+               aantal_transacties, logo_bestand
+        FROM gold.abonnementen
+    """).fetchall()
+    if not oud:
+        return 0
+
+    domeinen = {
+        entry["afzender"]: entry["domein"]
+        for entry in _laad_config()["abonnementen"]
+        if entry.get("domein")
+    }
+
+    for (afzender, naam, categorie, subcategorie, bedrag, interval,
+         eerste, laatste, eerstvolgende, aantal, logo_bestand) in oud:
+        con.execute("""
+            INSERT INTO abonnementen.abonnementen
+                (afzender, naam, categorie, subcategorie, bedrag, interval,
+                 eerste_afschrijving, laatste_afschrijving, eerstvolgende_afschrijving,
+                 aantal_transacties, domein, logo_bestand, bron, aangemaakt_op)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'gemigreerd', now())
+        """, [afzender, naam, categorie, subcategorie, bedrag, interval,
+              eerste, laatste, eerstvolgende, aantal, domeinen.get(afzender), logo_bestand])
+
+    logger.info("Gemigreerd van gold.abonnementen naar abonnementen.abonnementen: %d rijen", len(oud))
+    return len(oud)
+
+
+def _ververs_geaccepteerd(con: duckdb.DuckDBPyConnection, transacties_df: pd.DataFrame) -> int:
+    """Ververst laatste/eerstvolgende-afschrijving en aantal_transacties voor
+    afzender-gekoppelde abonnementen, op basis van transacties met exact het
+    huidige bedrag. Verandert het bedrag zelf nooit — dat gaat via een
+    prijswijziging-aanbeveling (_detecteer_prijswijzigingen), niet stilzwijgend.
+    """
+    rijen = con.execute("""
+        SELECT id, afzender, bedrag, interval
+        FROM abonnementen.abonnementen
+        WHERE afzender IS NOT NULL
+    """).fetchall()
+
+    aantal = 0
+    for id_, afzender, bedrag, interval in rijen:
+        subset = transacties_df[
+            (transacties_df["afzender"] == afzender)
+            & ((transacties_df["bedrag_eur"] + float(bedrag)).abs() < 0.005)
+        ]
+        if subset.empty:
+            continue
+        laatste = subset["datum"].max()
+        eerste = subset["datum"].min()
+        eerstvolgende = laatste + timedelta(days=round(INTERVAL_DAGEN[interval]))
+        con.execute("""
+            UPDATE abonnementen.abonnementen
+            SET eerste_afschrijving = ?, laatste_afschrijving = ?,
+                eerstvolgende_afschrijving = ?, aantal_transacties = ?
+            WHERE id = ?
+        """, [eerste, laatste, eerstvolgende, len(subset), id_])
+        aantal += 1
+    return aantal
+
+
+def _rol_handmatige_datums_door(con: duckdb.DuckDBPyConnection, vandaag: date) -> int:
+    """Puur handmatige abonnementen (geen afzender-koppeling, dus geen
+    banktransacties om de datum aan te verversen) rollen we zelf door zodra
+    de eerstvolgende_afschrijving verstreken is — anders blijft 'dagen tot
+    afschrijving' voor altijd negatief."""
+    rijen = con.execute("""
+        SELECT id, eerstvolgende_afschrijving, interval
+        FROM abonnementen.abonnementen
+        WHERE afzender IS NULL AND eerstvolgende_afschrijving < ?
+    """, [vandaag]).fetchall()
+
+    aantal = 0
+    for id_, eerstvolgende, interval in rijen:
+        stap = timedelta(days=round(INTERVAL_DAGEN[interval]))
+        nieuw = eerstvolgende
+        while nieuw < vandaag:
+            nieuw += stap
+        con.execute(
+            "UPDATE abonnementen.abonnementen SET eerstvolgende_afschrijving = ? WHERE id = ?",
+            [nieuw, id_],
+        )
+        aantal += 1
+    return aantal
+
+
+def _upsert_nieuwe_aanbevelingen(con: duckdb.DuckDBPyConnection, kandidaten: list[dict]) -> int:
+    bestaande = con.execute("""
+        SELECT afzender, voorgesteld_bedrag, status, id
+        FROM abonnementen.aanbevelingen
+        WHERE type = 'nieuw'
+    """).fetchall()
+    per_sleutel = {(afz, round(float(bedr), 2)): (status, id_) for afz, bedr, status, id_ in bestaande}
+
+    aantal_nieuw = 0
+    for kand in kandidaten:
+        sleutel = (kand["afzender"], round(kand["bedrag"], 2))
+        bestaand = per_sleutel.get(sleutel)
+        if bestaand is None:
+            con.execute("""
+                INSERT INTO abonnementen.aanbevelingen
+                    (type, afzender, naam, categorie, subcategorie, voorgesteld_bedrag, interval,
+                     eerste_afschrijving, laatste_afschrijving, eerstvolgende_afschrijving,
+                     aantal_transacties, status, aangemaakt_op)
+                VALUES ('nieuw', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', now())
+            """, [kand["afzender"], kand["naam"], kand["categorie"], kand["subcategorie"], kand["bedrag"],
+                  kand["interval"], kand["eerste_afschrijving"], kand["laatste_afschrijving"],
+                  kand["eerstvolgende_afschrijving"], kand["aantal_transacties"]])
+            aantal_nieuw += 1
+        elif bestaand[0] == "open":
+            con.execute("""
+                UPDATE abonnementen.aanbevelingen
+                SET laatste_afschrijving = ?, eerstvolgende_afschrijving = ?, aantal_transacties = ?
+                WHERE id = ?
+            """, [kand["laatste_afschrijving"], kand["eerstvolgende_afschrijving"],
+                  kand["aantal_transacties"], bestaand[1]])
+        # status == 'geweigerd': bewust overslaan, blijft onderdrukt.
+    return aantal_nieuw
+
+
+def _detecteer_prijswijzigingen(con: duckdb.DuckDBPyConnection, transacties_df: pd.DataFrame) -> int:
+    """Sommige afzenders hebben meerdere, gelijktijdig lopende abonnementen op
+    verschillende bedragen (bv. een verzekeraar met meerdere polissen) — dus
+    "de meest recente transactie van deze afzender" zegt niets over welke
+    polis van prijs veranderd is. In plaats daarvan kijken we per
+    geaccepteerd abonnement alleen naar transacties van ná zijn eigen,
+    net-ververste laatste_afschrijving (_ververs_geaccepteerd draait hiervóór)
+    met een ander bedrag — dat is het venster waarin alleen een echte
+    prijswijziging van precies déze polis zichtbaar wordt; een nog gewoon
+    doorlopende andere polis van dezelfde afzender blijft buiten beeld omdat
+    zijn eigen laatste_afschrijving al ververst is tot een recente datum.
+    """
+    geaccepteerd = con.execute("""
+        SELECT id, afzender, bedrag, laatste_afschrijving
+        FROM abonnementen.abonnementen
+        WHERE afzender IS NOT NULL AND laatste_afschrijving IS NOT NULL
+    """).fetchall()
+
+    # Alle al-geaccepteerde (afzender, bedrag)-paren: als een afzender meerdere
+    # gelijktijdig lopende abonnementen heeft (bv. twee polissen bij dezelfde
+    # verzekeraar), mag een transactie die bij de ÁNDERE, ook-geaccepteerde
+    # polis hoort niet worden aangezien voor een prijswijziging van déze polis.
+    alle_geaccepteerde_bedragen: dict[str, set[float]] = {}
+    for _id, afz, bedr, _laatste in geaccepteerd:
+        alle_geaccepteerde_bedragen.setdefault(afz, set()).add(round(float(bedr), 2))
+
+    bestaande = con.execute("""
+        SELECT abonnement_id, voorgesteld_bedrag, status
+        FROM abonnementen.aanbevelingen
+        WHERE type = 'prijswijziging'
+    """).fetchall()
+    beslist = {(aid, round(float(bedr), 2)) for aid, bedr, status in bestaande if status in ("geaccepteerd", "geweigerd")}
+    open_per_abonnement = {aid: round(float(bedr), 2) for aid, bedr, status in bestaande if status == "open"}
+
+    aantal = 0
+    for abonnement_id, afzender, huidig_bedrag, laatste_afschrijving in geaccepteerd:
+        huidig_bedrag = round(float(huidig_bedrag), 2)
+        overige_geaccepteerde_bedragen = alle_geaccepteerde_bedragen.get(afzender, set())
+        nieuwe = transacties_df[
+            (transacties_df["afzender"] == afzender)
+            & (transacties_df["datum"] > laatste_afschrijving)
+            & (~transacties_df["bedrag_eur"].abs().round(2).isin(overige_geaccepteerde_bedragen))
+        ]
+        if nieuwe.empty:
+            continue
+        nieuwste = nieuwe.loc[nieuwe["datum"].idxmax()]
+        nieuw_bedrag = round(abs(float(nieuwste["bedrag_eur"])), 2)
+
+        if (abonnement_id, nieuw_bedrag) in beslist:
+            continue
+        if open_per_abonnement.get(abonnement_id) == nieuw_bedrag:
+            continue
+
+        con.execute("""
+            DELETE FROM abonnementen.aanbevelingen
+            WHERE abonnement_id = ? AND type = 'prijswijziging' AND status = 'open'
+        """, [abonnement_id])
+        con.execute("""
+            INSERT INTO abonnementen.aanbevelingen
+                (type, afzender, abonnement_id, huidig_bedrag, voorgesteld_bedrag,
+                 laatste_afschrijving, status, aangemaakt_op)
+            VALUES ('prijswijziging', ?, ?, ?, ?, ?, 'open', now())
+        """, [afzender, abonnement_id, huidig_bedrag, nieuw_bedrag, nieuwste["datum"]])
+        aantal += 1
+    return aantal
+
+
+def _ververs_logos(con: duckdb.DuckDBPyConnection) -> int:
+    rijen = con.execute("""
+        SELECT id, domein FROM abonnementen.abonnementen
+        WHERE domein IS NOT NULL AND logo_bestand IS NULL
+    """).fetchall()
+    aantal = 0
+    for id_, domein in rijen:
+        bestand = _haal_logo_op(domein)
+        if bestand:
+            con.execute("UPDATE abonnementen.abonnementen SET logo_bestand = ? WHERE id = ?", [bestand, id_])
+            aantal += 1
+    return aantal
+
+
 def run_abonnementen(
     con: duckdb.DuckDBPyConnection,
     vandaag: date | None = None,
 ) -> AbonnementenResultaat:
     vandaag = vandaag or date.today()
-    config = _laad_config()
-    domeinen: dict[str, str] = {}
 
-    alle_df = con.execute("""
-        SELECT afzender, bedrag_eur, datum, categorie, subcategorie
-        FROM gold.transacties
-        WHERE bedrag_eur < 0 AND afzender IS NOT NULL
-    """).df()
-    alle_df["datum"] = pd.to_datetime(alle_df["datum"]).dt.date
+    aantal_gemigreerd = _migreer_indien_nodig(con, vandaag)
 
-    # handmatige entries: alleen degene met een interval sturen de detectie
-    # aan (bypassen alle automatische filters); entries zonder interval zijn
-    # puur een naam-/logo-hint voor een afzender die al automatisch gevonden
-    # wordt.
-    handmatig = []
-    gedekte_afzenders = set()
-    for entry in config["abonnementen"]:
-        afzender = entry["afzender"]
-        if entry.get("domein"):
-            domeinen[afzender] = entry["domein"]
-        if "interval" not in entry:
-            continue
-        resultaat = _verwerk_handmatige_entry(entry, alle_df, vandaag)
-        if resultaat is not None:
-            if entry.get("naam"):
-                resultaat["naam"] = entry["naam"]
-            handmatig.append(resultaat)
-        gedekte_afzenders.add(afzender)
+    # Wees-aanbevelingen opruimen: als een afzender inmiddels (via migratie of
+    # handmatige toevoeging) al geaccepteerd is, hoeft een openstaande
+    # 'nieuw'-aanbeveling daarvoor niet meer te bestaan.
+    con.execute("""
+        UPDATE abonnementen.aanbevelingen a
+        SET status = 'geaccepteerd', afgehandeld_op = now()
+        WHERE a.type = 'nieuw' AND a.status = 'open'
+          AND EXISTS (
+              SELECT 1 FROM abonnementen.abonnementen ab
+              WHERE ab.afzender = a.afzender AND round(ab.bedrag, 2) = round(a.voorgesteld_bedrag, 2)
+          )
+    """)
 
-    genegeerd = set(config["genegeerd"]) | gedekte_afzenders
+    transacties_df = _laad_transacties(con)
 
-    auto_df = alle_df[~alle_df["categorie"].isin(UITGESLOTEN_CATEGORIEEN)]
-    auto_df = auto_df[
-        ~((auto_df["categorie"] == "Wonen") & (auto_df["subcategorie"] == "Gemeente/Belasting"))
-    ]
-    auto_df = auto_df[~auto_df["afzender"].isin(genegeerd)]
-    auto_df = auto_df[~auto_df["afzender"].str.contains(PERSOONSNAAM_PATROON, regex=True, na=False)]
+    aantal_ververst = _ververs_geaccepteerd(con, transacties_df)
+    aantal_doorgerold = _rol_handmatige_datums_door(con, vandaag)
 
-    automatisch = _detecteer_automatisch(auto_df, vandaag)
-    for item in automatisch:
-        item["naam"] = item["afzender"]
-
-    alle_resultaten = handmatig + automatisch
-
-    aantal_logos = 0
-    for item in alle_resultaten:
-        item["logo_bestand"] = None
-        domein = domeinen.get(item["afzender"])
-        if domein:
-            bestand = _haal_logo_op(domein)
-            if bestand:
-                item["logo_bestand"] = bestand
-                aantal_logos += 1
-
-    resultaat_df = pd.DataFrame(alle_resultaten, columns=GOLD_ABONNEMENTEN_KOLOMMEN)
-    # anders leidt DuckDB bij een lege/all-NULL kolom (bv. geen enkel logo
-    # opgehaald deze run) een niet-VARCHAR type af
-    resultaat_df["logo_bestand"] = resultaat_df["logo_bestand"].astype("string")
-    con.register("abonnementen_temp", resultaat_df)
-    con.execute("CREATE OR REPLACE TABLE gold.abonnementen AS SELECT * FROM abonnementen_temp")
-    con.unregister("abonnementen_temp")
-    logger.info(
-        "gold.abonnementen tabel klaar (%d automatisch, %d handmatig)",
-        len(automatisch), len(handmatig),
+    # Uitsluiten op exact (afzender, bedrag) i.p.v. alleen afzender: sommige
+    # afzenders (bv. een verzekeraar) hebben meerdere, gelijktijdig lopende
+    # abonnementen op verschillende bedragen — een al-geaccepteerde polis mag
+    # een net zo légitieme, nog niet geaccepteerde polis van dezelfde afzender
+    # niet aan de detectie onttrekken.
+    geaccepteerde_paren = set(
+        (afz, round(float(bedr), 2)) for afz, bedr in con.execute(
+            "SELECT afzender, bedrag FROM abonnementen.abonnementen WHERE afzender IS NOT NULL"
+        ).fetchall()
     )
 
-    return AbonnementenResultaat(
-        aantal_automatisch=len(automatisch),
-        aantal_handmatig=len(handmatig),
+    kandidaten_df = transacties_df[
+        ~pd.Series(
+            list(zip(transacties_df["afzender"], transacties_df["bedrag_eur"].abs().round(2))),
+            index=transacties_df.index,
+        ).isin(geaccepteerde_paren)
+    ]
+    kandidaten_df = kandidaten_df[~kandidaten_df["categorie"].isin(UITGESLOTEN_CATEGORIEEN)]
+    kandidaten_df = kandidaten_df[
+        ~((kandidaten_df["categorie"] == "Wonen") & (kandidaten_df["subcategorie"] == "Gemeente/Belasting"))
+    ]
+    kandidaten_df = kandidaten_df[~kandidaten_df["afzender"].str.contains(PERSOONSNAAM_PATROON, regex=True, na=False)]
+
+    nieuwe_kandidaten = _detecteer_automatisch(kandidaten_df, vandaag)
+    aantal_nieuwe_aanbevelingen = _upsert_nieuwe_aanbevelingen(con, nieuwe_kandidaten)
+
+    aantal_prijswijziging_aanbevelingen = _detecteer_prijswijzigingen(con, transacties_df)
+
+    aantal_logos = _ververs_logos(con)
+
+    resultaat = AbonnementenResultaat(
+        aantal_gemigreerd=aantal_gemigreerd,
+        aantal_ververst=aantal_ververst,
+        aantal_doorgerold=aantal_doorgerold,
+        aantal_nieuwe_aanbevelingen=aantal_nieuwe_aanbevelingen,
+        aantal_prijswijziging_aanbevelingen=aantal_prijswijziging_aanbevelingen,
         aantal_logos_opgehaald=aantal_logos,
     )
+    logger.info("Abonnementen-stap klaar: %s", resultaat)
+    return resultaat
