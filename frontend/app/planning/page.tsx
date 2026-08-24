@@ -2,9 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { InboedelFormulier } from "@/app/components/InboedelFormulier";
+import { Overlay } from "@/app/components/Overlay";
 import { PlanningFormulier } from "@/app/components/PlanningFormulier";
 import { TotalenChart } from "@/app/components/TotalenChart";
-import { ApiError, deletePlanningItem, getPlanningItems, type PeriodeTotaal, type PlanningItem } from "@/lib/api";
+import {
+  ApiError,
+  getInboedelArtikelen,
+  getInboedelOpties,
+  getPlanningItems,
+  type InboedelArtikel,
+  type PeriodeTotaal,
+  type PlanningItem,
+} from "@/lib/api";
 
 const bedragFormat = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
 const datumFormat = new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium" });
@@ -60,39 +70,57 @@ function Sectie({ titel, aantal, kleur, children }: SectieProps) {
 
 export default function PlanningPagina() {
   const [items, setItems] = useState<PlanningItem[]>([]);
+  const [artikelen, setArtikelen] = useState<InboedelArtikel[]>([]);
+  const [merken, setMerken] = useState<string[]>([]);
+  const [winkels, setWinkels] = useState<string[]>([]);
   const [laden, setLaden] = useState(true);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
-  const [toonFormulier, setToonFormulier] = useState(false);
+  const [toonNieuw, setToonNieuw] = useState(false);
   const [bewerktItem, setBewerktItem] = useState<PlanningItem | null>(null);
-  const [bezigMetVerwijderen, setBezigMetVerwijderen] = useState<number | null>(null);
+  const [bewerktArtikel, setBewerktArtikel] = useState<InboedelArtikel | null>(null);
 
-  function laadItems() {
-    getPlanningItems()
-      .then((res) => setItems(res.items))
+  function laadAlles() {
+    Promise.all([getPlanningItems(), getInboedelArtikelen(), getInboedelOpties()])
+      .then(([planningRes, artikelenRes, optiesRes]) => {
+        setItems(planningRes.items);
+        setArtikelen(artikelenRes.artikelen);
+        setMerken(optiesRes.merken);
+        setWinkels(optiesRes.winkels);
+      })
       .catch((err) => setFoutmelding(err instanceof ApiError ? err.message : "Kon planning niet laden."))
       .finally(() => setLaden(false));
   }
 
-  useEffect(laadItems, []);
+  useEffect(laadAlles, []);
 
-  function opgeslagen() {
-    setToonFormulier(false);
+  function planningOpgeslagen() {
+    setToonNieuw(false);
     setBewerktItem(null);
-    laadItems();
+    laadAlles();
   }
 
-  async function verwijderen(item: PlanningItem) {
-    if (item.id === null) return;
-    if (!window.confirm(`Post "${item.omschrijving}" verwijderen?`)) return;
-    setBezigMetVerwijderen(item.id);
-    try {
-      await deletePlanningItem(item.id);
-      setItems((huidig) => huidig.filter((i) => i.id !== item.id));
-    } catch (err) {
-      setFoutmelding(err instanceof ApiError ? err.message : "Verwijderen mislukt.");
-    } finally {
-      setBezigMetVerwijderen(null);
+  function planningVerwijderd() {
+    setBewerktItem(null);
+    laadAlles();
+  }
+
+  function artikelOpgeslagen() {
+    setBewerktArtikel(null);
+    laadAlles();
+  }
+
+  function artikelVerwijderd() {
+    setBewerktArtikel(null);
+    laadAlles();
+  }
+
+  function rijKlik(item: PlanningItem) {
+    if (item.bron === "inboedel") {
+      const artikel = artikelen.find((a) => a.id === item.artikel_id);
+      if (artikel) setBewerktArtikel(artikel);
+      return;
     }
+    setBewerktItem(item);
   }
 
   const verwachteInkomsten = items.filter((i) => i.bedrag > 0).reduce((som, i) => som + i.bedrag, 0);
@@ -104,20 +132,11 @@ export default function PlanningPagina() {
   const handmatig = items.filter((i) => i.bron === "handmatig");
 
   function renderItem(item: PlanningItem) {
-    if (bewerktItem?.id === item.id) {
-      return (
-        <PlanningFormulier
-          key={item.id}
-          item={item}
-          onOpgeslagen={opgeslagen}
-          onAnnuleren={() => setBewerktItem(null)}
-        />
-      );
-    }
     return (
       <div
         key={item.id ?? `inboedel-${item.artikel_id}`}
-        className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900"
+        onClick={() => rijKlik(item)}
+        className="flex cursor-pointer items-center justify-between rounded-lg border border-neutral-200 bg-white p-4 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-900/60"
       >
         <div>
           <div className="flex items-center gap-2">
@@ -132,44 +151,20 @@ export default function PlanningPagina() {
             {datumFormat.format(new Date(item.datum))}
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <span
-            className={
-              "text-sm font-semibold tabular-nums " +
-              (item.bedrag >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400")
-            }
-          >
-            {bedragFormat.format(item.bedrag)}
-          </span>
-          {item.bron === "handmatig" && item.id !== null && (
-            <div className="flex items-center gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => {
-                  setToonFormulier(false);
-                  setBewerktItem(item);
-                }}
-                className="text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-              >
-                Bewerken
-              </button>
-              <button
-                type="button"
-                disabled={bezigMetVerwijderen === item.id}
-                onClick={() => verwijderen(item)}
-                className="text-red-700 hover:text-red-900 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
-              >
-                Verwijderen
-              </button>
-            </div>
-          )}
-        </div>
+        <span
+          className={
+            "text-sm font-semibold tabular-nums " +
+            (item.bedrag >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400")
+          }
+        >
+          {bedragFormat.format(item.bedrag)}
+        </span>
       </div>
     );
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-10">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">Planning</h1>
@@ -179,13 +174,10 @@ export default function PlanningPagina() {
         </div>
         <button
           type="button"
-          onClick={() => {
-            setBewerktItem(null);
-            setToonFormulier((v) => !v);
-          }}
+          onClick={() => setToonNieuw(true)}
           className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
         >
-          {toonFormulier && !bewerktItem ? "Annuleren" : "+ Post toevoegen"}
+          + Post toevoegen
         </button>
       </div>
 
@@ -222,10 +214,8 @@ export default function PlanningPagina() {
         </p>
       )}
 
-      {toonFormulier && !bewerktItem && <PlanningFormulier onOpgeslagen={opgeslagen} onAnnuleren={() => setToonFormulier(false)} />}
-
       <div className={laden ? "flex flex-col gap-6 opacity-50 transition-opacity" : "flex flex-col gap-6 transition-opacity"}>
-        {items.length === 0 && !toonFormulier && (
+        {items.length === 0 && (
           <p className="py-6 text-center text-sm text-neutral-400">Nog geen geplande posten.</p>
         )}
 
@@ -247,6 +237,34 @@ export default function PlanningPagina() {
           </Sectie>
         )}
       </div>
+
+      <Overlay open={toonNieuw} onClose={() => setToonNieuw(false)} titel="Post toevoegen">
+        <PlanningFormulier onOpgeslagen={planningOpgeslagen} onAnnuleren={() => setToonNieuw(false)} />
+      </Overlay>
+
+      <Overlay open={bewerktItem !== null} onClose={() => setBewerktItem(null)} titel="Post bewerken">
+        {bewerktItem && (
+          <PlanningFormulier
+            item={bewerktItem}
+            onOpgeslagen={planningOpgeslagen}
+            onAnnuleren={() => setBewerktItem(null)}
+            onVerwijderd={planningVerwijderd}
+          />
+        )}
+      </Overlay>
+
+      <Overlay open={bewerktArtikel !== null} onClose={() => setBewerktArtikel(null)} titel="Artikel bewerken">
+        {bewerktArtikel && (
+          <InboedelFormulier
+            artikel={bewerktArtikel}
+            merken={merken}
+            winkels={winkels}
+            onOpgeslagen={artikelOpgeslagen}
+            onAnnuleren={() => setBewerktArtikel(null)}
+            onVerwijderd={artikelVerwijderd}
+          />
+        )}
+      </Overlay>
     </main>
   );
 }

@@ -2,16 +2,22 @@
 
 import { useState } from "react";
 
+import { Overlay } from "@/app/components/Overlay";
 import { Widget as WidgetComponent } from "@/app/components/Widget";
 import { WidgetFormulier } from "@/app/components/WidgetFormulier";
 import { putWidget, type Widget as WidgetData } from "@/lib/api";
 
 export function WidgetenSectie({ widgets, onWidgetsGewijzigd }: { widgets: WidgetData[]; onWidgetsGewijzigd: () => void }) {
-  const [toonFormulier, setToonFormulier] = useState(false);
+  const [toonNieuw, setToonNieuw] = useState(false);
   const [bewerktWidget, setBewerktWidget] = useState<WidgetData | null>(null);
 
   function opgeslagen() {
-    setToonFormulier(false);
+    setToonNieuw(false);
+    setBewerktWidget(null);
+    onWidgetsGewijzigd();
+  }
+
+  function verwijderd() {
     setBewerktWidget(null);
     onWidgetsGewijzigd();
   }
@@ -43,55 +49,46 @@ export function WidgetenSectie({ widgets, onWidgetsGewijzigd }: { widgets: Widge
         <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Widgets</h2>
         <button
           type="button"
-          onClick={() => {
-            setBewerktWidget(null);
-            setToonFormulier((v) => !v);
-          }}
+          onClick={() => setToonNieuw(true)}
           className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
         >
-          {toonFormulier && !bewerktWidget ? "Annuleren" : "+ Widget toevoegen"}
+          + Widget toevoegen
         </button>
       </div>
 
-      {toonFormulier && !bewerktWidget && (
-        <WidgetFormulier
-          volgendeVolgorde={widgets.length}
-          onOpgeslagen={opgeslagen}
-          onAnnuleren={() => setToonFormulier(false)}
-        />
-      )}
-
-      {widgets.length === 0 && !toonFormulier ? (
+      {widgets.length === 0 ? (
         <p className="py-6 text-center text-sm text-neutral-400">
           Nog geen widgets. Voeg er een toe om snel een categorie of tegenpartij te volgen.
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {widgets.map((w, index) =>
-            bewerktWidget?.id === w.id ? (
-              <WidgetFormulier
-                key={w.id}
-                widget={w}
-                volgendeVolgorde={w.volgorde}
-                onOpgeslagen={opgeslagen}
-                onAnnuleren={() => setBewerktWidget(null)}
-              />
-            ) : (
-              <WidgetComponent
-                key={w.id}
-                widget={w}
-                onVerwijderd={onWidgetsGewijzigd}
-                onBewerken={() => {
-                  setToonFormulier(false);
-                  setBewerktWidget(w);
-                }}
-                onOmhoog={index > 0 ? () => verplaats(index, -1) : undefined}
-                onOmlaag={index < widgets.length - 1 ? () => verplaats(index, 1) : undefined}
-              />
-            )
-          )}
+          {widgets.map((w, index) => (
+            <WidgetComponent
+              key={w.id}
+              widget={w}
+              onKlik={() => setBewerktWidget(w)}
+              onOmhoog={index > 0 ? () => verplaats(index, -1) : undefined}
+              onOmlaag={index < widgets.length - 1 ? () => verplaats(index, 1) : undefined}
+            />
+          ))}
         </div>
       )}
+
+      <Overlay open={toonNieuw} onClose={() => setToonNieuw(false)} titel="Widget toevoegen">
+        <WidgetFormulier volgendeVolgorde={widgets.length} onOpgeslagen={opgeslagen} onAnnuleren={() => setToonNieuw(false)} />
+      </Overlay>
+
+      <Overlay open={bewerktWidget !== null} onClose={() => setBewerktWidget(null)} titel="Widget bewerken">
+        {bewerktWidget && (
+          <WidgetFormulier
+            widget={bewerktWidget}
+            volgendeVolgorde={bewerktWidget.volgorde}
+            onOpgeslagen={opgeslagen}
+            onAnnuleren={() => setBewerktWidget(null)}
+            onVerwijderd={verwijderd}
+          />
+        )}
+      </Overlay>
     </div>
   );
 }

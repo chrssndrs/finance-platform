@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { ApiError, postPlanningItem, putPlanningItem, type PlanningItem } from "@/lib/api";
+import { ApiError, deletePlanningItem, postPlanningItem, putPlanningItem, type PlanningItem } from "@/lib/api";
 
 const inputKlasse =
   "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 sm:text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100";
@@ -13,14 +13,16 @@ interface PlanningFormulierProps {
   item?: PlanningItem;
   onOpgeslagen: (item: PlanningItem) => void;
   onAnnuleren: () => void;
+  onVerwijderd?: (id: number) => void;
 }
 
-export function PlanningFormulier({ item, onOpgeslagen, onAnnuleren }: PlanningFormulierProps) {
+export function PlanningFormulier({ item, onOpgeslagen, onAnnuleren, onVerwijderd }: PlanningFormulierProps) {
   const [omschrijving, setOmschrijving] = useState(item?.omschrijving ?? "");
   const [type, setType] = useState<Type>(item && item.bedrag > 0 ? "inkomst" : "uitgave");
   const [bedrag, setBedrag] = useState(item ? String(Math.abs(item.bedrag)) : "");
   const [datum, setDatum] = useState(item?.datum ?? "");
   const [bezig, setBezig] = useState(false);
+  const [bezigMetVerwijderen, setBezigMetVerwijderen] = useState(false);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
 
   async function versturen(e: React.FormEvent) {
@@ -56,11 +58,21 @@ export function PlanningFormulier({ item, onOpgeslagen, onAnnuleren }: PlanningF
     }
   }
 
+  async function verwijderen() {
+    if (!item || item.id === null || !onVerwijderd) return;
+    if (!window.confirm(`Post "${item.omschrijving}" verwijderen?`)) return;
+    setBezigMetVerwijderen(true);
+    try {
+      await deletePlanningItem(item.id);
+      onVerwijderd(item.id);
+    } catch (err) {
+      setFoutmelding(err instanceof ApiError ? err.message : "Verwijderen mislukt.");
+      setBezigMetVerwijderen(false);
+    }
+  }
+
   return (
-    <form
-      onSubmit={versturen}
-      className="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900"
-    >
+    <form onSubmit={versturen} className="flex flex-col gap-3">
       <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
         Omschrijving
         <input
@@ -116,6 +128,16 @@ export function PlanningFormulier({ item, onOpgeslagen, onAnnuleren }: PlanningF
         >
           Annuleren
         </button>
+        {item && item.id !== null && onVerwijderd && (
+          <button
+            type="button"
+            disabled={bezigMetVerwijderen}
+            onClick={verwijderen}
+            className="ml-auto text-sm text-red-700 hover:text-red-900 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
+          >
+            Verwijderen
+          </button>
+        )}
       </div>
     </form>
   );

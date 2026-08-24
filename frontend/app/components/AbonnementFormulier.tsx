@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Combobox } from "@/app/components/Combobox";
 import {
   ApiError,
+  deleteAbonnement,
   postAbonnement,
   postAbonnementLogo,
   putAbonnement,
@@ -28,9 +29,10 @@ interface AbonnementFormulierProps {
   abonnement?: Abonnement;
   onOpgeslagen: (abonnement: Abonnement) => void;
   onAnnuleren?: () => void;
+  onVerwijderd?: (id: number) => void;
 }
 
-export function AbonnementFormulier({ afzenders, abonnement, onOpgeslagen, onAnnuleren }: AbonnementFormulierProps) {
+export function AbonnementFormulier({ afzenders, abonnement, onOpgeslagen, onAnnuleren, onVerwijderd }: AbonnementFormulierProps) {
   const [naam, setNaam] = useState(abonnement?.naam ?? "");
   const [afzender, setAfzender] = useState<string | null>(abonnement?.afzender ?? null);
   const [bedrag, setBedrag] = useState(abonnement ? String(abonnement.bedrag).replace(".", ",") : "");
@@ -39,6 +41,7 @@ export function AbonnementFormulier({ afzenders, abonnement, onOpgeslagen, onAnn
   const [domein, setDomein] = useState("");
   const [bezig, setBezig] = useState(false);
   const [logoBezig, setLogoBezig] = useState(false);
+  const [bezigMetVerwijderen, setBezigMetVerwijderen] = useState(false);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
 
   async function logoGekozen(e: React.ChangeEvent<HTMLInputElement>) {
@@ -88,11 +91,21 @@ export function AbonnementFormulier({ afzenders, abonnement, onOpgeslagen, onAnn
     }
   }
 
+  async function verwijderen() {
+    if (!abonnement || !onVerwijderd) return;
+    if (!window.confirm(`"${abonnement.naam}" verwijderen?`)) return;
+    setBezigMetVerwijderen(true);
+    try {
+      await deleteAbonnement(abonnement.id);
+      onVerwijderd(abonnement.id);
+    } catch (err) {
+      setFoutmelding(err instanceof ApiError ? err.message : "Verwijderen mislukt.");
+      setBezigMetVerwijderen(false);
+    }
+  }
+
   return (
-    <form
-      onSubmit={versturen}
-      className="grid grid-cols-1 gap-3 rounded-lg border border-neutral-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-3 dark:border-neutral-800 dark:bg-neutral-900"
-    >
+    <form onSubmit={versturen} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
         Naam
         <input type="text" required value={naam} onChange={(e) => setNaam(e.target.value)} className={inputKlasse} />
@@ -166,7 +179,9 @@ export function AbonnementFormulier({ afzenders, abonnement, onOpgeslagen, onAnn
         </label>
       )}
 
-      <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-3">
+      {foutmelding && <p className="text-sm text-red-700 dark:text-red-400 sm:col-span-2">{foutmelding}</p>}
+
+      <div className="flex items-center gap-2 sm:col-span-2">
         <button
           type="submit"
           disabled={bezig}
@@ -183,7 +198,16 @@ export function AbonnementFormulier({ afzenders, abonnement, onOpgeslagen, onAnn
             Annuleren
           </button>
         )}
-        {foutmelding && <p className="self-center text-sm text-red-700 dark:text-red-400">{foutmelding}</p>}
+        {abonnement && onVerwijderd && (
+          <button
+            type="button"
+            disabled={bezigMetVerwijderen}
+            onClick={verwijderen}
+            className="ml-auto text-sm text-red-700 hover:text-red-900 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
+          >
+            Verwijderen
+          </button>
+        )}
       </div>
     </form>
   );

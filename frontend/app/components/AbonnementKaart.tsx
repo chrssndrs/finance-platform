@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 
-import { AbonnementFormulier } from "@/app/components/AbonnementFormulier";
-import { API_BASE, ApiError, deleteAbonnement, type Abonnement } from "@/lib/api";
+import { API_BASE, type Abonnement } from "@/lib/api";
 
 const bedragFormat = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
 
@@ -45,48 +44,18 @@ function afschrijvingLabel(dagen: number): string {
 
 interface AbonnementKaartProps {
   abonnement: Abonnement;
-  afzenders: string[];
-  onBijgewerkt: (abonnement: Abonnement) => void;
-  onVerwijderd: (id: number) => void;
+  onKlik: (abonnement: Abonnement) => void;
 }
 
-export function AbonnementKaart({ abonnement, afzenders, onBijgewerkt, onVerwijderd }: AbonnementKaartProps) {
+export function AbonnementKaart({ abonnement, onKlik }: AbonnementKaartProps) {
   const [logoFout, setLogoFout] = useState(false);
-  const [bewerken, setBewerken] = useState(false);
-  const [bezig, setBezig] = useState(false);
-  const [foutmelding, setFoutmelding] = useState<string | null>(null);
   const toonLogo = abonnement.logo_url && !logoFout;
 
-  async function verwijderen() {
-    if (!window.confirm(`"${abonnement.naam}" verwijderen?`)) return;
-    setBezig(true);
-    try {
-      await deleteAbonnement(abonnement.id);
-      onVerwijderd(abonnement.id);
-    } catch (err) {
-      setFoutmelding(err instanceof ApiError ? err.message : "Verwijderen mislukt.");
-      setBezig(false);
-    }
-  }
-
-  if (bewerken) {
-    return (
-      <div className="sm:col-span-2 lg:col-span-3">
-        <AbonnementFormulier
-          afzenders={afzenders}
-          abonnement={abonnement}
-          onOpgeslagen={(bijgewerkt) => {
-            onBijgewerkt(bijgewerkt);
-            setBewerken(false);
-          }}
-          onAnnuleren={() => setBewerken(false)}
-        />
-      </div>
-    );
-  }
-
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+    <div
+      onClick={() => onKlik(abonnement)}
+      className="flex cursor-pointer items-center gap-3 rounded-lg border border-neutral-200 bg-white p-4 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-900/60"
+    >
       {toonLogo ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -108,24 +77,6 @@ export function AbonnementKaart({ abonnement, afzenders, onBijgewerkt, onVerwijd
         <div className="text-sm text-neutral-500 dark:text-neutral-400">
           {bedragFormat.format(abonnement.bedrag)} · {INTERVAL_LABEL[abonnement.interval] ?? abonnement.interval}
         </div>
-        <div className="mt-1 flex gap-2 text-xs">
-          <button
-            type="button"
-            onClick={() => setBewerken(true)}
-            className="text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-          >
-            Bewerken
-          </button>
-          <button
-            type="button"
-            disabled={bezig}
-            onClick={verwijderen}
-            className="text-red-700 hover:text-red-900 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
-          >
-            Verwijderen
-          </button>
-        </div>
-        {foutmelding && <p className="mt-1 text-xs text-red-700 dark:text-red-400">{foutmelding}</p>}
       </div>
 
       <div className="flex-shrink-0 text-right text-sm text-neutral-500 dark:text-neutral-400">

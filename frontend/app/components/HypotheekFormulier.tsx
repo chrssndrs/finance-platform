@@ -2,7 +2,15 @@
 
 import { useState } from "react";
 
-import { ApiError, postLeningdeel, putLeningdeel, type HypotheekType, type Leningdeel, type LeningdeelInvoer } from "@/lib/api";
+import {
+  ApiError,
+  deleteLeningdeel,
+  postLeningdeel,
+  putLeningdeel,
+  type HypotheekType,
+  type Leningdeel,
+  type LeningdeelInvoer,
+} from "@/lib/api";
 
 const inputKlasse =
   "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 sm:text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100";
@@ -17,9 +25,10 @@ interface HypotheekFormulierProps {
   leningdeel?: Leningdeel;
   onOpgeslagen: (leningdeel: Leningdeel) => void;
   onAnnuleren?: () => void;
+  onVerwijderd?: (id: number) => void;
 }
 
-export function HypotheekFormulier({ leningdeel, onOpgeslagen, onAnnuleren }: HypotheekFormulierProps) {
+export function HypotheekFormulier({ leningdeel, onOpgeslagen, onAnnuleren, onVerwijderd }: HypotheekFormulierProps) {
   const [naam, setNaam] = useState(leningdeel?.naam ?? "");
   const [type, setType] = useState<HypotheekType>(leningdeel?.type ?? "annuiteit");
   const [hoofdsom, setHoofdsom] = useState(leningdeel ? String(leningdeel.hoofdsom).replace(".", ",") : "");
@@ -28,6 +37,7 @@ export function HypotheekFormulier({ leningdeel, onOpgeslagen, onAnnuleren }: Hy
   const [looptijd, setLooptijd] = useState(leningdeel ? String(leningdeel.looptijd_maanden) : "360");
   const [rentevastTot, setRentevastTot] = useState(leningdeel?.rentevast_tot ?? "");
   const [bezig, setBezig] = useState(false);
+  const [bezigMetVerwijderen, setBezigMetVerwijderen] = useState(false);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
 
   async function versturen(e: React.FormEvent) {
@@ -57,11 +67,21 @@ export function HypotheekFormulier({ leningdeel, onOpgeslagen, onAnnuleren }: Hy
     }
   }
 
+  async function verwijderen() {
+    if (!leningdeel || !onVerwijderd) return;
+    if (!window.confirm(`"${leningdeel.naam}" verwijderen?`)) return;
+    setBezigMetVerwijderen(true);
+    try {
+      await deleteLeningdeel(leningdeel.id);
+      onVerwijderd(leningdeel.id);
+    } catch (err) {
+      setFoutmelding(err instanceof ApiError ? err.message : "Verwijderen mislukt.");
+      setBezigMetVerwijderen(false);
+    }
+  }
+
   return (
-    <form
-      onSubmit={versturen}
-      className="grid grid-cols-1 gap-3 rounded-lg border border-neutral-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4 dark:border-neutral-800 dark:bg-neutral-900"
-    >
+    <form onSubmit={versturen} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
         Naam
         <input
@@ -144,7 +164,9 @@ export function HypotheekFormulier({ leningdeel, onOpgeslagen, onAnnuleren }: Hy
         />
       </label>
 
-      <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
+      {foutmelding && <p className="text-sm text-red-700 dark:text-red-400 sm:col-span-2">{foutmelding}</p>}
+
+      <div className="flex items-center gap-2 sm:col-span-2">
         <button
           type="submit"
           disabled={bezig}
@@ -161,7 +183,16 @@ export function HypotheekFormulier({ leningdeel, onOpgeslagen, onAnnuleren }: Hy
             Annuleren
           </button>
         )}
-        {foutmelding && <p className="self-center text-sm text-red-700 dark:text-red-400">{foutmelding}</p>}
+        {leningdeel && onVerwijderd && (
+          <button
+            type="button"
+            disabled={bezigMetVerwijderen}
+            onClick={verwijderen}
+            className="ml-auto text-sm text-red-700 hover:text-red-900 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
+          >
+            Verwijderen
+          </button>
+        )}
       </div>
     </form>
   );

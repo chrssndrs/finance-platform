@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { TotalenChart } from "@/app/components/TotalenChart";
 import { TransactieTabel } from "@/app/components/TransactieTabel";
-import { ApiError, deleteWidget, getTotalen, getTransacties, type PeriodeTotaal, type Transactie, type Widget as WidgetData } from "@/lib/api";
+import { ApiError, getTotalen, getTransacties, type PeriodeTotaal, type Transactie, type Widget as WidgetData } from "@/lib/api";
 import { resolveerPeriodeSelectie, widgetPeriodeNaarSelectie } from "@/lib/periode";
 
 const bedragFormat = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
@@ -16,18 +16,16 @@ function widgetTitel(widget: WidgetData): string {
 
 interface WidgetProps {
   widget: WidgetData;
-  onVerwijderd: (id: number) => void;
-  onBewerken: () => void;
+  onKlik: () => void;
   onOmhoog?: () => void;
   onOmlaag?: () => void;
 }
 
-export function Widget({ widget, onVerwijderd, onBewerken, onOmhoog, onOmlaag }: WidgetProps) {
+export function Widget({ widget, onKlik, onOmhoog, onOmlaag }: WidgetProps) {
   const [reeks, setReeks] = useState<PeriodeTotaal[]>([]);
   const [transacties, setTransacties] = useState<Transactie[]>([]);
   const [laden, setLaden] = useState(true);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
-  const [bezigMetVerwijderen, setBezigMetVerwijderen] = useState(false);
 
   useEffect(() => {
     const { vanaf, tot } = resolveerPeriodeSelectie(widgetPeriodeNaarSelectie(widget));
@@ -52,25 +50,16 @@ export function Widget({ widget, onVerwijderd, onBewerken, onOmhoog, onOmlaag }:
     }
   }, [widget]);
 
-  async function verwijderen() {
-    if (!window.confirm(`Widget "${widgetTitel(widget)}" verwijderen?`)) return;
-    setBezigMetVerwijderen(true);
-    try {
-      await deleteWidget(widget.id);
-      onVerwijderd(widget.id);
-    } catch (err) {
-      setFoutmelding(err instanceof ApiError ? err.message : "Verwijderen mislukt.");
-      setBezigMetVerwijderen(false);
-    }
-  }
-
   const totaal = reeks.reduce((som, r) => som + r.totaal, 0);
 
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+    <div
+      onClick={onKlik}
+      className="cursor-pointer rounded-lg border border-neutral-200 bg-white p-4 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-900/60"
+    >
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">{widgetTitel(widget)}</h3>
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex items-center gap-2 text-xs" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
             disabled={!onOmhoog}
@@ -88,21 +77,6 @@ export function Widget({ widget, onVerwijderd, onBewerken, onOmhoog, onOmlaag }:
             className="text-neutral-500 hover:text-neutral-900 disabled:opacity-25 dark:text-neutral-400 dark:hover:text-neutral-100"
           >
             ▼
-          </button>
-          <button
-            type="button"
-            onClick={onBewerken}
-            className="text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-          >
-            Bewerken
-          </button>
-          <button
-            type="button"
-            disabled={bezigMetVerwijderen}
-            onClick={verwijderen}
-            className="text-red-700 hover:text-red-900 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
-          >
-            Verwijderen
           </button>
         </div>
       </div>

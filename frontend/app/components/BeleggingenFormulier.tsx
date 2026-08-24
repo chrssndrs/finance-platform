@@ -5,6 +5,7 @@ import { useState } from "react";
 import { TickerZoeker } from "@/app/components/TickerZoeker";
 import {
   ApiError,
+  deleteBeleggingTransactie,
   postBeleggingTransactie,
   putBeleggingTransactie,
   type BeleggingTransactie,
@@ -19,9 +20,10 @@ interface BeleggingenFormulierProps {
   transactie?: BeleggingTransactie;
   onOpgeslagen: (transactie: BeleggingTransactie) => void;
   onAnnuleren?: () => void;
+  onVerwijderd?: (id: number) => void;
 }
 
-export function BeleggingenFormulier({ transactie, onOpgeslagen, onAnnuleren }: BeleggingenFormulierProps) {
+export function BeleggingenFormulier({ transactie, onOpgeslagen, onAnnuleren, onVerwijderd }: BeleggingenFormulierProps) {
   const [datum, setDatum] = useState(transactie?.datum ?? "");
   const [type, setType] = useState<"koop" | "verkoop">(transactie?.type ?? "koop");
   const [code, setCode] = useState(transactie?.code ?? "");
@@ -33,6 +35,7 @@ export function BeleggingenFormulier({ transactie, onOpgeslagen, onAnnuleren }: 
   const [valuta, setValuta] = useState(transactie?.valuta ?? "EUR");
   const [kosten, setKosten] = useState(transactie?.kosten != null ? String(transactie.kosten).replace(".", ",") : "");
   const [bezig, setBezig] = useState(false);
+  const [bezigMetVerwijderen, setBezigMetVerwijderen] = useState(false);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
 
   function tickerGekozen(resultaat: TickerZoekResultaat) {
@@ -70,11 +73,21 @@ export function BeleggingenFormulier({ transactie, onOpgeslagen, onAnnuleren }: 
     }
   }
 
+  async function verwijderen() {
+    if (!transactie || !onVerwijderd) return;
+    if (!window.confirm(`${transactie.type === "koop" ? "Aankoop" : "Verkoop"} van ${transactie.code} verwijderen?`)) return;
+    setBezigMetVerwijderen(true);
+    try {
+      await deleteBeleggingTransactie(transactie.id);
+      onVerwijderd(transactie.id);
+    } catch (err) {
+      setFoutmelding(err instanceof ApiError ? err.message : "Verwijderen mislukt.");
+      setBezigMetVerwijderen(false);
+    }
+  }
+
   return (
-    <form
-      onSubmit={versturen}
-      className="grid grid-cols-1 gap-3 rounded-lg border border-neutral-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4 dark:border-neutral-800 dark:bg-neutral-900"
-    >
+    <form onSubmit={versturen} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
         Datum
         <input type="date" required value={datum} onChange={(e) => setDatum(e.target.value)} className={inputKlasse} />
@@ -135,7 +148,9 @@ export function BeleggingenFormulier({ transactie, onOpgeslagen, onAnnuleren }: 
         />
       </label>
 
-      <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
+      {foutmelding && <p className="text-sm text-red-700 dark:text-red-400 sm:col-span-2">{foutmelding}</p>}
+
+      <div className="flex items-center gap-2 sm:col-span-2">
         <button
           type="submit"
           disabled={bezig}
@@ -152,7 +167,16 @@ export function BeleggingenFormulier({ transactie, onOpgeslagen, onAnnuleren }: 
             Annuleren
           </button>
         )}
-        {foutmelding && <p className="self-center text-sm text-red-700 dark:text-red-400">{foutmelding}</p>}
+        {transactie && onVerwijderd && (
+          <button
+            type="button"
+            disabled={bezigMetVerwijderen}
+            onClick={verwijderen}
+            className="ml-auto text-sm text-red-700 hover:text-red-900 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
+          >
+            Verwijderen
+          </button>
+        )}
       </div>
     </form>
   );

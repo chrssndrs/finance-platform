@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-import { ApiError, deleteWaarde, putWaarde, type Waarde, type WaardeInvoer } from "@/lib/api";
+import type { Waarde } from "@/lib/api";
 import { formatteerDatumKort } from "@/lib/periode";
 
 const bedragFormat = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
@@ -16,155 +16,12 @@ const KOLOMMEN: { key: SortKey; label: string }[] = [
   { key: "opmerking", label: "Opmerking" },
 ];
 
-function naarInvoer(w: Waarde): WaardeInvoer {
-  return { datum: w.datum, waarde: w.waarde, bron: w.bron, opmerking: w.opmerking };
-}
-
-const inputKlasse =
-  "w-full min-w-[7rem] rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100";
-
-interface VastgoedRijProps {
-  waarde: Waarde;
-  onBijgewerkt: (waarde: Waarde) => void;
-  onVerwijderd: (id: number) => void;
-}
-
-function VastgoedRij({ waarde, onBijgewerkt, onVerwijderd }: VastgoedRijProps) {
-  const [bewerken, setBewerken] = useState(false);
-  const [invoer, setInvoer] = useState<WaardeInvoer>(() => naarInvoer(waarde));
-  const [bezig, setBezig] = useState(false);
-  const [foutmelding, setFoutmelding] = useState<string | null>(null);
-
-  function startBewerken() {
-    setInvoer(naarInvoer(waarde));
-    setFoutmelding(null);
-    setBewerken(true);
-  }
-
-  async function opslaan() {
-    if (!invoer.datum || !invoer.waarde) {
-      setFoutmelding("Datum en waarde zijn verplicht.");
-      return;
-    }
-    setBezig(true);
-    setFoutmelding(null);
-    try {
-      const bijgewerkt = await putWaarde(waarde.id, invoer);
-      onBijgewerkt(bijgewerkt);
-      setBewerken(false);
-    } catch (err) {
-      setFoutmelding(err instanceof ApiError ? err.message : "Opslaan mislukt.");
-    } finally {
-      setBezig(false);
-    }
-  }
-
-  async function verwijderen() {
-    if (!window.confirm(`Waarde van ${formatteerDatumKort(waarde.datum)} verwijderen?`)) return;
-    setBezig(true);
-    try {
-      await deleteWaarde(waarde.id);
-      onVerwijderd(waarde.id);
-    } catch (err) {
-      setFoutmelding(err instanceof ApiError ? err.message : "Verwijderen mislukt.");
-      setBezig(false);
-    }
-  }
-
-  if (bewerken) {
-    return (
-      <tr className="border-b border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900/60">
-        <td className="py-2 pr-2 align-top">
-          <input
-            type="date"
-            value={invoer.datum}
-            onChange={(e) => setInvoer({ ...invoer, datum: e.target.value })}
-            className={inputKlasse}
-          />
-          {foutmelding && <p className="mt-1 text-xs text-red-700 dark:text-red-400">{foutmelding}</p>}
-        </td>
-        <td className="py-2 pr-2 align-top">
-          <input
-            type="text"
-            inputMode="decimal"
-            value={invoer.waarde}
-            onChange={(e) => setInvoer({ ...invoer, waarde: Number(e.target.value.replace(",", ".")) || 0 })}
-            className={inputKlasse}
-          />
-        </td>
-        <td className="py-2 pr-2 align-top">
-          <input
-            type="text"
-            value={invoer.bron ?? ""}
-            onChange={(e) => setInvoer({ ...invoer, bron: e.target.value || null })}
-            className={inputKlasse}
-          />
-        </td>
-        <td className="py-2 pr-2 align-top">
-          <input
-            type="text"
-            value={invoer.opmerking ?? ""}
-            onChange={(e) => setInvoer({ ...invoer, opmerking: e.target.value || null })}
-            className={inputKlasse}
-          />
-        </td>
-        <td className="py-2 align-top whitespace-nowrap">
-          <button
-            type="button"
-            disabled={bezig}
-            onClick={opslaan}
-            className="mr-1 rounded-md bg-neutral-900 px-2 py-1 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
-          >
-            Opslaan
-          </button>
-          <button
-            type="button"
-            disabled={bezig}
-            onClick={() => setBewerken(false)}
-            className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800"
-          >
-            Annuleren
-          </button>
-        </td>
-      </tr>
-    );
-  }
-
-  return (
-    <tr className="border-b border-neutral-200 dark:border-neutral-800">
-      <td className="py-2 pr-4 whitespace-nowrap tabular-nums">{formatteerDatumKort(waarde.datum)}</td>
-      <td className="py-2 pr-4 tabular-nums">{bedragFormat.format(waarde.waarde)}</td>
-      <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">{waarde.bron ?? "—"}</td>
-      <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">{waarde.opmerking ?? "—"}</td>
-      <td className="whitespace-nowrap py-2">
-        <button
-          type="button"
-          onClick={startBewerken}
-          className="mr-2 text-xs text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-        >
-          Bewerken
-        </button>
-        <button
-          type="button"
-          disabled={bezig}
-          onClick={verwijderen}
-          className="text-xs text-red-700 hover:text-red-900 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
-        >
-          Verwijderen
-        </button>
-        {foutmelding && !bewerken && <p className="mt-1 text-xs text-red-700 dark:text-red-400">{foutmelding}</p>}
-      </td>
-    </tr>
-  );
-}
-
 interface VastgoedTabelProps {
   waardes: Waarde[];
-  onBijgewerkt: (waarde: Waarde) => void;
-  onVerwijderd: (id: number) => void;
+  onRijKlik: (waarde: Waarde) => void;
 }
 
-export function VastgoedTabel({ waardes, onBijgewerkt, onVerwijderd }: VastgoedTabelProps) {
+export function VastgoedTabel({ waardes, onRijKlik }: VastgoedTabelProps) {
   const [sortKey, setSortKey] = useState<SortKey>("datum");
   const [aflopend, setAflopend] = useState(true);
 
@@ -194,7 +51,7 @@ export function VastgoedTabel({ waardes, onBijgewerkt, onVerwijderd }: VastgoedT
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[480px] text-left text-sm">
+      <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-neutral-300 dark:border-neutral-700">
             {KOLOMMEN.map((k) => (
@@ -209,12 +66,20 @@ export function VastgoedTabel({ waardes, onBijgewerkt, onVerwijderd }: VastgoedT
                 </button>
               </th>
             ))}
-            <th className="py-2 font-medium text-neutral-600 dark:text-neutral-400">Acties</th>
           </tr>
         </thead>
         <tbody>
           {gesorteerd.map((w) => (
-            <VastgoedRij key={w.id} waarde={w} onBijgewerkt={onBijgewerkt} onVerwijderd={onVerwijderd} />
+            <tr
+              key={w.id}
+              onClick={() => onRijKlik(w)}
+              className="cursor-pointer border-b border-neutral-200 hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-900/60"
+            >
+              <td className="py-2 pr-4 whitespace-nowrap tabular-nums">{formatteerDatumKort(w.datum)}</td>
+              <td className="py-2 pr-4 tabular-nums">{bedragFormat.format(w.waarde)}</td>
+              <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">{w.bron ?? "—"}</td>
+              <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">{w.opmerking ?? "—"}</td>
+            </tr>
           ))}
         </tbody>
       </table>

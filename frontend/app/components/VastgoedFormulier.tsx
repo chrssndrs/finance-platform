@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { ApiError, postWaarde, putWaarde, type Waarde, type WaardeInvoer } from "@/lib/api";
+import { ApiError, deleteWaarde, postWaarde, putWaarde, type Waarde, type WaardeInvoer } from "@/lib/api";
 
 const inputKlasse =
   "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 sm:text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100";
@@ -11,14 +11,16 @@ interface VastgoedFormulierProps {
   waarde?: Waarde;
   onOpgeslagen: (waarde: Waarde) => void;
   onAnnuleren?: () => void;
+  onVerwijderd?: (id: number) => void;
 }
 
-export function VastgoedFormulier({ waarde, onOpgeslagen, onAnnuleren }: VastgoedFormulierProps) {
+export function VastgoedFormulier({ waarde, onOpgeslagen, onAnnuleren, onVerwijderd }: VastgoedFormulierProps) {
   const [datum, setDatum] = useState(waarde?.datum ?? "");
   const [bedrag, setBedrag] = useState(waarde ? String(waarde.waarde).replace(".", ",") : "");
   const [bron, setBron] = useState(waarde?.bron ?? "");
   const [opmerking, setOpmerking] = useState(waarde?.opmerking ?? "");
   const [bezig, setBezig] = useState(false);
+  const [bezigMetVerwijderen, setBezigMetVerwijderen] = useState(false);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
 
   async function versturen(e: React.FormEvent) {
@@ -45,11 +47,21 @@ export function VastgoedFormulier({ waarde, onOpgeslagen, onAnnuleren }: Vastgoe
     }
   }
 
+  async function verwijderen() {
+    if (!waarde || !onVerwijderd) return;
+    if (!window.confirm(`Waarde verwijderen?`)) return;
+    setBezigMetVerwijderen(true);
+    try {
+      await deleteWaarde(waarde.id);
+      onVerwijderd(waarde.id);
+    } catch (err) {
+      setFoutmelding(err instanceof ApiError ? err.message : "Verwijderen mislukt.");
+      setBezigMetVerwijderen(false);
+    }
+  }
+
   return (
-    <form
-      onSubmit={versturen}
-      className="grid grid-cols-1 gap-3 rounded-lg border border-neutral-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4 dark:border-neutral-800 dark:bg-neutral-900"
-    >
+    <form onSubmit={versturen} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
         Datum
         <input type="date" required value={datum} onChange={(e) => setDatum(e.target.value)} className={inputKlasse} />
@@ -84,7 +96,9 @@ export function VastgoedFormulier({ waarde, onOpgeslagen, onAnnuleren }: Vastgoe
         <input type="text" value={opmerking} onChange={(e) => setOpmerking(e.target.value)} className={inputKlasse} />
       </label>
 
-      <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
+      {foutmelding && <p className="text-sm text-red-700 dark:text-red-400 sm:col-span-2">{foutmelding}</p>}
+
+      <div className="flex items-center gap-2 sm:col-span-2">
         <button
           type="submit"
           disabled={bezig}
@@ -101,7 +115,16 @@ export function VastgoedFormulier({ waarde, onOpgeslagen, onAnnuleren }: Vastgoe
             Annuleren
           </button>
         )}
-        {foutmelding && <p className="self-center text-sm text-red-700 dark:text-red-400">{foutmelding}</p>}
+        {waarde && onVerwijderd && (
+          <button
+            type="button"
+            disabled={bezigMetVerwijderen}
+            onClick={verwijderen}
+            className="ml-auto text-sm text-red-700 hover:text-red-900 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
+          >
+            Verwijderen
+          </button>
+        )}
       </div>
     </form>
   );

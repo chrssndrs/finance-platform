@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { FilterBalk } from "@/app/components/FilterBalk";
 import {
   ApiError,
+  deleteWidget,
   getAfzenders,
   getCategorieen,
   postWidget,
@@ -35,9 +36,10 @@ interface WidgetFormulierProps {
   volgendeVolgorde: number;
   onOpgeslagen: (widget: WidgetData) => void;
   onAnnuleren: () => void;
+  onVerwijderd?: (id: number) => void;
 }
 
-export function WidgetFormulier({ widget, volgendeVolgorde, onOpgeslagen, onAnnuleren }: WidgetFormulierProps) {
+export function WidgetFormulier({ widget, volgendeVolgorde, onOpgeslagen, onAnnuleren, onVerwijderd }: WidgetFormulierProps) {
   const [categorieen, setCategorieen] = useState<CategorieGroep[]>([]);
   const [afzenders, setAfzenders] = useState<string[]>([]);
 
@@ -51,6 +53,7 @@ export function WidgetFormulier({ widget, volgendeVolgorde, onOpgeslagen, onAnnu
   );
   const [weergave, setWeergave] = useState<WidgetWeergave>(widget?.weergave ?? "totaal");
   const [bezig, setBezig] = useState(false);
+  const [bezigMetVerwijderen, setBezigMetVerwijderen] = useState(false);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
 
   useEffect(() => {
@@ -89,11 +92,21 @@ export function WidgetFormulier({ widget, volgendeVolgorde, onOpgeslagen, onAnnu
     }
   }
 
+  async function verwijderen() {
+    if (!widget || !onVerwijderd) return;
+    if (!window.confirm("Widget verwijderen?")) return;
+    setBezigMetVerwijderen(true);
+    try {
+      await deleteWidget(widget.id);
+      onVerwijderd(widget.id);
+    } catch (err) {
+      setFoutmelding(err instanceof ApiError ? err.message : "Verwijderen mislukt.");
+      setBezigMetVerwijderen(false);
+    }
+  }
+
   return (
-    <form
-      onSubmit={versturen}
-      className="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900"
-    >
+    <form onSubmit={versturen} className="flex flex-col gap-3">
       <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
         Titel (optioneel)
         <input
@@ -155,6 +168,16 @@ export function WidgetFormulier({ widget, volgendeVolgorde, onOpgeslagen, onAnnu
         >
           Annuleren
         </button>
+        {widget && onVerwijderd && (
+          <button
+            type="button"
+            disabled={bezigMetVerwijderen}
+            onClick={verwijderen}
+            className="ml-auto text-sm text-red-700 hover:text-red-900 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
+          >
+            Verwijderen
+          </button>
+        )}
         {foutmelding && <p className="self-center text-sm text-red-700 dark:text-red-400">{foutmelding}</p>}
       </div>
     </form>

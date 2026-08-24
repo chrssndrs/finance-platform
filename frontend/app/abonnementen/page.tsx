@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AanbevelingKaart } from "@/app/components/AanbevelingKaart";
 import { AbonnementFormulier } from "@/app/components/AbonnementFormulier";
 import { AbonnementKaart } from "@/app/components/AbonnementKaart";
+import { Overlay } from "@/app/components/Overlay";
 import {
   ApiError,
   getAanbevelingen,
@@ -57,7 +58,8 @@ export default function AbonnementenPagina() {
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
   const [sortVeld, setSortVeld] = useState<SortVeld>("eerstvolgende_afschrijving");
   const [aflopend, setAflopend] = useState(false);
-  const [toonFormulier, setToonFormulier] = useState(false);
+  const [toonNieuw, setToonNieuw] = useState(false);
+  const [bewerktAbonnement, setBewerktAbonnement] = useState<Abonnement | null>(null);
 
   function laadAlles() {
     return Promise.all([getAbonnementen(), getAanbevelingen(), getAfzenders({ categorie: null, subcategorie: null })]).then(
@@ -88,17 +90,17 @@ export default function AbonnementenPagina() {
       .catch(() => {});
   }
 
-  function abonnementToegevoegd(nieuw: Abonnement) {
-    setAbonnementen((huidig) => [...huidig, nieuw]);
-    setToonFormulier(false);
-  }
-
-  function abonnementBijgewerkt(bijgewerkt: Abonnement) {
-    setAbonnementen((huidig) => huidig.map((a) => (a.id === bijgewerkt.id ? bijgewerkt : a)));
+  function abonnementOpgeslagen(abonnement: Abonnement) {
+    setAbonnementen((huidig) =>
+      huidig.some((a) => a.id === abonnement.id) ? huidig.map((a) => (a.id === abonnement.id ? abonnement : a)) : [...huidig, abonnement]
+    );
+    setToonNieuw(false);
+    setBewerktAbonnement(null);
   }
 
   function abonnementVerwijderd(id: number) {
     setAbonnementen((huidig) => huidig.filter((a) => a.id !== id));
+    setBewerktAbonnement(null);
   }
 
   const gesorteerd = useMemo(() => {
@@ -122,7 +124,7 @@ export default function AbonnementenPagina() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-10">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">Abonnementen</h1>
@@ -132,10 +134,10 @@ export default function AbonnementenPagina() {
         </div>
         <button
           type="button"
-          onClick={() => setToonFormulier((v) => !v)}
+          onClick={() => setToonNieuw(true)}
           className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
         >
-          {toonFormulier ? "Annuleren" : "+ Nieuw abonnement"}
+          + Nieuw abonnement
         </button>
       </div>
 
@@ -152,14 +154,6 @@ export default function AbonnementenPagina() {
             {bedragFormat.format(totaalPerMaand)}
           </div>
         </div>
-      )}
-
-      {toonFormulier && (
-        <AbonnementFormulier
-          afzenders={afzenders}
-          onOpgeslagen={abonnementToegevoegd}
-          onAnnuleren={() => setToonFormulier(false)}
-        />
       )}
 
       {!laden && aanbevelingen.length > 0 && (
@@ -202,17 +196,27 @@ export default function AbonnementenPagina() {
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {gesorteerd.map((a) => (
-              <AbonnementKaart
-                key={a.id}
-                abonnement={a}
-                afzenders={afzenders}
-                onBijgewerkt={abonnementBijgewerkt}
-                onVerwijderd={abonnementVerwijderd}
-              />
+              <AbonnementKaart key={a.id} abonnement={a} onKlik={setBewerktAbonnement} />
             ))}
           </div>
         )}
       </div>
+
+      <Overlay open={toonNieuw} onClose={() => setToonNieuw(false)} titel="Nieuw abonnement">
+        <AbonnementFormulier afzenders={afzenders} onOpgeslagen={abonnementOpgeslagen} onAnnuleren={() => setToonNieuw(false)} />
+      </Overlay>
+
+      <Overlay open={bewerktAbonnement !== null} onClose={() => setBewerktAbonnement(null)} titel="Abonnement bewerken">
+        {bewerktAbonnement && (
+          <AbonnementFormulier
+            afzenders={afzenders}
+            abonnement={bewerktAbonnement}
+            onOpgeslagen={abonnementOpgeslagen}
+            onAnnuleren={() => setBewerktAbonnement(null)}
+            onVerwijderd={abonnementVerwijderd}
+          />
+        )}
+      </Overlay>
     </main>
   );
 }
