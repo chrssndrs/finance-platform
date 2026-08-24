@@ -31,12 +31,13 @@ const OPTIONELE_VELDEN: { veld: keyof BankRegistratie; label: string }[] = [
   { veld: "saldo_kolom", label: "Saldo na mutatie" },
 ];
 
-export function BankUploadFormulier({ onKlaar, onAnnuleren }: { onKlaar: () => void; onAnnuleren: () => void }) {
+export function BankUploadFormulier({ onAnnuleren }: { onAnnuleren: () => void }) {
   const [stap, setStap] = useState<Stap>("uploaden");
   const [banken, setBanken] = useState<Bank[]>([]);
   const [gekozenBank, setGekozenBank] = useState("");
   const [bestand, setBestand] = useState<File | null>(null);
   const [bezig, setBezig] = useState(false);
+  const [succes, setSucces] = useState(false);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
 
   // stap 1 — nieuwe bank
@@ -68,10 +69,11 @@ export function BankUploadFormulier({ onKlaar, onAnnuleren }: { onKlaar: () => v
     setFoutmelding(null);
     try {
       await postBankUpload(gekozenBank, bestand);
-      onKlaar();
+      setSucces(true);
+      setBezig(false);
+      setTimeout(() => window.location.reload(), 1200);
     } catch (err) {
       setFoutmelding(err instanceof ApiError ? err.message : "Uploaden mislukt.");
-    } finally {
       setBezig(false);
     }
   }
@@ -127,10 +129,11 @@ export function BankUploadFormulier({ onKlaar, onAnnuleren }: { onKlaar: () => v
         saldo_kolom: mapping.saldo_kolom || null,
       });
       await postBankUpload(bankSlug.trim().toLowerCase(), bestand);
-      onKlaar();
+      setSucces(true);
+      setBezig(false);
+      setTimeout(() => window.location.reload(), 1200);
     } catch (err) {
       setFoutmelding(err instanceof ApiError ? err.message : "Registreren mislukt.");
-    } finally {
       setBezig(false);
     }
   }
@@ -155,40 +158,55 @@ export function BankUploadFormulier({ onKlaar, onAnnuleren }: { onKlaar: () => v
               <input
                 type="file"
                 accept=".csv"
+                disabled={bezig || succes}
                 onChange={(e) => setBestand(e.target.files?.[0] ?? null)}
-                className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-neutral-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-neutral-700 hover:file:bg-neutral-200 dark:file:bg-neutral-800 dark:file:text-neutral-300"
+                className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-neutral-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-neutral-700 hover:file:bg-neutral-200 disabled:opacity-50 dark:file:bg-neutral-800 dark:file:text-neutral-300"
               />
             </label>
+            {bezig && (
+              <p className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-600 dark:border-neutral-700 dark:border-t-neutral-300" />
+                Bestand wordt geüpload en verwerkt (bronze → silver → gold)... dit kan een paar seconden duren.
+              </p>
+            )}
+            {succes && (
+              <p className="text-sm text-emerald-700 dark:text-emerald-400">
+                ✓ Verwerkt — pagina wordt herladen...
+              </p>
+            )}
             {foutmelding && <p className="text-sm text-red-700 dark:text-red-400">{foutmelding}</p>}
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                disabled={bezig}
+                disabled={bezig || succes}
                 onClick={uploaden}
                 className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
               >
-                {bezig ? "Bezig..." : "Uploaden"}
+                {bezig ? "Bezig met verwerken..." : succes ? "Verwerkt ✓" : "Uploaden"}
               </button>
               <button
                 type="button"
+                disabled={bezig || succes}
                 onClick={onAnnuleren}
-                className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
               >
                 Annuleren
               </button>
             </div>
           </>
         )}
-        <button
-          type="button"
-          onClick={() => {
-            setFoutmelding(null);
-            setStap("nieuwe-bank-1");
-          }}
-          className="self-start text-sm text-neutral-500 underline hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-        >
-          + Nieuwe bank toevoegen
-        </button>
+        {!bezig && !succes && (
+          <button
+            type="button"
+            onClick={() => {
+              setFoutmelding(null);
+              setStap("nieuwe-bank-1");
+            }}
+            className="self-start text-sm text-neutral-500 underline hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+          >
+            + Nieuwe bank toevoegen
+          </button>
+        )}
       </div>
     );
   }
@@ -318,20 +336,32 @@ export function BankUploadFormulier({ onKlaar, onAnnuleren }: { onKlaar: () => v
         </div>
       </div>
 
+      {bezig && (
+        <p className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
+          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-600 dark:border-neutral-700 dark:border-t-neutral-300" />
+          Bank registreren en bestand verwerken (bronze → silver → gold)... dit kan een paar seconden duren.
+        </p>
+      )}
+      {succes && (
+        <p className="text-sm text-emerald-700 dark:text-emerald-400">
+          ✓ Verwerkt — pagina wordt herladen...
+        </p>
+      )}
       {foutmelding && <p className="text-sm text-red-700 dark:text-red-400">{foutmelding}</p>}
       <div className="flex items-center gap-3">
         <button
           type="button"
-          disabled={bezig}
+          disabled={bezig || succes}
           onClick={registrerenEnUploaden}
           className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
         >
-          {bezig ? "Bezig..." : "Opslaan en uploaden"}
+          {bezig ? "Bezig met verwerken..." : succes ? "Verwerkt ✓" : "Opslaan en uploaden"}
         </button>
         <button
           type="button"
+          disabled={bezig || succes}
           onClick={() => setStap("nieuwe-bank-1")}
-          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
         >
           Terug
         </button>

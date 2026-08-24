@@ -48,7 +48,7 @@ export function UploadKiezerOverlay({ open, onClose }: { open: boolean; onClose:
         </div>
       )}
 
-      {keuze === "bank" && <BankUploadFormulier onKlaar={sluiten} onAnnuleren={() => setKeuze("menu")} />}
+      {keuze === "bank" && <BankUploadFormulier onAnnuleren={() => setKeuze("menu")} />}
 
       {keuze === "factuur" && (
         <FactuurUploadFormulier onGeupload={() => setKeuze("factuur-klaar")} onAnnuleren={() => setKeuze("menu")} />
