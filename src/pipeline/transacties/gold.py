@@ -289,8 +289,8 @@ def run_gold(
             COALESCE(r.categorie, 'Overig') AS categorie,
             COALESCE(r.subcategorie, 'Ongecategoriseerd') AS subcategorie,
             true AS handmatig_overschreven,
-            f.bron AS winkel,
-            f.bron AS afzender
+            r.omschrijving AS winkel,
+            r.omschrijving AS afzender
         FROM verzamelfacturen.regels r
         JOIN verzamelfacturen.facturen f ON f.id = r.factuur_id
         JOIN gold.transacties t ON t.transactie_id = f.transactie_id
