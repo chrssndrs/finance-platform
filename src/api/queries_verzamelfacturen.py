@@ -73,3 +73,27 @@ SQL_FACTUUR_STATUS_ZETTEN = """
 SQL_AANTAL_REGELS_VOOR_FACTUUR = """
     SELECT COUNT(*) FROM verzamelfacturen.regels WHERE factuur_id = $factuur_id
 """
+
+# Voor het automatisch koppelen van een geparste creditcard-afschrift-regel
+# aan de bank-incasso die 'm daadwerkelijk heeft afgeschreven. Bewust de
+# ruwe gold.transacties (niet transacties_effectief) — dit moet een echte,
+# ongesplitste bankregel zijn. Sluit transacties uit die al aan een andere
+# factuur gekoppeld zijn, zodat een per ongeluk dubbel geüpload afschrift
+# niet aan dezelfde transactie gekoppeld raakt.
+SQL_TRANSACTIE_MATCH = """
+    SELECT t.transactie_id FROM gold.transacties t
+    WHERE t.rekening = $rekening AND t.datum = $datum AND ABS(t.bedrag_eur - $bedrag) < 0.01
+      AND t.transactie_id NOT IN (
+          SELECT transactie_id FROM verzamelfacturen.facturen WHERE transactie_id IS NOT NULL
+      )
+"""
+
+# Terugkerende afzenders (bv. "APPLE.COM/BILL CORK", "BACKBLAZE INC SAN
+# MATEO") krijgen zo automatisch dezelfde categorie als de vorige keer dat
+# een regel met exact dezelfde omschrijving handmatig gecategoriseerd is.
+SQL_REGEL_CATEGORIE_HISTORIE = """
+    SELECT categorie, subcategorie FROM verzamelfacturen.regels
+    WHERE lower(trim(omschrijving)) = lower(trim($omschrijving)) AND categorie IS NOT NULL
+    ORDER BY aangemaakt_op DESC
+    LIMIT 1
+"""

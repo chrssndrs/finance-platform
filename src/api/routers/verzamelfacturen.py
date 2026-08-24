@@ -1,3 +1,4 @@
+import io
 import mimetypes
 import uuid
 from pathlib import Path
@@ -5,7 +6,9 @@ from pathlib import Path
 import duckdb
 from fastapi import APIRouter, Depends, Form, HTTPException, Response, UploadFile
 from fastapi.responses import FileResponse
+from pypdf import PdfReader
 
+from src.api.creditcard_parser import parse_ing_creditcard
 from src.api.deps import get_db, get_write_db
 from src.api.queries_verzamelfacturen import (
     SQL_AANTAL_REGELS_VOOR_FACTUUR,
@@ -16,10 +19,12 @@ from src.api.queries_verzamelfacturen import (
     SQL_FACTUUR_STATUS_ZETTEN,
     SQL_FACTUUR_VERWIJDEREN,
     SQL_REGEL_BIJWERKEN,
+    SQL_REGEL_CATEGORIE_HISTORIE,
     SQL_REGEL_INVOEGEN,
     SQL_REGEL_OPHALEN,
     SQL_REGEL_VERWIJDEREN,
     SQL_REGELS_VOOR_FACTUUR,
+    SQL_TRANSACTIE_MATCH,
 )
 from src.api.schemas_verzamelfacturen import (
     Factuur,
@@ -90,6 +95,51 @@ def _valideer_som_regels(
         )
 
 
+def _probeer_automatisch_splitsen(con: duckdb.DuckDBPyConnection, factuur_id: int, inhoud: bytes) -> None:
+    """Probeert een geüpload bestand te herkennen als een bekend
+    creditcard-afschriftformaat (nu: ING Creditcard More), de aankopen
+    erin automatisch als regels aan te maken, en te koppelen aan de
+    bank-incasso die ze daadwerkelijk heeft afgeschreven. Terugkerende
+    afzenders (bv. "APPLE.COM/BILL CORK") krijgen de categorie van de
+    vorige keer dat diezelfde omschrijving handmatig gecategoriseerd is.
+
+    Faalt dit om welke reden dan ook (ander formaat, geen eenduidige
+    transactie-match, som klopt niet) dan gebeurt er simpelweg niets — de
+    factuur blijft 'nieuw' en de gebruiker vult 'm zoals altijd handmatig
+    in. Nooit een foutmelding: dit is best-effort gemak, geen vereiste."""
+    try:
+        tekst = "\n".join(pagina.extract_text() for pagina in PdfReader(io.BytesIO(inhoud)).pages)
+    except Exception:
+        return
+    afschrift = parse_ing_creditcard(tekst)
+    if afschrift is None:
+        return
+    som_regels = sum(r.bedrag for r in afschrift.regels)
+    if abs(som_regels - (-afschrift.doel_bedrag)) > 0.01:
+        return
+
+    matches = con.execute(SQL_TRANSACTIE_MATCH, {
+        "rekening": afschrift.doel_rekening, "datum": afschrift.doel_datum, "bedrag": -afschrift.doel_bedrag,
+    }).fetchall()
+    if len(matches) == 1:
+        huidig = con.execute(SQL_FACTUUR_OPHALEN, {"id": factuur_id}).fetchone()
+        con.execute(SQL_FACTUUR_BIJWERKEN, {
+            "id": factuur_id,
+            "bron": huidig[3],
+            "totaalbedrag": huidig[4] if huidig[4] is not None else afschrift.doel_bedrag,
+            "transactie_id": matches[0][0],
+        })
+
+    for regel in afschrift.regels:
+        eerdere = con.execute(SQL_REGEL_CATEGORIE_HISTORIE, {"omschrijving": regel.omschrijving}).fetchone()
+        categorie, subcategorie = eerdere if eerdere else (None, None)
+        con.execute(SQL_REGEL_INVOEGEN, {
+            "factuur_id": factuur_id, "omschrijving": regel.omschrijving, "bedrag": regel.bedrag,
+            "categorie": categorie, "subcategorie": subcategorie,
+        })
+    _herbereken_status(con, factuur_id)
+
+
 @router.get("/facturen", response_model=FacturenResponse)
 def get_facturen(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> FacturenResponse:
     rijen = con.execute(SQL_FACTUREN).fetchall()
@@ -150,6 +200,7 @@ async def post_factuur(
             "totaalbedrag": totaalbedrag,
         },
     ).fetchone()[0]
+    _probeer_automatisch_splitsen(con, nieuw_id, inhoud)
     rij = con.execute(SQL_FACTUUR_OPHALEN, {"id": nieuw_id}).fetchone()
     return _naar_factuur(*rij)
 
