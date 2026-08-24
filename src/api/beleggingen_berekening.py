@@ -86,7 +86,12 @@ def bereken_portfolio_reeks(
     if not reeksen:
         return []
 
-    totaal = pd.concat(reeksen, axis=1).sort_index().fillna(0).sum(axis=1)
+    # Elke reeks staat op de handelsdagen van zijn eigen beurs — op een
+    # Amsterdamse feestdag waarop de NASDAQ wel open is (bv. 1 mei, 2e
+    # paasdag) mist VUSA.AS dan een datum die AAPL wel heeft. Zonder ffill()
+    # zou die dag als 0 meetellen i.p.v. de laatst bekende waarde, wat het
+    # totaal tijdelijk kelderde.
+    totaal = pd.concat(reeksen, axis=1).sort_index().ffill().fillna(0).sum(axis=1)
     eerste_transactiedatum = transacties["datum"].min()
     totaal = totaal[totaal.index >= eerste_transactiedatum]
     return [(datum.date(), waarde) for datum, waarde in totaal.items()]
