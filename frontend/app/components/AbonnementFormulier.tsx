@@ -24,20 +24,36 @@ const INTERVAL_OPTIES: { waarde: string; label: string }[] = [
 const inputKlasse =
   "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 sm:text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100";
 
+interface AbonnementVoorinvoer {
+  naam?: string | null;
+  afzender?: string | null;
+  bedrag?: number | null;
+  datum?: string | null;
+  categorie?: string | null;
+  subcategorie?: string | null;
+}
+
 interface AbonnementFormulierProps {
   afzenders: string[];
   abonnement?: Abonnement;
+  /** Alleen gebruikt als er geen `abonnement` is (dus bij aanmaken) — vult
+   * bv. naam/afzender/bedrag vanuit een transactie voor i.p.v. leeg te starten. */
+  voorinvoer?: AbonnementVoorinvoer;
   onOpgeslagen: (abonnement: Abonnement) => void;
   onAnnuleren?: () => void;
   onVerwijderd?: (id: number) => void;
 }
 
-export function AbonnementFormulier({ afzenders, abonnement, onOpgeslagen, onAnnuleren, onVerwijderd }: AbonnementFormulierProps) {
-  const [naam, setNaam] = useState(abonnement?.naam ?? "");
-  const [afzender, setAfzender] = useState<string | null>(abonnement?.afzender ?? null);
-  const [bedrag, setBedrag] = useState(abonnement ? String(abonnement.bedrag).replace(".", ",") : "");
+export function AbonnementFormulier({ afzenders, abonnement, voorinvoer, onOpgeslagen, onAnnuleren, onVerwijderd }: AbonnementFormulierProps) {
+  const [naam, setNaam] = useState(abonnement?.naam ?? voorinvoer?.naam ?? "");
+  const [afzender, setAfzender] = useState<string | null>(abonnement?.afzender ?? voorinvoer?.afzender ?? null);
+  const [bedrag, setBedrag] = useState(() => {
+    if (abonnement) return String(abonnement.bedrag).replace(".", ",");
+    if (voorinvoer?.bedrag !== null && voorinvoer?.bedrag !== undefined) return String(voorinvoer.bedrag).replace(".", ",");
+    return "";
+  });
   const [interval, setInterval] = useState(abonnement?.interval ?? "maandelijks");
-  const [eerstvolgende, setEerstvolgende] = useState(abonnement?.eerstvolgende_afschrijving ?? "");
+  const [eerstvolgende, setEerstvolgende] = useState(abonnement?.eerstvolgende_afschrijving ?? voorinvoer?.datum ?? "");
   const [domein, setDomein] = useState("");
   const [bezig, setBezig] = useState(false);
   const [logoBezig, setLogoBezig] = useState(false);
@@ -74,8 +90,8 @@ export function AbonnementFormulier({ afzenders, abonnement, onOpgeslagen, onAnn
     const invoer: AbonnementInvoer = {
       naam: naam.trim(),
       afzender,
-      categorie: abonnement?.categorie ?? null,
-      subcategorie: abonnement?.subcategorie ?? null,
+      categorie: abonnement?.categorie ?? voorinvoer?.categorie ?? null,
+      subcategorie: abonnement?.subcategorie ?? voorinvoer?.subcategorie ?? null,
       bedrag: Number(bedrag.replace(",", ".")),
       interval,
       eerstvolgende_afschrijving: eerstvolgende,

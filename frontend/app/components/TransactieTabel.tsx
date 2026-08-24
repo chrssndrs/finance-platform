@@ -2,12 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { AbonnementFormulier } from "@/app/components/AbonnementFormulier";
 import { InboedelFormulier } from "@/app/components/InboedelFormulier";
 import { Overlay } from "@/app/components/Overlay";
 import {
   ApiError,
+  getAfzenders,
   getInboedelOpties,
   getTransactieDetail,
+  type Abonnement,
   type InboedelArtikel,
   type Transactie,
   type TransactieDetail,
@@ -87,10 +90,50 @@ function InboedelVanTransactieOverlay({
   );
 }
 
+function AbonnementVanTransactieOverlay({
+  detail,
+  onClose,
+}: {
+  detail: TransactieDetail;
+  onClose: () => void;
+}) {
+  const [afzenders, setAfzenders] = useState<string[]>([]);
+  const [aangemaakt, setAangemaakt] = useState<Abonnement | null>(null);
+
+  useEffect(() => {
+    getAfzenders({ categorie: null, subcategorie: null }).then((res) => setAfzenders(res.afzenders));
+  }, []);
+
+  return (
+    <Overlay open onClose={onClose} titel="Abonnement aanmaken">
+      {aangemaakt ? (
+        <p className="text-sm text-emerald-700 dark:text-emerald-400">
+          &ldquo;{aangemaakt.naam}&rdquo; toegevoegd aan Abonnementen.
+        </p>
+      ) : (
+        <AbonnementFormulier
+          afzenders={afzenders}
+          voorinvoer={{
+            naam: detail.afzender,
+            afzender: detail.afzender,
+            bedrag: Math.abs(detail.bedrag_eur),
+            datum: detail.datum,
+            categorie: detail.categorie,
+            subcategorie: detail.subcategorie,
+          }}
+          onOpgeslagen={setAangemaakt}
+          onAnnuleren={onClose}
+        />
+      )}
+    </Overlay>
+  );
+}
+
 function TransactieDetailOverlay({ transactieId, onClose }: { transactieId: string; onClose: () => void }) {
   const [detail, setDetail] = useState<TransactieDetail | null>(null);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
   const [toonInboedelFormulier, setToonInboedelFormulier] = useState(false);
+  const [toonAbonnementFormulier, setToonAbonnementFormulier] = useState(false);
 
   useEffect(() => {
     getTransactieDetail(transactieId)
@@ -105,13 +148,22 @@ function TransactieDetailOverlay({ transactieId, onClose }: { transactieId: stri
       {detail && (
         <div className="flex flex-col gap-4">
           {detail.bedrag_eur < 0 && (
-            <button
-              type="button"
-              onClick={() => setToonInboedelFormulier(true)}
-              className="self-start rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
-            >
-              + Inboedel-artikel aanmaken
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setToonInboedelFormulier(true)}
+                className="self-start rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+              >
+                + Inboedel-artikel aanmaken
+              </button>
+              <button
+                type="button"
+                onClick={() => setToonAbonnementFormulier(true)}
+                className="self-start rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+              >
+                + Abonnement aanmaken
+              </button>
+            </div>
           )}
           <div>
             {(Object.keys(VELD_LABEL) as (keyof TransactieDetail)[]).map((veld) => {
@@ -146,6 +198,9 @@ function TransactieDetailOverlay({ transactieId, onClose }: { transactieId: stri
       )}
       {toonInboedelFormulier && detail && (
         <InboedelVanTransactieOverlay detail={detail} onClose={() => setToonInboedelFormulier(false)} />
+      )}
+      {toonAbonnementFormulier && detail && (
+        <AbonnementVanTransactieOverlay detail={detail} onClose={() => setToonAbonnementFormulier(false)} />
       )}
     </Overlay>
   );
