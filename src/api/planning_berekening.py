@@ -4,6 +4,7 @@ materialized tabel (zelfde stijl als vermogen_berekening.py/
 hypotheek_berekening.py).
 """
 
+import calendar
 from datetime import date, timedelta
 
 import duckdb
@@ -11,15 +12,31 @@ import duckdb
 from src.api.inboedel_berekening import DAGEN_PER_MAAND
 
 
+def _plus_een_kalendermaand(datum: date) -> date:
+    """Telt één kalendermaand op, met dezelfde dag-van-de-maand (geclamped
+    naar de laatste dag als die in de doelmaand niet bestaat, bv. 31 jan ->
+    28/29 feb). In tegenstelling tot "+30 dagen" drift dit nooit weg van een
+    vaste dag-van-de-maand.
+    """
+    if datum.month == 12:
+        jaar, maand = datum.year + 1, 1
+    else:
+        jaar, maand = datum.year, datum.month + 1
+    laatste_dag = calendar.monthrange(jaar, maand)[1]
+    return date(jaar, maand, min(datum.day, laatste_dag))
+
+
 def verwachte_datum(datum_aankoop: date, levensduur_maanden: int, vandaag: date) -> date:
     """Datum waarop de vervangingskosten gepland staan. Zolang een artikel
     al voorbij zijn levensduur is maar nog niet vervangen (uit inboedel
-    verwijderd), schuift deze datum telkens een maand op — zo blijft de post
-    in beeld als "aankomend" i.p.v. weg te zakken in het verleden.
+    verwijderd), schuift deze datum telkens een kalendermaand op — zo blijft
+    de post in beeld als "aankomend" i.p.v. weg te zakken in het verleden.
+    Kalendermaanden i.p.v. "+30 dagen": dat laatste drift geleidelijk weg van
+    de oorspronkelijke dag-van-de-maand (1 jul -> 31 jul -> 30 aug -> ...).
     """
     eind_datum = datum_aankoop + timedelta(days=round(levensduur_maanden * DAGEN_PER_MAAND))
     while eind_datum < vandaag:
-        eind_datum += timedelta(days=round(DAGEN_PER_MAAND))
+        eind_datum = _plus_een_kalendermaand(eind_datum)
     return eind_datum
 
 
