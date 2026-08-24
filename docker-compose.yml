@@ -4,7 +4,11 @@ services:
       context: .
       dockerfile: Dockerfile
     image: finance-platform-backend
-    command: ["sh", "-c", "touch /var/log/cron.log && cron && tail -f /var/log/cron.log"]
+    # cron draait met een leeg environment (leest alleen /etc/environment via
+    # PAM) — zonder deze regel ziet de nachtelijke run FINANCE_DATA_ROOT/
+    # FINANCE_CONFIG_ROOT niet en valt terug op een pad binnen de image i.p.v.
+    # de gemounte data (faalt direct met "db/finance.duckdb: No such file").
+    command: ["sh", "-c", "env > /etc/environment && touch /var/log/cron.log && cron && tail -f /var/log/cron.log"]
     environment:
       FINANCE_DATA_ROOT: /data
       FINANCE_CONFIG_ROOT: /app/config
