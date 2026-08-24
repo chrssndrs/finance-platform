@@ -2,8 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { InboedelFormulier } from "@/app/components/InboedelFormulier";
 import { Overlay } from "@/app/components/Overlay";
-import { ApiError, getTransactieDetail, type Transactie, type TransactieDetail } from "@/lib/api";
+import {
+  ApiError,
+  getInboedelOpties,
+  getTransactieDetail,
+  type InboedelArtikel,
+  type Transactie,
+  type TransactieDetail,
+} from "@/lib/api";
 
 const bedragFormat = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
 const datumFormat = new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "short", year: "numeric" });
@@ -42,9 +50,47 @@ function DetailRij({ label, waarde }: { label: string; waarde: string }) {
   );
 }
 
+function InboedelVanTransactieOverlay({
+  detail,
+  onClose,
+}: {
+  detail: TransactieDetail;
+  onClose: () => void;
+}) {
+  const [merken, setMerken] = useState<string[]>([]);
+  const [winkels, setWinkels] = useState<string[]>([]);
+  const [aangemaakt, setAangemaakt] = useState<InboedelArtikel | null>(null);
+
+  useEffect(() => {
+    getInboedelOpties().then((res) => {
+      setMerken(res.merken);
+      setWinkels(res.winkels);
+    });
+  }, []);
+
+  return (
+    <Overlay open onClose={onClose} titel="Inboedel-artikel aanmaken">
+      {aangemaakt ? (
+        <p className="text-sm text-emerald-700 dark:text-emerald-400">
+          &ldquo;{aangemaakt.omschrijving}&rdquo; toegevoegd aan Inboedel.
+        </p>
+      ) : (
+        <InboedelFormulier
+          merken={merken}
+          winkels={winkels}
+          voorinvoer={{ winkel: detail.afzender, bedrag: Math.abs(detail.bedrag_eur), datum: detail.datum }}
+          onOpgeslagen={setAangemaakt}
+          onAnnuleren={onClose}
+        />
+      )}
+    </Overlay>
+  );
+}
+
 function TransactieDetailOverlay({ transactieId, onClose }: { transactieId: string; onClose: () => void }) {
   const [detail, setDetail] = useState<TransactieDetail | null>(null);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
+  const [toonInboedelFormulier, setToonInboedelFormulier] = useState(false);
 
   useEffect(() => {
     getTransactieDetail(transactieId)
@@ -58,6 +104,15 @@ function TransactieDetailOverlay({ transactieId, onClose }: { transactieId: stri
       {!detail && !foutmelding && <p className="text-sm text-neutral-400">Laden...</p>}
       {detail && (
         <div className="flex flex-col gap-4">
+          {detail.bedrag_eur < 0 && (
+            <button
+              type="button"
+              onClick={() => setToonInboedelFormulier(true)}
+              className="self-start rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            >
+              + Inboedel-artikel aanmaken
+            </button>
+          )}
           <div>
             {(Object.keys(VELD_LABEL) as (keyof TransactieDetail)[]).map((veld) => {
               const waarde = detail[veld];
@@ -88,6 +143,9 @@ function TransactieDetailOverlay({ transactieId, onClose }: { transactieId: stri
             </div>
           )}
         </div>
+      )}
+      {toonInboedelFormulier && detail && (
+        <InboedelVanTransactieOverlay detail={detail} onClose={() => setToonInboedelFormulier(false)} />
       )}
     </Overlay>
   );

@@ -11,8 +11,17 @@ import {
   type InboedelArtikel,
 } from "@/lib/api";
 
+interface InboedelVoorinvoer {
+  winkel?: string | null;
+  bedrag?: number | null;
+  datum?: string | null;
+}
+
 interface InboedelFormulierProps {
   artikel?: InboedelArtikel;
+  /** Alleen gebruikt als er geen `artikel` is (dus bij aanmaken) — vult bv.
+   * winkel/bedrag/datum vanuit een transactie voor i.p.v. leeg te starten. */
+  voorinvoer?: InboedelVoorinvoer;
   merken: string[];
   winkels: string[];
   onOpgeslagen: (artikel: InboedelArtikel) => void;
@@ -25,6 +34,7 @@ const inputKlasse =
 
 export function InboedelFormulier({
   artikel,
+  voorinvoer,
   merken,
   winkels,
   onOpgeslagen,
@@ -34,9 +44,13 @@ export function InboedelFormulier({
   const [omschrijving, setOmschrijving] = useState(artikel?.omschrijving ?? "");
   const [merk, setMerk] = useState<string | null>(artikel?.merk ?? null);
   const [model, setModel] = useState(artikel?.model ?? "");
-  const [winkel, setWinkel] = useState<string | null>(artikel?.winkel ?? null);
-  const [bedrag, setBedrag] = useState(artikel?.bedrag !== null && artikel?.bedrag !== undefined ? String(artikel.bedrag) : "");
-  const [datum, setDatum] = useState(artikel?.datum ?? "");
+  const [winkel, setWinkel] = useState<string | null>(artikel?.winkel ?? voorinvoer?.winkel ?? null);
+  const [bedrag, setBedrag] = useState(() => {
+    if (artikel?.bedrag !== null && artikel?.bedrag !== undefined) return String(artikel.bedrag);
+    if (voorinvoer?.bedrag !== null && voorinvoer?.bedrag !== undefined) return String(voorinvoer.bedrag);
+    return "";
+  });
+  const [datum, setDatum] = useState(artikel?.datum ?? voorinvoer?.datum ?? "");
   const [levensduur, setLevensduur] = useState(
     artikel?.levensduur_maanden !== null && artikel?.levensduur_maanden !== undefined ? String(artikel.levensduur_maanden) : "60"
   );

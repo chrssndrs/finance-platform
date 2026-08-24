@@ -139,17 +139,9 @@ export interface AanbevelingenResponse {
   aanbevelingen: Aanbeveling[];
 }
 
-export interface BeschikbareBank {
-  bank: string;
-  naam: string;
-}
-
 export type PlanningDrempelModus = "maanden" | "percentage";
 
 export interface Instellingen {
-  bank: string;
-  bank_naam: string;
-  export_locatie: string;
   planning_drempel_modus: PlanningDrempelModus;
   planning_drempel_waarde: number;
   verzamelfacturen_locatie: string;
@@ -158,8 +150,6 @@ export interface Instellingen {
 }
 
 export interface InstellingenInvoer {
-  bank: string;
-  export_locatie: string;
   planning_drempel_modus: PlanningDrempelModus;
   planning_drempel_waarde: number;
   verzamelfacturen_locatie: string;
@@ -169,7 +159,6 @@ export interface InstellingenInvoer {
 
 export interface InstellingenResponse {
   instellingen: Instellingen;
-  beschikbare_banken: BeschikbareBank[];
 }
 
 export interface Woning {
@@ -782,4 +771,60 @@ export function putFactuurRegel(id: number, regel: RegelInvoer): Promise<Regel> 
 
 export function deleteFactuurRegel(id: number): Promise<void> {
   return verwijder(`/api/verzamelfacturen/regels/${id}`);
+}
+
+export interface BankRegistratie {
+  bank: string;
+  naam: string;
+  locatie: string;
+  separator: string;
+  datum_kolom: string;
+  datum_formaat: string;
+  omschrijving_kolom: string;
+  rekening_kolom: string;
+  tegenrekening_kolom: string | null;
+  bedrag_kolom: string;
+  bedrag_decimaal_teken: string;
+  richting_kolom: string | null;
+  richting_negatief_waarde: string | null;
+  mededelingen_kolom: string | null;
+  saldo_kolom: string | null;
+}
+
+export interface Bank extends BankRegistratie {
+  laatst_gebruikt_op: string | null;
+}
+
+export interface BankenResponse {
+  banken: Bank[];
+}
+
+export interface KolomDetectie {
+  kolommen: string[];
+}
+
+export function getBanken(): Promise<BankenResponse> {
+  return fetchJson<BankenResponse>("/api/banken");
+}
+
+export async function detecteerBankKolommen(bestand: File, separator: string): Promise<KolomDetectie> {
+  const formData = new FormData();
+  formData.append("bestand", bestand);
+  formData.append("separator", separator);
+  const response = await fetch(`${API_BASE}/api/banken/detecteer-kolommen`, { method: "POST", body: formData });
+  return afhandelenResponse<KolomDetectie>(response);
+}
+
+export function postBank(bank: BankRegistratie): Promise<Bank> {
+  return zendJson<Bank>("/api/banken", "POST", bank);
+}
+
+export async function postBankUpload(bank: string, bestand: File): Promise<Bank> {
+  const formData = new FormData();
+  formData.append("bestand", bestand);
+  const response = await fetch(`${API_BASE}/api/banken/${encodeURIComponent(bank)}/upload`, {
+    method: "POST",
+    body: formData,
+  });
+  return afhandelenResponse<Bank>(response);
 }

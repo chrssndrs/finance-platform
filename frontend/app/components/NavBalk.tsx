@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { UploadKiezerOverlay } from "@/app/components/UploadKiezerOverlay";
+
 const DOMEINEN = [
   { pad: "/uitgaven", label: "Uitgaven" },
   { pad: "/inboedel", label: "Inboedel" },
@@ -21,6 +23,7 @@ const iconKnopKlasse =
 export function NavBalk({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [toonUpload, setToonUpload] = useState(false);
 
   // Swipe vanaf de linkerrand opent het menu i.p.v. de browser/PWA-terug-
   // navigatie te triggeren. preventDefault() op touchmove (non-passive
@@ -118,6 +121,14 @@ export function NavBalk({ children }: { children: React.ReactNode }) {
             <Link href="/" aria-label="Home" className={iconKnopKlasse}>
               🏠
             </Link>
+            <button
+              type="button"
+              onClick={() => setToonUpload(true)}
+              aria-label="Uploaden"
+              className={iconKnopKlasse}
+            >
+              ⬆️
+            </button>
             <Link href="/instellingen" aria-label="Instellingen" className={iconKnopKlasse}>
               ⚙️
             </Link>
@@ -162,6 +173,8 @@ export function NavBalk({ children }: { children: React.ReactNode }) {
       >
         {children}
       </div>
+
+      <UploadKiezerOverlay open={toonUpload} onClose={() => setToonUpload(false)} />
     </>
   );
 }

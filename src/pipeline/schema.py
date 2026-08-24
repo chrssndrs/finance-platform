@@ -1,5 +1,8 @@
 import duckdb
 import pandas as pd
+import yaml
+
+from src.pipeline.paths import CONFIG_ROOT
 
 
 def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
@@ -106,8 +109,10 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
         )
     """)
 
-    # Eén rij: welke bank-config (config/banken/{bank}.yaml) en welke
-    # locatie (relatief aan de gemounte data-root) de pipeline gebruikt.
+    # Eén rij met overige instellingen. bank/export_locatie stonden hier
+    # ooit (één actieve bank) — vervangen door instellingen.banken
+    # hieronder (meerdere banken tegelijk), de kolommen worden verderop in
+    # deze functie weggehaald op een al-bestaande db.
     con.execute("""
         CREATE TABLE IF NOT EXISTS instellingen.instellingen (
             id INTEGER PRIMARY KEY DEFAULT 1,
@@ -131,6 +136,66 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("ALTER TABLE instellingen.instellingen ADD COLUMN IF NOT EXISTS data_te_oud_na_dagen DOUBLE DEFAULT 7")
     # Aantal maanden voor het voortschrijdend gemiddelde (trendlijn) in de grafieken.
     con.execute("ALTER TABLE instellingen.instellingen ADD COLUMN IF NOT EXISTS trend_venster_maanden INTEGER DEFAULT 3")
+
+    # Dynamisch geregistreerde banken — vervangt de statische config/banken/*.yaml
+    # + het enkele bank/export_locatie-veld hierboven. Elke bank heeft zijn eigen
+    # landingsmap; de pipeline scant ze allemaal (zie bronze.py). Zie
+    # bank_config.py voor hoe deze rijen naar BankConfig-objecten worden.
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS instellingen.banken (
+            bank VARCHAR PRIMARY KEY,
+            naam VARCHAR NOT NULL,
+            locatie VARCHAR NOT NULL,
+            separator VARCHAR NOT NULL,
+            datum_kolom VARCHAR NOT NULL,
+            datum_formaat VARCHAR NOT NULL,
+            omschrijving_kolom VARCHAR NOT NULL,
+            rekening_kolom VARCHAR NOT NULL,
+            tegenrekening_kolom VARCHAR,
+            bedrag_kolom VARCHAR NOT NULL,
+            bedrag_decimaal_teken VARCHAR NOT NULL,
+            richting_kolom VARCHAR,
+            richting_negatief_waarde VARCHAR,
+            mededelingen_kolom VARCHAR,
+            saldo_kolom VARCHAR,
+            laatst_gebruikt_op TIMESTAMP,
+            aangemaakt_op TIMESTAMP NOT NULL
+        )
+    """)
+
+    # Eenmalige migratie: als er nog geen banken geregistreerd zijn en de oude
+    # config/banken/ing.yaml bestaat nog, zaai 'm met die config + de huidige
+    # bank/export_locatie-waarden — zodat een al werkende ING-koppeling niet
+    # stukgaat en niet opnieuw via de wizard hoeft.
+    if con.execute("SELECT COUNT(*) FROM instellingen.banken").fetchone()[0] == 0:
+        ing_yaml_pad = CONFIG_ROOT / "banken" / "ing.yaml"
+        if ing_yaml_pad.exists():
+            with open(ing_yaml_pad, "r", encoding="utf-8") as f:
+                ing_config = yaml.safe_load(f)
+            huidige_bank, huidige_locatie = con.execute(
+                "SELECT bank, export_locatie FROM instellingen.instellingen WHERE id = 1"
+            ).fetchone()
+            con.execute("""
+                INSERT INTO instellingen.banken (
+                    bank, naam, locatie, separator, datum_kolom, datum_formaat,
+                    omschrijving_kolom, rekening_kolom, tegenrekening_kolom,
+                    bedrag_kolom, bedrag_decimaal_teken, richting_kolom,
+                    richting_negatief_waarde, mededelingen_kolom, saldo_kolom,
+                    aangemaakt_op
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
+            """, [
+                huidige_bank, ing_config["naam"], huidige_locatie, ing_config["separator"],
+                ing_config["datum_kolom"], ing_config["datum_formaat"], ing_config["omschrijving_kolom"],
+                ing_config["rekening_kolom"], ing_config.get("tegenrekening_kolom"),
+                ing_config["bedrag_kolom"], ing_config["bedrag_decimaal_teken"],
+                ing_config.get("richting_kolom"), ing_config.get("richting_negatief_waarde"),
+                ing_config.get("mededelingen_kolom"), ing_config.get("saldo_kolom"),
+            ])
+
+    # bank/export_locatie zijn vervangen door instellingen.banken (hierboven) —
+    # ALTER ... DROP COLUMN IF EXISTS zodat dit op een al-gemigreerde db niets doet.
+    con.execute("ALTER TABLE instellingen.instellingen DROP COLUMN IF EXISTS bank")
+    con.execute("ALTER TABLE instellingen.instellingen DROP COLUMN IF EXISTS export_locatie")
 
     # Eén woning (adres in de databank, niet in code — dat wordt gecommit;
     # zet 'm zelf via de Vastgoed-pagina).

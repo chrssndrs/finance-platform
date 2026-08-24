@@ -7,7 +7,7 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
-from src.pipeline.bank_config import BankConfig, laad_bank_config
+from src.pipeline.bank_config import BankConfig, alle_bank_configs
 from src.pipeline.paths import DATA_ROOT
 
 logger = logging.getLogger(__name__)
@@ -105,11 +105,6 @@ def _migreer_indien_nodig(con: duckdb.DuckDBPyConnection) -> int:
     return len(oud)
 
 
-def _lees_instellingen(con: duckdb.DuckDBPyConnection) -> tuple[str, Path]:
-    bank, export_locatie = con.execute(
-        "SELECT bank, export_locatie FROM instellingen.instellingen WHERE id = 1"
-    ).fetchone()
-    return bank, DATA_ROOT / export_locatie
 
 
 def verwerk_bestand(pad: Path, bank_config: BankConfig, con: duckdb.DuckDBPyConnection) -> BestandResultaat:
@@ -167,16 +162,21 @@ def run_bronze(con: duckdb.DuckDBPyConnection) -> BronzeResultaat:
     _zorg_voor_bronze_tabel(con)
     _migreer_indien_nodig(con)
 
-    bank, landing_dir = _lees_instellingen(con)
-    bank_config = laad_bank_config(bank)
+    banken = alle_bank_configs(con)
+    resultaten: list[BestandResultaat] = []
+    totaal_gevonden = 0
 
-    csv_bestanden = sorted(landing_dir.glob("*.csv")) if landing_dir.exists() else []
-    logger.info("Gevonden bestanden: %d (bank=%s, locatie=%s)", len(csv_bestanden), bank, landing_dir)
-
-    resultaten = [verwerk_bestand(pad, bank_config, con) for pad in csv_bestanden]
+    for bank_config in banken:
+        landing_dir = DATA_ROOT / bank_config.locatie
+        csv_bestanden = sorted(landing_dir.glob("*.csv")) if landing_dir.exists() else []
+        logger.info(
+            "Gevonden bestanden: %d (bank=%s, locatie=%s)", len(csv_bestanden), bank_config.bank, landing_dir
+        )
+        totaal_gevonden += len(csv_bestanden)
+        resultaten.extend(verwerk_bestand(pad, bank_config, con) for pad in csv_bestanden)
 
     return BronzeResultaat(
-        bestanden_gevonden=len(csv_bestanden),
+        bestanden_gevonden=totaal_gevonden,
         bestanden_verwerkt=sum(1 for r in resultaten if r.verwerkt),
         bestanden_overgeslagen=sum(1 for r in resultaten if not r.verwerkt),
         rijen_ingelezen=sum(r.aantal_rijen for r in resultaten),

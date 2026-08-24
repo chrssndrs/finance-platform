@@ -32,7 +32,11 @@ def _naar_silver_rij(ruwe_rij: str, cfg: BankConfig, transactie_id: str, rij_has
     try:
         bedrag_str = ruwe[cfg.bedrag_kolom].replace(cfg.bedrag_decimaal_teken, ".")
         bedrag_eur = float(bedrag_str)
-        if ruwe.get(cfg.richting_kolom) == cfg.richting_negatief_waarde:
+        # Banken zonder aparte richting-kolom geven het bedrag al signed
+        # (positief/negatief) terug — als cfg.richting_kolom niet is
+        # geconfigureerd, dus geen sign-flip proberen (anders matcht
+        # ruwe.get(None) == None onterecht en wordt elk bedrag omgedraaid).
+        if cfg.richting_kolom and ruwe.get(cfg.richting_kolom) == cfg.richting_negatief_waarde:
             bedrag_eur = -bedrag_eur
     except (KeyError, ValueError, TypeError, AttributeError):
         pass
@@ -75,7 +79,7 @@ def run_silver(con: duckdb.DuckDBPyConnection) -> SilverResultaat:
     configs: dict[str, BankConfig] = {}
     for bank, groep in gededupliceerd.groupby("bank"):
         if bank not in configs:
-            configs[bank] = laad_bank_config(bank)
+            configs[bank] = laad_bank_config(con, bank)
         cfg = configs[bank]
         for rij in groep.itertuples(index=False):
             transactie_id = hashlib.md5(rij.rij_hash.encode("utf-8")).hexdigest()
