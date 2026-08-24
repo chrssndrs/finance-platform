@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from src.api.routers import abonnementen, beleggingen, hypotheek, inboedel, instellingen, overzicht, rapportage, vastgoed
+from src.api.routers import abonnementen, beleggingen, hypotheek, inboedel, instellingen, overzicht, planning, rapportage, vastgoed
 from src.pipeline import schema
 from src.pipeline.paths import DB_PAD, LOGOS_PAD
 
@@ -52,3 +52,4 @@ app.include_router(vastgoed.router)
 app.include_router(beleggingen.router)
 app.include_router(hypotheek.router)
 app.include_router(overzicht.router)
+app.include_router(planning.router)

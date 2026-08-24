@@ -35,12 +35,18 @@ def _valideer_export_locatie(export_locatie: str) -> None:
 
 @router.get("", response_model=InstellingenResponse)
 def get_instellingen(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> InstellingenResponse:
-    bank, export_locatie = con.execute(
-        "SELECT bank, export_locatie FROM instellingen.instellingen WHERE id = 1"
+    bank, export_locatie, planning_drempel_modus, planning_drempel_waarde = con.execute(
+        "SELECT bank, export_locatie, planning_drempel_modus, planning_drempel_waarde FROM instellingen.instellingen WHERE id = 1"
     ).fetchone()
     banken = beschikbare_banken()
     return InstellingenResponse(
-        instellingen=Instellingen(bank=bank, bank_naam=_bank_naam(bank, banken), export_locatie=export_locatie),
+        instellingen=Instellingen(
+            bank=bank,
+            bank_naam=_bank_naam(bank, banken),
+            export_locatie=export_locatie,
+            planning_drempel_modus=planning_drempel_modus,
+            planning_drempel_waarde=planning_drempel_waarde,
+        ),
         beschikbare_banken=[BeschikbareBank(**b) for b in banken],
     )
 
@@ -56,14 +62,22 @@ def put_instellingen(
     if not invoer.export_locatie.strip():
         raise HTTPException(status_code=400, detail="Locatie mag niet leeg zijn.")
     _valideer_export_locatie(invoer.export_locatie)
+    if invoer.planning_drempel_waarde <= 0:
+        raise HTTPException(status_code=400, detail="Planning-drempelwaarde moet groter dan 0 zijn.")
 
     con.execute(
-        "UPDATE instellingen.instellingen SET bank = ?, export_locatie = ?, aangepast_op = now() WHERE id = 1",
-        [invoer.bank, invoer.export_locatie],
+        """UPDATE instellingen.instellingen
+           SET bank = ?, export_locatie = ?, planning_drempel_modus = ?, planning_drempel_waarde = ?, aangepast_op = now()
+           WHERE id = 1""",
+        [invoer.bank, invoer.export_locatie, invoer.planning_drempel_modus, invoer.planning_drempel_waarde],
     )
     return InstellingenResponse(
         instellingen=Instellingen(
-            bank=invoer.bank, bank_naam=_bank_naam(invoer.bank, banken), export_locatie=invoer.export_locatie,
+            bank=invoer.bank,
+            bank_naam=_bank_naam(invoer.bank, banken),
+            export_locatie=invoer.export_locatie,
+            planning_drempel_modus=invoer.planning_drempel_modus,
+            planning_drempel_waarde=invoer.planning_drempel_waarde,
         ),
         beschikbare_banken=[BeschikbareBank(**b) for b in banken],
     )

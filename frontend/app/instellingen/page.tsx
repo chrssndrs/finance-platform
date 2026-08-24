@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { ThemeToggle } from "@/app/components/ThemeToggle";
-import { ApiError, getInstellingen, putInstellingen, type BeschikbareBank } from "@/lib/api";
+import { ApiError, getInstellingen, putInstellingen, type BeschikbareBank, type PlanningDrempelModus } from "@/lib/api";
 
 const inputKlasse =
   "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 sm:text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100";
@@ -11,6 +11,8 @@ const inputKlasse =
 export default function InstellingenPagina() {
   const [bank, setBank] = useState("");
   const [exportLocatie, setExportLocatie] = useState("");
+  const [planningDrempelModus, setPlanningDrempelModus] = useState<PlanningDrempelModus>("maanden");
+  const [planningDrempelWaarde, setPlanningDrempelWaarde] = useState(3);
   const [beschikbareBanken, setBeschikbareBanken] = useState<BeschikbareBank[]>([]);
   const [laden, setLaden] = useState(true);
   const [bezig, setBezig] = useState(false);
@@ -22,6 +24,8 @@ export default function InstellingenPagina() {
       .then((res) => {
         setBank(res.instellingen.bank);
         setExportLocatie(res.instellingen.export_locatie);
+        setPlanningDrempelModus(res.instellingen.planning_drempel_modus);
+        setPlanningDrempelWaarde(res.instellingen.planning_drempel_waarde);
         setBeschikbareBanken(res.beschikbare_banken);
       })
       .catch((err) => setFoutmelding(err instanceof ApiError ? err.message : "Kon instellingen niet laden."))
@@ -34,9 +38,16 @@ export default function InstellingenPagina() {
     setFoutmelding(null);
     setOpgeslagen(false);
     try {
-      const res = await putInstellingen({ bank, export_locatie: exportLocatie });
+      const res = await putInstellingen({
+        bank,
+        export_locatie: exportLocatie,
+        planning_drempel_modus: planningDrempelModus,
+        planning_drempel_waarde: planningDrempelWaarde,
+      });
       setBank(res.instellingen.bank);
       setExportLocatie(res.instellingen.export_locatie);
+      setPlanningDrempelModus(res.instellingen.planning_drempel_modus);
+      setPlanningDrempelWaarde(res.instellingen.planning_drempel_waarde);
       setOpgeslagen(true);
     } catch (err) {
       setFoutmelding(err instanceof ApiError ? err.message : "Opslaan mislukt.");
@@ -101,6 +112,39 @@ export default function InstellingenPagina() {
               daarbuiten. Zet hier CSV-bestanden neer, de pipeline scant deze map elke nacht.
             </span>
           </label>
+
+          <div className="border-t border-neutral-200 pt-4 dark:border-neutral-800">
+            <div className="mb-3 text-sm font-medium text-neutral-900 dark:text-neutral-100">Planning</div>
+            <div className="flex flex-wrap items-end gap-4">
+              <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
+                Drempel
+                <select
+                  value={planningDrempelModus}
+                  onChange={(e) => setPlanningDrempelModus(e.target.value as PlanningDrempelModus)}
+                  className={inputKlasse}
+                >
+                  <option value="maanden">Maanden vóór einde levensduur</option>
+                  <option value="percentage">Percentage van levensduur</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
+                Waarde
+                <input
+                  type="number"
+                  min={0.1}
+                  step={0.1}
+                  required
+                  value={planningDrempelWaarde}
+                  onChange={(e) => setPlanningDrempelWaarde(Number(e.target.value))}
+                  className={`${inputKlasse} w-28`}
+                />
+              </label>
+            </div>
+            <span className="mt-1 block text-xs text-neutral-400">
+              Vanaf wanneer een bijna-afgeschreven inboedel-artikel al als verwachte kostenpost in de
+              Planning-module verschijnt.
+            </span>
+          </div>
 
           <div className="flex items-center gap-3">
             <button

@@ -11,6 +11,7 @@ const DOMEINEN = [
   { pad: "/beleggingen", label: "Beleggingen" },
   { pad: "/vastgoed", label: "Vastgoed" },
   { pad: "/hypotheek", label: "Hypotheek" },
+  { pad: "/planning", label: "Planning" },
 ];
 
 const iconKnopKlasse =
@@ -72,24 +73,24 @@ export function NavBalk({ children }: { children: React.ReactNode }) {
       <nav className="sticky top-0 z-30 h-14 border-b border-neutral-200 bg-[var(--background)] dark:border-neutral-800">
         <div className="mx-auto flex h-full w-full max-w-3xl items-center justify-between px-6">
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setOpen((o) => !o)}
+              aria-label="Menu"
+              aria-expanded={open}
+              className="-ml-2 p-2 text-neutral-600 sm:hidden dark:text-neutral-300"
+            >
+              <span className="block h-0.5 w-5 bg-current" />
+              <span className="mt-1 block h-0.5 w-5 bg-current" />
+              <span className="mt-1 block h-0.5 w-5 bg-current" />
+            </button>
+
             <Link
               href="/"
               className="font-display text-xl italic text-neutral-900 dark:text-neutral-100"
             >
               Libreo
             </Link>
-
-            <button
-              type="button"
-              onClick={() => setOpen((o) => !o)}
-              aria-label="Menu"
-              aria-expanded={open}
-              className="p-2 text-neutral-600 sm:hidden dark:text-neutral-300"
-            >
-              <span className="block h-0.5 w-5 bg-current" />
-              <span className="mt-1 block h-0.5 w-5 bg-current" />
-              <span className="mt-1 block h-0.5 w-5 bg-current" />
-            </button>
 
             <div className="hidden gap-1 sm:flex">
               {DOMEINEN.map((d) => {

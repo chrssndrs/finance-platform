@@ -31,12 +31,14 @@ export interface PeriodeTotaal {
   inkomsten: number;
   uitgaven: number;
   totaal: number;
+  verwachte_inkomsten: number;
+  verwachte_uitgaven: number;
 }
 
 export interface TotalenResponse {
   categorie: string | null;
   subcategorie: string | null;
-  afzender: string | null;
+  afzenders: string[];
   granulariteit: Granulariteit;
   vanaf: string | null;
   tot: string | null;
@@ -109,15 +111,21 @@ export interface BeschikbareBank {
   naam: string;
 }
 
+export type PlanningDrempelModus = "maanden" | "percentage";
+
 export interface Instellingen {
   bank: string;
   bank_naam: string;
   export_locatie: string;
+  planning_drempel_modus: PlanningDrempelModus;
+  planning_drempel_waarde: number;
 }
 
 export interface InstellingenInvoer {
   bank: string;
   export_locatie: string;
+  planning_drempel_modus: PlanningDrempelModus;
+  planning_drempel_waarde: number;
 }
 
 export interface InstellingenResponse {
@@ -354,7 +362,7 @@ export function getBanksaldo(): Promise<Banksaldo> {
 export function getTotalen(params: {
   categorie: string | null;
   subcategorie: string | null;
-  afzender: string | null;
+  afzenders: string[];
   granulariteit: Granulariteit;
   vanaf: string | null;
   tot: string | null;
@@ -362,7 +370,7 @@ export function getTotalen(params: {
   const zoekParams = new URLSearchParams();
   if (params.categorie) zoekParams.set("categorie", params.categorie);
   if (params.subcategorie) zoekParams.set("subcategorie", params.subcategorie);
-  if (params.afzender) zoekParams.set("afzender", params.afzender);
+  for (const a of params.afzenders) zoekParams.append("afzenders", a);
   zoekParams.set("granulariteit", params.granulariteit);
   if (params.vanaf) zoekParams.set("vanaf", params.vanaf);
   if (params.tot) zoekParams.set("tot", params.tot);
@@ -372,14 +380,14 @@ export function getTotalen(params: {
 export function getTransacties(params: {
   categorie: string | null;
   subcategorie: string | null;
-  afzender: string | null;
+  afzenders: string[];
   vanaf: string;
   tot: string;
 }): Promise<TransactiesResponse> {
   const zoekParams = new URLSearchParams();
   if (params.categorie) zoekParams.set("categorie", params.categorie);
   if (params.subcategorie) zoekParams.set("subcategorie", params.subcategorie);
-  if (params.afzender) zoekParams.set("afzender", params.afzender);
+  for (const a of params.afzenders) zoekParams.append("afzenders", a);
   zoekParams.set("vanaf", params.vanaf);
   zoekParams.set("tot", params.tot);
   return fetchJson<TransactiesResponse>(`/api/rapportage/transacties?${zoekParams}`);
@@ -596,4 +604,36 @@ export function putInboedelArtikel(id: number, artikel: InboedelArtikelInvoer): 
 
 export function deleteInboedelArtikel(id: number): Promise<void> {
   return verwijder(`/api/inboedel/artikelen/${id}`);
+}
+
+export interface PlanningItemInvoer {
+  omschrijving: string;
+  bedrag: number;
+  datum: string;
+}
+
+export interface PlanningItem extends PlanningItemInvoer {
+  id: number | null;
+  bron: "handmatig" | "inboedel";
+  artikel_id: number | null;
+}
+
+export interface PlanningResponse {
+  items: PlanningItem[];
+}
+
+export function getPlanningItems(): Promise<PlanningResponse> {
+  return fetchJson<PlanningResponse>("/api/planning/items");
+}
+
+export function postPlanningItem(item: PlanningItemInvoer): Promise<PlanningItem> {
+  return zendJson<PlanningItem>("/api/planning/items", "POST", item);
+}
+
+export function putPlanningItem(id: number, item: PlanningItemInvoer): Promise<PlanningItem> {
+  return zendJson<PlanningItem>(`/api/planning/items/${id}`, "PUT", item);
+}
+
+export function deletePlanningItem(id: number): Promise<void> {
+  return verwijder(`/api/planning/items/${id}`);
 }

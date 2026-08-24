@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.api.banksaldo_berekening import bereken_banksaldo
 from src.api.deps import get_db
+from src.api.planning_berekening import bereken_planning_items
 from src.api.queries import (
     GRANULARITEIT_NAAR_DUCKDB_EENHEID,
     SQL_AFZENDERS,
@@ -14,6 +15,7 @@ from src.api.queries import (
     SQL_STATUS,
     SQL_TOTALEN,
     SQL_TRANSACTIES,
+    periode_start,
     periode_starts_tussen,
 )
 from src.api.schemas import (
@@ -66,7 +68,7 @@ def get_banksaldo(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> Banksaldo
 def get_totalen(
     categorie: str | None = None,
     subcategorie: str | None = None,
-    afzender: str | None = None,
+    afzenders: list[str] = Query(default=[]),
     granulariteit: str = Query(default="maand"),
     vanaf: date | None = None,
     tot: date | None = None,
@@ -91,7 +93,7 @@ def get_totalen(
             return TotalenResponse(
                 categorie=categorie,
                 subcategorie=subcategorie,
-                afzender=afzender,
+                afzenders=afzenders,
                 granulariteit=granulariteit,
                 vanaf=vanaf,
                 tot=tot,
@@ -110,20 +112,46 @@ def get_totalen(
             "duckdb_eenheid": GRANULARITEIT_NAAR_DUCKDB_EENHEID[granulariteit],
             "categorie": categorie,
             "subcategorie": subcategorie,
-            "afzender": afzender,
+            "afzenders": afzenders,
         },
     ).fetchall()
+
+    # Geplande in-/uitgaven (handmatig + bijna-afgeschreven inboedel) horen
+    # niet bij categorie/subcategorie/afzender — ze zijn geen bank-transactie
+    # — maar tellen wel mee als eigen laag, gebucket op dezelfde perioden.
+    # Filteren op periode-bucket (niet op het rauwe vanaf/tot-bereik): een
+    # geplande post een paar dagen na "vandaag" hoort nog steeds bij de
+    # lopende maand-bucket, ook al ligt tot_effectief (vaak "vandaag" of de
+    # laatste transactiedatum) daar net vóór.
+    zichtbare_buckets = set(starts)
+    verwacht_per_periode: dict[date, dict[str, float]] = {}
+    for post in bereken_planning_items(con):
+        bucket = periode_start(post["datum"], granulariteit)
+        if bucket not in zichtbare_buckets:
+            continue
+        slot = verwacht_per_periode.setdefault(bucket, {"inkomsten": 0.0, "uitgaven": 0.0})
+        if post["bedrag"] >= 0:
+            slot["inkomsten"] += post["bedrag"]
+        else:
+            slot["uitgaven"] += -post["bedrag"]
 
     return TotalenResponse(
         categorie=categorie,
         subcategorie=subcategorie,
-        afzender=afzender,
+        afzenders=afzenders,
         granulariteit=granulariteit,
         vanaf=vanaf,
         tot=tot,
         reeks=[
-            PeriodeTotaal(periode_start=periode_start, inkomsten=inkomsten, uitgaven=uitgaven, totaal=totaal)
-            for periode_start, inkomsten, uitgaven, totaal in rijen
+            PeriodeTotaal(
+                periode_start=rij_periode_start,
+                inkomsten=inkomsten,
+                uitgaven=uitgaven,
+                totaal=totaal,
+                verwachte_inkomsten=round(verwacht_per_periode.get(rij_periode_start, {}).get("inkomsten", 0.0), 2),
+                verwachte_uitgaven=round(verwacht_per_periode.get(rij_periode_start, {}).get("uitgaven", 0.0), 2),
+            )
+            for rij_periode_start, inkomsten, uitgaven, totaal in rijen
         ],
     )
 
@@ -132,7 +160,7 @@ def get_totalen(
 def get_transacties(
     categorie: str | None = None,
     subcategorie: str | None = None,
-    afzender: str | None = None,
+    afzenders: list[str] = Query(default=[]),
     vanaf: date | None = None,
     tot: date | None = None,
     con: duckdb.DuckDBPyConnection = Depends(get_db),
@@ -150,7 +178,7 @@ def get_transacties(
         {
             "categorie": categorie,
             "subcategorie": subcategorie,
-            "afzender": afzender,
+            "afzenders": afzenders,
             "vanaf": vanaf,
             "tot": tot,
         },

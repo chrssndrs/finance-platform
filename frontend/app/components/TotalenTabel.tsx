@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import type { SerieKey } from "@/app/components/TotalenChart";
 import type { Granulariteit, PeriodeTotaal } from "@/lib/api";
 import { formatteerPeriode } from "@/lib/periode";
 
@@ -9,10 +10,19 @@ const bedragFormat = new Intl.NumberFormat("nl-NL", { style: "currency", currenc
 
 type SortKey = keyof PeriodeTotaal;
 
-const KOLOMMEN: { key: SortKey; label: string }[] = [
+const ALLE_SERIES_ZICHTBAAR: Record<SerieKey, boolean> = {
+  inkomsten: true,
+  uitgaven: true,
+  verwachte_inkomsten: true,
+  verwachte_uitgaven: true,
+};
+
+const KOLOMMEN: { key: SortKey; label: string; serie?: SerieKey }[] = [
   { key: "periode_start", label: "Periode" },
-  { key: "inkomsten", label: "Inkomsten" },
-  { key: "uitgaven", label: "Uitgaven" },
+  { key: "inkomsten", label: "Inkomsten", serie: "inkomsten" },
+  { key: "uitgaven", label: "Uitgaven", serie: "uitgaven" },
+  { key: "verwachte_inkomsten", label: "Verwachte inkomsten", serie: "verwachte_inkomsten" },
+  { key: "verwachte_uitgaven", label: "Verwachte uitgaven", serie: "verwachte_uitgaven" },
   { key: "totaal", label: "Totaal" },
 ];
 
@@ -21,9 +31,17 @@ interface TotalenTabelProps {
   granulariteit: Granulariteit;
   geselecteerdePeriode?: string | null;
   onPeriodeKlik?: (periodeStart: string) => void;
+  zichtbareSeries?: Record<SerieKey, boolean>;
 }
 
-export function TotalenTabel({ reeks, granulariteit, geselecteerdePeriode, onPeriodeKlik }: TotalenTabelProps) {
+export function TotalenTabel({
+  reeks,
+  granulariteit,
+  geselecteerdePeriode,
+  onPeriodeKlik,
+  zichtbareSeries = ALLE_SERIES_ZICHTBAAR,
+}: TotalenTabelProps) {
+  const kolommen = KOLOMMEN.filter((k) => !k.serie || zichtbareSeries[k.serie]);
   const [sortKey, setSortKey] = useState<SortKey>("periode_start");
   const [aflopend, setAflopend] = useState(true);
 
@@ -51,7 +69,7 @@ export function TotalenTabel({ reeks, granulariteit, geselecteerdePeriode, onPer
     <table className="w-full text-left text-sm">
       <thead>
         <tr className="border-b border-neutral-300 dark:border-neutral-700">
-          {KOLOMMEN.map((k) => (
+          {kolommen.map((k) => (
             <th key={k.key} className="py-2 font-medium text-neutral-600 dark:text-neutral-400">
               <button
                 type="button"
@@ -77,8 +95,14 @@ export function TotalenTabel({ reeks, granulariteit, geselecteerdePeriode, onPer
             }
           >
             <td className="py-2">{formatteerPeriode(r.periode_start, granulariteit)}</td>
-            <td className="py-2 tabular-nums">{bedragFormat.format(r.inkomsten)}</td>
-            <td className="py-2 tabular-nums">{bedragFormat.format(r.uitgaven)}</td>
+            {zichtbareSeries.inkomsten && <td className="py-2 tabular-nums">{bedragFormat.format(r.inkomsten)}</td>}
+            {zichtbareSeries.uitgaven && <td className="py-2 tabular-nums">{bedragFormat.format(r.uitgaven)}</td>}
+            {zichtbareSeries.verwachte_inkomsten && (
+              <td className="py-2 tabular-nums">{bedragFormat.format(r.verwachte_inkomsten)}</td>
+            )}
+            {zichtbareSeries.verwachte_uitgaven && (
+              <td className="py-2 tabular-nums">{bedragFormat.format(r.verwachte_uitgaven)}</td>
+            )}
             <td className="py-2 tabular-nums">{bedragFormat.format(r.totaal)}</td>
           </tr>
         ))}

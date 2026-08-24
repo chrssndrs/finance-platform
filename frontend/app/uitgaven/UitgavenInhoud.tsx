@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { FilterBalk } from "@/app/components/FilterBalk";
-import { TotalenChart } from "@/app/components/TotalenChart";
+import { TotalenChart, type SerieKey } from "@/app/components/TotalenChart";
 import { TotalenTabel } from "@/app/components/TotalenTabel";
 import { TransactieTabel } from "@/app/components/TransactieTabel";
 import {
@@ -32,6 +32,13 @@ const datumTijdFormat = new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", 
 const datumFormat = new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium" });
 
 const GRANULARITEITEN: Granulariteit[] = ["dag", "week", "maand", "jaar"];
+
+const ALLE_SERIES_ZICHTBAAR: Record<SerieKey, boolean> = {
+  inkomsten: true,
+  uitgaven: true,
+  verwachte_inkomsten: true,
+  verwachte_uitgaven: true,
+};
 
 function isGranulariteit(waarde: string | null): waarde is Granulariteit {
   return waarde !== null && (GRANULARITEITEN as string[]).includes(waarde);
@@ -65,7 +72,11 @@ export function UitgavenInhoud() {
 
   const [categorie, setCategorie] = useState<string | null>(searchParams.get("categorie"));
   const [subcategorie, setSubcategorie] = useState<string | null>(searchParams.get("subcategorie"));
-  const [afzender, setAfzender] = useState<string | null>(searchParams.get("afzender"));
+  const [geselecteerdeAfzenders, setGeselecteerdeAfzenders] = useState<string[]>(() => {
+    const waarde = searchParams.get("afzenders");
+    return waarde ? waarde.split(",") : [];
+  });
+  const [zichtbareSeries, setZichtbareSeries] = useState<Record<SerieKey, boolean>>(ALLE_SERIES_ZICHTBAAR);
   const [granulariteit, setGranulariteit] = useState<Granulariteit>(
     isGranulariteit(searchParams.get("granulariteit")) ? (searchParams.get("granulariteit") as Granulariteit) : "maand"
   );
@@ -92,7 +103,7 @@ export function UitgavenInhoud() {
     getAfzenders({ categorie, subcategorie })
       .then((res) => {
         setAfzenders(res.afzenders);
-        setAfzender((huidig) => (huidig && !res.afzenders.includes(huidig) ? null : huidig));
+        setGeselecteerdeAfzenders((huidig) => huidig.filter((a) => res.afzenders.includes(a)));
       })
       .catch(() => {});
   }, [categorie, subcategorie]);
@@ -100,17 +111,17 @@ export function UitgavenInhoud() {
   const { vanaf, tot } = resolveerPeriodeSelectie(periodeSelectie);
 
   useEffect(() => {
-    getTotalen({ categorie, subcategorie, afzender, granulariteit, vanaf, tot })
+    getTotalen({ categorie, subcategorie, afzenders: geselecteerdeAfzenders, granulariteit, vanaf, tot })
       .then((res) => setReeks(res.reeks))
       .catch((err) => setFoutmelding(err instanceof ApiError ? err.message : "Kon totalen niet laden."))
       .finally(() => setLaden(false));
-  }, [categorie, subcategorie, afzender, granulariteit, vanaf, tot]);
+  }, [categorie, subcategorie, geselecteerdeAfzenders, granulariteit, vanaf, tot]);
 
   useEffect(() => {
     const params = new URLSearchParams();
     if (categorie) params.set("categorie", categorie);
     if (subcategorie) params.set("subcategorie", subcategorie);
-    if (afzender) params.set("afzender", afzender);
+    if (geselecteerdeAfzenders.length > 0) params.set("afzenders", geselecteerdeAfzenders.join(","));
     params.set("granulariteit", granulariteit);
     params.set("periode", periodeSelectie.modus);
     if (periodeSelectie.modus === "relatief") {
@@ -121,7 +132,7 @@ export function UitgavenInhoud() {
       params.set("tot", periodeSelectie.tot);
     }
     router.replace(`/uitgaven?${params}`);
-  }, [categorie, subcategorie, afzender, granulariteit, periodeSelectie, router]);
+  }, [categorie, subcategorie, geselecteerdeAfzenders, granulariteit, periodeSelectie, router]);
 
   function wijzigFilter(bijwerken: () => void) {
     setLaden(true);
@@ -138,7 +149,7 @@ export function UitgavenInhoud() {
     setGeselecteerdePeriode(periodeStart);
     setLadenTransacties(true);
     const bereik = berekenPeriodeBereik(periodeStart, granulariteit);
-    getTransacties({ categorie, subcategorie, afzender, vanaf: bereik.vanaf, tot: bereik.tot })
+    getTransacties({ categorie, subcategorie, afzenders: geselecteerdeAfzenders, vanaf: bereik.vanaf, tot: bereik.tot })
       .then((res) => setTransacties(res.transacties))
       .catch(() => setTransacties([]))
       .finally(() => setLadenTransacties(false));
@@ -164,7 +175,7 @@ export function UitgavenInhoud() {
         afzenders={afzenders}
         categorie={categorie}
         subcategorie={subcategorie}
-        afzender={afzender}
+        geselecteerdeAfzenders={geselecteerdeAfzenders}
         granulariteit={granulariteit}
         periodeSelectie={periodeSelectie}
         onCategorieChange={(c) =>
@@ -174,18 +185,20 @@ export function UitgavenInhoud() {
           })
         }
         onSubcategorieChange={(s) => wijzigFilter(() => setSubcategorie(s))}
-        onAfzenderChange={(a) => wijzigFilter(() => setAfzender(a))}
+        onAfzendersChange={(a) => wijzigFilter(() => setGeselecteerdeAfzenders(a))}
         onGranulariteitChange={(g) => wijzigFilter(() => setGranulariteit(g))}
         onPeriodeSelectieChange={(p) => wijzigFilter(() => setPeriodeSelectie(p))}
         onReset={() =>
           wijzigFilter(() => {
             setCategorie(null);
             setSubcategorie(null);
-            setAfzender(null);
+            setGeselecteerdeAfzenders([]);
             setGranulariteit("maand");
             setPeriodeSelectie(STANDAARD_PERIODE_SELECTIE);
           })
         }
+        zichtbareSeries={zichtbareSeries}
+        onZichtbareSeriesChange={setZichtbareSeries}
       />
 
       {foutmelding && (
@@ -200,6 +213,8 @@ export function UitgavenInhoud() {
           granulariteit={granulariteit}
           geselecteerdePeriode={geselecteerdePeriode}
           onPeriodeKlik={klikPeriode}
+          toonVerwacht
+          zichtbareSeries={zichtbareSeries}
         />
       </div>
 
@@ -208,6 +223,7 @@ export function UitgavenInhoud() {
         granulariteit={granulariteit}
         geselecteerdePeriode={geselecteerdePeriode}
         onPeriodeKlik={klikPeriode}
+        zichtbareSeries={zichtbareSeries}
       />
 
       {geselecteerdePeriode && (

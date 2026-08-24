@@ -31,7 +31,13 @@ export function Widget({ widget, onVerwijderd, onBewerken, onOmhoog, onOmlaag }:
 
   useEffect(() => {
     const { vanaf, tot } = resolveerPeriodeSelectie(widgetPeriodeNaarSelectie(widget));
-    const params = { categorie: widget.categorie, subcategorie: widget.subcategorie, afzender: widget.afzender, vanaf, tot };
+    const params = {
+      categorie: widget.categorie,
+      subcategorie: widget.subcategorie,
+      afzenders: widget.afzender ? [widget.afzender] : [],
+      vanaf,
+      tot,
+    };
 
     if (widget.weergave === "transacties") {
       getTransacties({ ...params, vanaf: vanaf ?? "2000-01-01", tot: tot ?? new Date().toISOString().slice(0, 10) })

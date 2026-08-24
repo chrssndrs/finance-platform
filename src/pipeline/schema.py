@@ -3,7 +3,7 @@ import pandas as pd
 
 
 def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
-    for naam in ("meta", "landing", "bronze", "silver", "gold", "inboedel", "abonnementen", "instellingen", "vastgoed", "beleggingen", "hypotheek", "overzicht"):
+    for naam in ("meta", "landing", "bronze", "silver", "gold", "inboedel", "abonnementen", "instellingen", "vastgoed", "beleggingen", "hypotheek", "overzicht", "planning"):
         con.execute(f"CREATE SCHEMA IF NOT EXISTS {naam}")
 
     con.execute("CREATE SEQUENCE IF NOT EXISTS meta.bestanden_log_seq START 1")
@@ -116,6 +116,10 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
         INSERT INTO instellingen.instellingen (id, aangepast_op) VALUES (1, now())
         ON CONFLICT (id) DO NOTHING
     """)
+    # Drempel voor wanneer een bijna-afgeschreven inboedel-artikel al in de
+    # Planning-module verschijnt (zie planning_berekening.py).
+    con.execute("ALTER TABLE instellingen.instellingen ADD COLUMN IF NOT EXISTS planning_drempel_modus VARCHAR DEFAULT 'maanden'")
+    con.execute("ALTER TABLE instellingen.instellingen ADD COLUMN IF NOT EXISTS planning_drempel_waarde DOUBLE DEFAULT 3")
 
     # Eén woning (adres in de databank, niet in code — dat wordt gecommit;
     # zet 'm zelf via de Vastgoed-pagina).
@@ -227,6 +231,20 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
             periode_tot DATE,
             weergave VARCHAR NOT NULL DEFAULT 'totaal',
             volgorde INTEGER NOT NULL,
+            aangemaakt_op TIMESTAMP NOT NULL
+        )
+    """)
+
+    # Handmatig ingevoerde geplande in-/uitgaven — bedrag is signed (negatief
+    # = uitgave, positief = inkomst). Inboedel-afgeleide planningsposten
+    # worden live berekend (planning_berekening.py), niet hier opgeslagen.
+    con.execute("CREATE SEQUENCE IF NOT EXISTS planning.items_seq START 1")
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS planning.items (
+            id INTEGER PRIMARY KEY DEFAULT nextval('planning.items_seq'),
+            omschrijving VARCHAR NOT NULL,
+            bedrag DECIMAL(12,2) NOT NULL,
+            datum DATE NOT NULL,
             aangemaakt_op TIMESTAMP NOT NULL
         )
     """)

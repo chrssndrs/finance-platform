@@ -44,7 +44,7 @@ export default function HomePagina() {
       getWaardes(),
       getSchuldverloop(),
       getTotalen({
-        categorie: null, subcategorie: null, afzender: null,
+        categorie: null, subcategorie: null, afzenders: [],
         granulariteit: "maand", vanaf: eersteVanDezeMaand(), tot: vandaagIso(),
       }),
     ]).then(([abonnementen, inboedel, posities, vastgoed, hypotheek, totalen]) => {

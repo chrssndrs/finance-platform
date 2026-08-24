@@ -26,12 +26,14 @@ class PeriodeTotaal(BaseModel):
     inkomsten: float
     uitgaven: float
     totaal: float
+    verwachte_inkomsten: float = 0
+    verwachte_uitgaven: float = 0
 
 
 class TotalenResponse(BaseModel):
     categorie: str | None
     subcategorie: str | None
-    afzender: str | None
+    afzenders: list[str]
     granulariteit: str
     vanaf: date | None
     tot: date | None

@@ -110,7 +110,7 @@ export function WidgetFormulier({ widget, volgendeVolgorde, onOpgeslagen, onAnnu
         afzenders={afzenders}
         categorie={categorie}
         subcategorie={subcategorie}
-        afzender={afzender}
+        geselecteerdeAfzenders={afzender ? [afzender] : []}
         granulariteit={granulariteit}
         periodeSelectie={periodeSelectie}
         onCategorieChange={(c) => {
@@ -118,7 +118,7 @@ export function WidgetFormulier({ widget, volgendeVolgorde, onOpgeslagen, onAnnu
           setSubcategorie(null);
         }}
         onSubcategorieChange={setSubcategorie}
-        onAfzenderChange={setAfzender}
+        onAfzendersChange={(a) => setAfzender(a.length > 0 ? a[a.length - 1] : null)}
         onGranulariteitChange={setGranulariteit}
         onPeriodeSelectieChange={setPeriodeSelectie}
         onReset={() => {

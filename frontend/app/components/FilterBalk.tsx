@@ -1,7 +1,8 @@
 "use client";
 
-import { Combobox } from "@/app/components/Combobox";
 import { DatumRangeKiezer } from "@/app/components/DatumRangeKiezer";
+import { MultiCombobox } from "@/app/components/MultiCombobox";
+import type { SerieKey } from "@/app/components/TotalenChart";
 import type { CategorieGroep, Granulariteit } from "@/lib/api";
 import type { PeriodeSelectie } from "@/lib/periode";
 
@@ -12,20 +13,29 @@ const GRANULARITEIT_LABEL: Record<Granulariteit, string> = {
   jaar: "Jaar",
 };
 
+const SERIE_LABEL: Record<SerieKey, string> = {
+  inkomsten: "Inkomsten",
+  uitgaven: "Uitgaven",
+  verwachte_inkomsten: "Verwachte inkomsten",
+  verwachte_uitgaven: "Verwachte uitgaven",
+};
+
 interface FilterBalkProps {
   categorieen: CategorieGroep[];
   afzenders: string[];
   categorie: string | null;
   subcategorie: string | null;
-  afzender: string | null;
+  geselecteerdeAfzenders: string[];
   granulariteit: Granulariteit;
   periodeSelectie: PeriodeSelectie;
   onCategorieChange: (categorie: string | null) => void;
   onSubcategorieChange: (subcategorie: string | null) => void;
-  onAfzenderChange: (afzender: string | null) => void;
+  onAfzendersChange: (afzenders: string[]) => void;
   onGranulariteitChange: (granulariteit: Granulariteit) => void;
   onPeriodeSelectieChange: (selectie: PeriodeSelectie) => void;
   onReset: () => void;
+  zichtbareSeries?: Record<SerieKey, boolean>;
+  onZichtbareSeriesChange?: (series: Record<SerieKey, boolean>) => void;
 }
 
 export function FilterBalk({
@@ -33,20 +43,23 @@ export function FilterBalk({
   afzenders,
   categorie,
   subcategorie,
-  afzender,
+  geselecteerdeAfzenders,
   granulariteit,
   periodeSelectie,
   onCategorieChange,
   onSubcategorieChange,
-  onAfzenderChange,
+  onAfzendersChange,
   onGranulariteitChange,
   onPeriodeSelectieChange,
   onReset,
+  zichtbareSeries,
+  onZichtbareSeriesChange,
 }: FilterBalkProps) {
   const subcategorieen = categorieen.find((g) => g.categorie === categorie)?.subcategorieen ?? [];
 
   return (
-    <div className="flex flex-wrap gap-4">
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap gap-4">
       <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
         Categorie
         <select
@@ -80,7 +93,12 @@ export function FilterBalk({
         </select>
       </label>
 
-      <Combobox label="Winkel / afzender" opties={afzenders} waarde={afzender} onChange={onAfzenderChange} />
+      <MultiCombobox
+        label="Winkel / afzender"
+        opties={afzenders}
+        waarden={geselecteerdeAfzenders}
+        onChange={onAfzendersChange}
+      />
 
       <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
         Weergave
@@ -108,7 +126,25 @@ export function FilterBalk({
         >
           Filters wissen
         </button>
+        </div>
       </div>
+
+      {zichtbareSeries && onZichtbareSeriesChange && (
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
+          {(Object.keys(SERIE_LABEL) as SerieKey[]).map((serie) => (
+            <label key={serie} className="flex items-center gap-1.5 text-sm text-neutral-600 dark:text-neutral-400">
+              <input
+                type="checkbox"
+                checked={zichtbareSeries[serie]}
+                onChange={(e) =>
+                  onZichtbareSeriesChange({ ...zichtbareSeries, [serie]: e.target.checked })
+                }
+              />
+              {SERIE_LABEL[serie]}
+            </label>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

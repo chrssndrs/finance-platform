@@ -53,15 +53,14 @@ export function DatumRangeKiezer({ selectie, onChange }: DatumRangeKiezerProps) 
 
       {open && (
         <div className="fixed inset-x-4 top-1/2 z-20 -translate-y-1/2 rounded-md border border-neutral-300 bg-white p-3 shadow-lg sm:absolute sm:inset-x-auto sm:top-full sm:left-0 sm:z-10 sm:mt-1 sm:w-72 sm:translate-y-0 dark:border-neutral-700 dark:bg-neutral-900">
-          <button
-            type="button"
-            onClick={() => kies({ modus: "alles" })}
-            className="mb-2 block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
-          >
-            Alles
-          </button>
-
           <div className="mb-3 flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => kies({ modus: "alles" })}
+              className="rounded-full border border-neutral-300 px-2.5 py-1 text-xs text-neutral-700 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            >
+              Alles
+            </button>
             {SNELKEUZES.map((s) => (
               <button
                 key={`${s.aantal}-${s.eenheid}`}

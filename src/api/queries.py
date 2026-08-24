@@ -41,7 +41,7 @@ SQL_TRANSACTIES = """
     FROM gold.transacties
     WHERE ($categorie::VARCHAR IS NULL OR categorie = $categorie)
       AND ($subcategorie::VARCHAR IS NULL OR subcategorie = $subcategorie)
-      AND ($afzender::VARCHAR IS NULL OR afzender = $afzender)
+      AND (len($afzenders::VARCHAR[]) = 0 OR list_contains($afzenders, afzender))
       AND ($vanaf::DATE IS NULL OR datum >= $vanaf)
       AND ($tot::DATE IS NULL OR datum <= $tot)
     ORDER BY datum DESC
@@ -64,7 +64,7 @@ SQL_TOTALEN = """
         FROM gold.transacties
         WHERE ($categorie::VARCHAR IS NULL OR categorie = $categorie)
           AND ($subcategorie::VARCHAR IS NULL OR subcategorie = $subcategorie)
-          AND ($afzender::VARCHAR IS NULL OR afzender = $afzender)
+          AND (len($afzenders::VARCHAR[]) = 0 OR list_contains($afzenders, afzender))
     )
     SELECT
         p.periode_start::DATE AS periode_start,
@@ -78,7 +78,7 @@ SQL_TOTALEN = """
 """
 
 
-def _periode_start(vandaag: date, granulariteit: str) -> date:
+def periode_start(vandaag: date, granulariteit: str) -> date:
     if granulariteit == "dag":
         return vandaag
     if granulariteit == "week":
@@ -111,8 +111,8 @@ def _volgende_periode(start: date, granulariteit: str, n: int) -> date:
 
 def periode_starts_tussen(granulariteit: str, vanaf: date, tot: date) -> list[date]:
     """Alle periode-starts (getrunceerd op granulariteit) tussen vanaf en tot, inclusief beide."""
-    start = _periode_start(vanaf, granulariteit)
-    eind = _periode_start(tot, granulariteit)
+    start = periode_start(vanaf, granulariteit)
+    eind = periode_start(tot, granulariteit)
     resultaat = []
     n = 0
     while True:
