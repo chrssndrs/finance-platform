@@ -17,6 +17,7 @@ class PlanningItem(BaseModel):
     datum: date
     bron: Literal["handmatig", "inboedel"]
     artikel_id: int | None
+    is_afgeschreven: bool = False
 
 
 class PlanningResponse(BaseModel):

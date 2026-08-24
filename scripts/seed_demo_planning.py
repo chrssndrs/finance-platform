@@ -18,13 +18,21 @@ from src.pipeline.paths import DB_PAD
 def main() -> None:
     con = duckdb.connect(str(DB_PAD))
     try:
-        # Wasmachine, 6 jaar geleden gekocht met een levensduur van 6 jaar —
-        # net (of net niet) afgeschreven, laat de rollover-logica zien.
+        # Wasmachine, bijna aan het einde van zijn levensduur — laat de
+        # "Binnenkort afgeschreven"-sectie zien.
         con.execute("""
             INSERT INTO inboedel.artikelen (omschrijving, merk, bedrag, datum, levensduur_maanden, aangemaakt_op)
             VALUES ('Wasmachine', 'Bosch', 649.00, ?, 72, now())
         """, [date.today() - timedelta(days=72 * 30)])
         print("Wasmachine (bijna afgeschreven) toegevoegd aan demo-inboedel")
+
+        # Föhn, al ruim voorbij zijn levensduur — laat de rollover-logica en
+        # de "Al afgeschreven"-sectie zien.
+        con.execute("""
+            INSERT INTO inboedel.artikelen (omschrijving, merk, bedrag, datum, levensduur_maanden, aangemaakt_op)
+            VALUES ('Föhn', 'Philips', 39.00, ?, 24, now())
+        """, [date.today() - timedelta(days=30 * 30)])
+        print("Föhn (al afgeschreven) toegevoegd aan demo-inboedel")
 
         con.execute("""
             INSERT INTO planning.items (omschrijving, bedrag, datum, aangemaakt_op)

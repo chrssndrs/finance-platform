@@ -13,11 +13,11 @@ const GRANULARITEIT_LABEL: Record<Granulariteit, string> = {
   jaar: "Jaar",
 };
 
-const SERIE_LABEL: Record<SerieKey, string> = {
+// Alleen de 2 echte series zijn hier zichtbaar te maken — de "verwacht"-
+// lagen horen niet bij deze (historische) pagina.
+const SERIE_LABEL: Partial<Record<SerieKey, string>> = {
   inkomsten: "Inkomsten",
   uitgaven: "Uitgaven",
-  verwachte_inkomsten: "Verwachte inkomsten",
-  verwachte_uitgaven: "Verwachte uitgaven",
 };
 
 interface FilterBalkProps {

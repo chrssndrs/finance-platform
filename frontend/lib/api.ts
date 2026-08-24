@@ -270,6 +270,7 @@ export interface InboedelArtikel {
   datum: string | null;
   levensduur_maanden: number | null;
   serienummer: string | null;
+  wordt_vervangen: boolean;
   leeftijd_maanden: number | null;
   percentage_leven: number | null;
   restwaarde: number | null;
@@ -295,6 +296,7 @@ export interface InboedelArtikelInvoer {
   datum: string | null;
   levensduur_maanden: number | null;
   serienummer: string | null;
+  wordt_vervangen: boolean;
 }
 
 export class ApiError extends Error {}
@@ -616,6 +618,7 @@ export interface PlanningItem extends PlanningItemInvoer {
   id: number | null;
   bron: "handmatig" | "inboedel";
   artikel_id: number | null;
+  is_afgeschreven: boolean;
 }
 
 export interface PlanningResponse {

@@ -52,6 +52,10 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
     # ALTER ... IF NOT EXISTS omdat de tabel hierboven al bestond vóór dit veld
     # werd toegevoegd — CREATE TABLE IF NOT EXISTS raakt een bestaande tabel niet aan.
     con.execute("ALTER TABLE inboedel.artikelen ADD COLUMN IF NOT EXISTS serienummer VARCHAR")
+    # Staat de gebruiker toe aan te geven dat een artikel bij einde levensduur
+    # niet vervangen gaat worden — de verwachte vervangingskosten vallen dan
+    # weg uit de Planning-module (planning_berekening.py).
+    con.execute("ALTER TABLE inboedel.artikelen ADD COLUMN IF NOT EXISTS wordt_vervangen BOOLEAN DEFAULT true")
 
     # De geaccepteerde/handmatige abonnementen-lijst — vervangt de oude,
     # volledig herberekende gold.abonnementen. afzender NULL = puur

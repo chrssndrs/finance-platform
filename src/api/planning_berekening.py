@@ -31,6 +31,7 @@ def bereken_inboedel_planning(
         FROM inboedel.artikelen
         WHERE bedrag IS NOT NULL AND datum IS NOT NULL
           AND levensduur_maanden IS NOT NULL AND levensduur_maanden > 0
+          AND wordt_vervangen
     """).fetchall()
 
     posten = []
@@ -39,6 +40,7 @@ def bereken_inboedel_planning(
         levensduur_dagen = levensduur_maanden * DAGEN_PER_MAAND
         percentage_leven = leeftijd_dagen / levensduur_dagen
         maanden_tot_afschrijving = levensduur_maanden - (leeftijd_dagen / DAGEN_PER_MAAND)
+        is_afgeschreven = leeftijd_dagen >= levensduur_dagen
 
         in_aanmerking = (
             (drempel_modus == "maanden" and maanden_tot_afschrijving <= drempel_waarde)
@@ -54,6 +56,7 @@ def bereken_inboedel_planning(
             "datum": verwachte_datum(datum, levensduur_maanden, vandaag),
             "bron": "inboedel",
             "artikel_id": artikel_id,
+            "is_afgeschreven": is_afgeschreven,
         })
     return posten
 
@@ -65,7 +68,15 @@ def bereken_planning_items(con: duckdb.DuckDBPyConnection, vandaag: date | None 
         "SELECT id, omschrijving, bedrag::DOUBLE, datum FROM planning.items"
     ).fetchall()
     posten = [
-        {"id": id_, "omschrijving": omschrijving, "bedrag": bedrag, "datum": datum, "bron": "handmatig", "artikel_id": None}
+        {
+            "id": id_,
+            "omschrijving": omschrijving,
+            "bedrag": bedrag,
+            "datum": datum,
+            "bron": "handmatig",
+            "artikel_id": None,
+            "is_afgeschreven": False,
+        }
         for id_, omschrijving, bedrag, datum in handmatig
     ]
 

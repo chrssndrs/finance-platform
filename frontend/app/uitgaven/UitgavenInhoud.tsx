@@ -33,11 +33,13 @@ const datumFormat = new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium" });
 
 const GRANULARITEITEN: Granulariteit[] = ["dag", "week", "maand", "jaar"];
 
+// De Uitgaven-pagina toont alleen historische bank-transacties — de
+// "verwacht"-lagen (planning-module) horen hier niet bij, dus blijven uit.
 const ALLE_SERIES_ZICHTBAAR: Record<SerieKey, boolean> = {
   inkomsten: true,
   uitgaven: true,
-  verwachte_inkomsten: true,
-  verwachte_uitgaven: true,
+  verwachte_inkomsten: false,
+  verwachte_uitgaven: false,
 };
 
 function isGranulariteit(waarde: string | null): waarde is Granulariteit {
@@ -213,7 +215,6 @@ export function UitgavenInhoud() {
           granulariteit={granulariteit}
           geselecteerdePeriode={geselecteerdePeriode}
           onPeriodeKlik={klikPeriode}
-          toonVerwacht
           zichtbareSeries={zichtbareSeries}
         />
       </div>

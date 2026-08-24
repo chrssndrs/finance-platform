@@ -23,7 +23,8 @@ type SortKey =
   | "datum"
   | "levensduur_maanden"
   | "restwaarde"
-  | "serienummer";
+  | "serienummer"
+  | "wordt_vervangen";
 
 const KOLOMMEN: { key: SortKey; label: string }[] = [
   { key: "omschrijving", label: "Omschrijving" },
@@ -35,10 +36,12 @@ const KOLOMMEN: { key: SortKey; label: string }[] = [
   { key: "levensduur_maanden", label: "Levensduur" },
   { key: "restwaarde", label: "Restwaarde" },
   { key: "serienummer", label: "Serienummer" },
+  { key: "wordt_vervangen", label: "Vervangen?" },
 ];
 
 function vergelijk(a: InboedelArtikel, key: SortKey): string | number {
   const v = a[key];
+  if (typeof v === "boolean") return v ? 1 : 0;
   if (v === null || v === undefined) return key === "bedrag" || key === "levensduur_maanden" || key === "restwaarde" ? -Infinity : "";
   return v;
 }
@@ -53,6 +56,7 @@ function naarInvoer(a: InboedelArtikel): InboedelArtikelInvoer {
     datum: a.datum,
     levensduur_maanden: a.levensduur_maanden,
     serienummer: a.serienummer,
+    wordt_vervangen: a.wordt_vervangen,
   };
 }
 
@@ -184,6 +188,13 @@ function InboedelRij({ artikel, merken, winkels, onBijgewerkt, onVerwijderd }: I
             className={inputKlasse}
           />
         </td>
+        <td className="py-2 pr-2 align-top">
+          <input
+            type="checkbox"
+            checked={invoer.wordt_vervangen}
+            onChange={(e) => setInvoer({ ...invoer, wordt_vervangen: e.target.checked })}
+          />
+        </td>
         <td className="py-2 align-top whitespace-nowrap">
           <button
             type="button"
@@ -223,6 +234,9 @@ function InboedelRij({ artikel, merken, winkels, onBijgewerkt, onVerwijderd }: I
         {artikel.restwaarde !== null ? bedragFormat.format(artikel.restwaarde) : "—"}
       </td>
       <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">{artikel.serienummer ?? "—"}</td>
+      <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">
+        {artikel.wordt_vervangen ? "Ja" : "Nee"}
+      </td>
       <td className="whitespace-nowrap py-2">
         <button
           type="button"

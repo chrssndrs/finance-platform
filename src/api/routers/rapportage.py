@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.api.banksaldo_berekening import bereken_banksaldo
 from src.api.deps import get_db
-from src.api.planning_berekening import bereken_planning_items
 from src.api.queries import (
     GRANULARITEIT_NAAR_DUCKDB_EENHEID,
     SQL_AFZENDERS,
@@ -15,7 +14,6 @@ from src.api.queries import (
     SQL_STATUS,
     SQL_TOTALEN,
     SQL_TRANSACTIES,
-    periode_start,
     periode_starts_tussen,
 )
 from src.api.schemas import (
@@ -116,25 +114,6 @@ def get_totalen(
         },
     ).fetchall()
 
-    # Geplande in-/uitgaven (handmatig + bijna-afgeschreven inboedel) horen
-    # niet bij categorie/subcategorie/afzender — ze zijn geen bank-transactie
-    # — maar tellen wel mee als eigen laag, gebucket op dezelfde perioden.
-    # Filteren op periode-bucket (niet op het rauwe vanaf/tot-bereik): een
-    # geplande post een paar dagen na "vandaag" hoort nog steeds bij de
-    # lopende maand-bucket, ook al ligt tot_effectief (vaak "vandaag" of de
-    # laatste transactiedatum) daar net vóór.
-    zichtbare_buckets = set(starts)
-    verwacht_per_periode: dict[date, dict[str, float]] = {}
-    for post in bereken_planning_items(con):
-        bucket = periode_start(post["datum"], granulariteit)
-        if bucket not in zichtbare_buckets:
-            continue
-        slot = verwacht_per_periode.setdefault(bucket, {"inkomsten": 0.0, "uitgaven": 0.0})
-        if post["bedrag"] >= 0:
-            slot["inkomsten"] += post["bedrag"]
-        else:
-            slot["uitgaven"] += -post["bedrag"]
-
     return TotalenResponse(
         categorie=categorie,
         subcategorie=subcategorie,
@@ -143,14 +122,7 @@ def get_totalen(
         vanaf=vanaf,
         tot=tot,
         reeks=[
-            PeriodeTotaal(
-                periode_start=rij_periode_start,
-                inkomsten=inkomsten,
-                uitgaven=uitgaven,
-                totaal=totaal,
-                verwachte_inkomsten=round(verwacht_per_periode.get(rij_periode_start, {}).get("inkomsten", 0.0), 2),
-                verwachte_uitgaven=round(verwacht_per_periode.get(rij_periode_start, {}).get("uitgaven", 0.0), 2),
-            )
+            PeriodeTotaal(periode_start=rij_periode_start, inkomsten=inkomsten, uitgaven=uitgaven, totaal=totaal)
             for rij_periode_start, inkomsten, uitgaven, totaal in rijen
         ],
     )

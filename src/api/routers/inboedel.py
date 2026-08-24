@@ -33,6 +33,7 @@ def _naar_artikel(
     datum: date | None,
     levensduur_maanden: int | None,
     serienummer: str | None,
+    wordt_vervangen: bool,
     vandaag: date,
 ) -> InboedelArtikel:
     leeftijd_maanden = None
@@ -60,6 +61,7 @@ def _naar_artikel(
         datum=datum,
         levensduur_maanden=levensduur_maanden,
         serienummer=serienummer,
+        wordt_vervangen=wordt_vervangen,
         leeftijd_maanden=leeftijd_maanden,
         percentage_leven=percentage_leven,
         restwaarde=restwaarde,
@@ -100,6 +102,7 @@ def post_artikel(
             "datum": artikel.datum,
             "levensduur_maanden": artikel.levensduur_maanden,
             "serienummer": artikel.serienummer,
+            "wordt_vervangen": artikel.wordt_vervangen,
         },
     ).fetchone()[0]
 
@@ -113,6 +116,7 @@ def post_artikel(
         artikel.datum,
         artikel.levensduur_maanden,
         artikel.serienummer,
+        artikel.wordt_vervangen,
         vandaag=date.today(),
     )
 
@@ -135,6 +139,7 @@ def put_artikel(
             "datum": artikel.datum,
             "levensduur_maanden": artikel.levensduur_maanden,
             "serienummer": artikel.serienummer,
+            "wordt_vervangen": artikel.wordt_vervangen,
         },
     ).fetchone()
     if resultaat is None:
@@ -150,6 +155,7 @@ def put_artikel(
         artikel.datum,
         artikel.levensduur_maanden,
         artikel.serienummer,
+        artikel.wordt_vervangen,
         vandaag=date.today(),
     )
 

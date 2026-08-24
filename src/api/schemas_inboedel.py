@@ -12,6 +12,7 @@ class InboedelArtikelInvoer(BaseModel):
     datum: date | None = None
     levensduur_maanden: int | None = None
     serienummer: str | None = None
+    wordt_vervangen: bool = True
 
 
 class InboedelArtikel(BaseModel):
@@ -24,6 +25,7 @@ class InboedelArtikel(BaseModel):
     datum: date | None
     levensduur_maanden: int | None
     serienummer: str | None
+    wordt_vervangen: bool
     leeftijd_maanden: float | None
     percentage_leven: float | None
     restwaarde: float | None

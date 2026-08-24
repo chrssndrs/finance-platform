@@ -23,6 +23,7 @@ export function InboedelFormulier({ merken, winkels, onToegevoegd }: InboedelFor
   const [datum, setDatum] = useState("");
   const [levensduur, setLevensduur] = useState("60");
   const [serienummer, setSerienummer] = useState("");
+  const [wordtVervangen, setWordtVervangen] = useState(true);
   const [bezig, setBezig] = useState(false);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
 
@@ -35,6 +36,7 @@ export function InboedelFormulier({ merken, winkels, onToegevoegd }: InboedelFor
     setDatum("");
     setLevensduur("60");
     setSerienummer("");
+    setWordtVervangen(true);
   }
 
   async function versturen(e: React.FormEvent) {
@@ -55,6 +57,7 @@ export function InboedelFormulier({ merken, winkels, onToegevoegd }: InboedelFor
         datum: datum || null,
         levensduur_maanden: levensduur.trim() ? Number(levensduur) : null,
         serienummer: serienummer.trim() || null,
+        wordt_vervangen: wordtVervangen,
       });
       onToegevoegd(artikel);
       reset();
@@ -133,6 +136,15 @@ export function InboedelFormulier({ merken, winkels, onToegevoegd }: InboedelFor
           onChange={(e) => setSerienummer(e.target.value)}
           className={inputKlasse}
         />
+      </label>
+
+      <label className="flex items-end gap-2 text-sm text-neutral-600 dark:text-neutral-400 lg:col-span-2">
+        <input
+          type="checkbox"
+          checked={wordtVervangen}
+          onChange={(e) => setWordtVervangen(e.target.checked)}
+        />
+        Wordt vervangen bij einde levensduur
       </label>
 
       <div className="flex items-end lg:col-span-4">
