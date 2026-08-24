@@ -149,8 +149,14 @@ export function NavBalk({ children }: { children: React.ReactNode }) {
       <div
         onClick={() => open && setOpen(false)}
         className={
+          // Geen "transform" zetten (zelfs niet translate-x-0) zolang het
+          // menu dicht is: elke transform-waarde — ook 0 — maakt dit element
+          // een containing block voor position:fixed-nakomelingen (bv. de
+          // Overlay-kaartjes), waardoor die niet meer t.o.v. het echte
+          // viewport positioneren maar t.o.v. déze div. Dat zorgde ervoor
+          // dat een overlay na scrollen half buiten beeld viel.
           "relative z-20 min-h-screen bg-[var(--background)] transition-transform duration-300 ease-out " +
-          (open ? "translate-x-72" : "translate-x-0")
+          (open ? "translate-x-72" : "")
         }
       >
         {children}
