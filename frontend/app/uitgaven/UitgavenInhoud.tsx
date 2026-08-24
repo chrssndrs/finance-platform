@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { FilterBalk } from "@/app/components/FilterBalk";
+import { OngecategoriseerdInbox } from "@/app/components/OngecategoriseerdInbox";
 import { TotalenChart, type SerieKey } from "@/app/components/TotalenChart";
 import { TotalenTabel } from "@/app/components/TotalenTabel";
 import { TransactieTabel } from "@/app/components/TransactieTabel";
@@ -11,11 +12,14 @@ import {
   ApiError,
   getAfzenders,
   getCategorieen,
+  getInstellingen,
+  getOngecategoriseerd,
   getStatus,
   getTotalen,
   getTransacties,
   type CategorieGroep,
   type Granulariteit,
+  type OngecategoriseerdAfzender,
   type PeriodeTotaal,
   type StatusResponse,
   type Transactie,
@@ -71,6 +75,8 @@ export function UitgavenInhoud() {
   const [categorieen, setCategorieen] = useState<CategorieGroep[]>([]);
   const [afzenders, setAfzenders] = useState<string[]>([]);
   const [status, setStatus] = useState<StatusResponse | null>(null);
+  const [trendVenster, setTrendVenster] = useState(3);
+  const [ongecategoriseerd, setOngecategoriseerd] = useState<OngecategoriseerdAfzender[]>([]);
 
   const [categorie, setCategorie] = useState<string | null>(searchParams.get("categorie"));
   const [subcategorie, setSubcategorie] = useState<string | null>(searchParams.get("subcategorie"));
@@ -79,6 +85,13 @@ export function UitgavenInhoud() {
     return waarde ? waarde.split(",") : [];
   });
   const [zichtbareSeries, setZichtbareSeries] = useState<Record<SerieKey, boolean>>(ALLE_SERIES_ZICHTBAAR);
+  // Verhoogd bij elke filterwijziging (wijzigFilter) zodat de totalen-fetch
+  // hieronder altijd opnieuw draait en "laden" weer op false zet — ook als
+  // bv. dezelfde periode opnieuw gekozen wordt en de afgeleide vanaf/tot-
+  // strings toevallig identiek uitkomen (anders blijft de grafiek voor
+  // altijd op opacity-50 staan, want de fetch-useEffect draait dan niet
+  // opnieuw en setLaden(false) wordt dus nooit meer aangeroepen).
+  const [verversTeller, setVerversTeller] = useState(0);
   const [granulariteit, setGranulariteit] = useState<Granulariteit>(
     isGranulariteit(searchParams.get("granulariteit")) ? (searchParams.get("granulariteit") as Granulariteit) : "maand"
   );
@@ -99,6 +112,12 @@ export function UitgavenInhoud() {
     getStatus()
       .then(setStatus)
       .catch(() => {});
+    getInstellingen()
+      .then((res) => setTrendVenster(res.instellingen.trend_venster_maanden))
+      .catch(() => {});
+    getOngecategoriseerd()
+      .then((res) => setOngecategoriseerd(res.afzenders))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -117,7 +136,7 @@ export function UitgavenInhoud() {
       .then((res) => setReeks(res.reeks))
       .catch((err) => setFoutmelding(err instanceof ApiError ? err.message : "Kon totalen niet laden."))
       .finally(() => setLaden(false));
-  }, [categorie, subcategorie, geselecteerdeAfzenders, granulariteit, vanaf, tot]);
+  }, [categorie, subcategorie, geselecteerdeAfzenders, granulariteit, vanaf, tot, verversTeller]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -141,6 +160,7 @@ export function UitgavenInhoud() {
     setFoutmelding(null);
     setGeselecteerdePeriode(null);
     bijwerken();
+    setVerversTeller((t) => t + 1);
   }
 
   function klikPeriode(periodeStart: string) {
@@ -171,6 +191,12 @@ export function UitgavenInhoud() {
           </p>
         )}
       </div>
+
+      <OngecategoriseerdInbox
+        afzenders={ongecategoriseerd}
+        categorieen={categorieen}
+        onToegewezen={(afzender) => setOngecategoriseerd((huidig) => huidig.filter((a) => a.afzender !== afzender))}
+      />
 
       <FilterBalk
         categorieen={categorieen}
@@ -216,6 +242,7 @@ export function UitgavenInhoud() {
           geselecteerdePeriode={geselecteerdePeriode}
           onPeriodeKlik={klikPeriode}
           zichtbareSeries={zichtbareSeries}
+          trendVenster={trendVenster}
         />
       </div>
 

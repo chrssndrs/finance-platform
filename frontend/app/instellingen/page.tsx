@@ -13,6 +13,9 @@ export default function InstellingenPagina() {
   const [exportLocatie, setExportLocatie] = useState("");
   const [planningDrempelModus, setPlanningDrempelModus] = useState<PlanningDrempelModus>("maanden");
   const [planningDrempelWaarde, setPlanningDrempelWaarde] = useState(3);
+  const [verzamelfacturenLocatie, setVerzamelfacturenLocatie] = useState("");
+  const [dataTeOudNaDagen, setDataTeOudNaDagen] = useState(7);
+  const [trendVensterMaanden, setTrendVensterMaanden] = useState(3);
   const [beschikbareBanken, setBeschikbareBanken] = useState<BeschikbareBank[]>([]);
   const [laden, setLaden] = useState(true);
   const [bezig, setBezig] = useState(false);
@@ -26,6 +29,9 @@ export default function InstellingenPagina() {
         setExportLocatie(res.instellingen.export_locatie);
         setPlanningDrempelModus(res.instellingen.planning_drempel_modus);
         setPlanningDrempelWaarde(res.instellingen.planning_drempel_waarde);
+        setVerzamelfacturenLocatie(res.instellingen.verzamelfacturen_locatie);
+        setDataTeOudNaDagen(res.instellingen.data_te_oud_na_dagen);
+        setTrendVensterMaanden(res.instellingen.trend_venster_maanden);
         setBeschikbareBanken(res.beschikbare_banken);
       })
       .catch((err) => setFoutmelding(err instanceof ApiError ? err.message : "Kon instellingen niet laden."))
@@ -43,11 +49,17 @@ export default function InstellingenPagina() {
         export_locatie: exportLocatie,
         planning_drempel_modus: planningDrempelModus,
         planning_drempel_waarde: planningDrempelWaarde,
+        verzamelfacturen_locatie: verzamelfacturenLocatie,
+        data_te_oud_na_dagen: dataTeOudNaDagen,
+        trend_venster_maanden: trendVensterMaanden,
       });
       setBank(res.instellingen.bank);
       setExportLocatie(res.instellingen.export_locatie);
       setPlanningDrempelModus(res.instellingen.planning_drempel_modus);
       setPlanningDrempelWaarde(res.instellingen.planning_drempel_waarde);
+      setVerzamelfacturenLocatie(res.instellingen.verzamelfacturen_locatie);
+      setDataTeOudNaDagen(res.instellingen.data_te_oud_na_dagen);
+      setTrendVensterMaanden(res.instellingen.trend_venster_maanden);
       setOpgeslagen(true);
     } catch (err) {
       setFoutmelding(err instanceof ApiError ? err.message : "Opslaan mislukt.");
@@ -143,6 +155,61 @@ export default function InstellingenPagina() {
             <span className="mt-1 block text-xs text-neutral-400">
               Vanaf wanneer een bijna-afgeschreven inboedel-artikel al als verwachte kostenpost in de
               Planning-module verschijnt.
+            </span>
+          </div>
+
+          <div className="border-t border-neutral-200 pt-4 dark:border-neutral-800">
+            <div className="mb-3 text-sm font-medium text-neutral-900 dark:text-neutral-100">Verzamelfacturen</div>
+            <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
+              Locatie voor geüploade verzamelfacturen
+              <input
+                type="text"
+                required
+                value={verzamelfacturenLocatie}
+                onChange={(e) => setVerzamelfacturenLocatie(e.target.value)}
+                className={`${inputKlasse} font-mono`}
+              />
+            </label>
+            <span className="mt-1 block text-xs text-neutral-400">
+              Pad relatief aan de gemounte data-map, zoals de bank-exports hierboven.
+            </span>
+          </div>
+
+          <div className="border-t border-neutral-200 pt-4 dark:border-neutral-800">
+            <div className="mb-3 text-sm font-medium text-neutral-900 dark:text-neutral-100">Meldingen &amp; trend</div>
+            <div className="flex flex-wrap items-end gap-4">
+              <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
+                Data is &ldquo;te oud&rdquo; na
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    required
+                    value={dataTeOudNaDagen}
+                    onChange={(e) => setDataTeOudNaDagen(Number(e.target.value))}
+                    className={`${inputKlasse} w-20`}
+                  />
+                  <span className="text-xs text-neutral-400">dagen</span>
+                </div>
+              </label>
+              <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
+                Trend-venster
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    required
+                    value={trendVensterMaanden}
+                    onChange={(e) => setTrendVensterMaanden(Number(e.target.value))}
+                    className={`${inputKlasse} w-20`}
+                  />
+                  <span className="text-xs text-neutral-400">maanden</span>
+                </div>
+              </label>
+            </div>
+            <span className="mt-1 block text-xs text-neutral-400">
+              Bepaalt wanneer de rode &ldquo;data is oud&rdquo;-melding verschijnt, en over hoeveel maanden het
+              voortschrijdend gemiddelde in de grafieken wordt berekend.
             </span>
           </div>
 

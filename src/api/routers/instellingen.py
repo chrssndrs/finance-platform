@@ -21,22 +21,27 @@ def _bank_naam(bank: str, banken: list[dict]) -> str:
     return bank
 
 
-def _valideer_export_locatie(export_locatie: str) -> None:
+def _valideer_locatie(locatie: str, veldnaam: str) -> None:
     # Moet binnen de gemounte data-root blijven — de container ziet toch
     # niets daarbuiten, dus alles anders is hoe dan ook een doodlopend pad,
     # en ".."-padtraversal willen we sowieso niet toestaan.
-    kandidaat = (DATA_ROOT / export_locatie).resolve()
+    kandidaat = (DATA_ROOT / locatie).resolve()
     if not kandidaat.is_relative_to(DATA_ROOT.resolve()):
         raise HTTPException(
             status_code=400,
-            detail="Locatie moet binnen de gemounte data-map blijven (geen '..').",
+            detail=f"{veldnaam} moet binnen de gemounte data-map blijven (geen '..').",
         )
 
 
 @router.get("", response_model=InstellingenResponse)
 def get_instellingen(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> InstellingenResponse:
-    bank, export_locatie, planning_drempel_modus, planning_drempel_waarde = con.execute(
-        "SELECT bank, export_locatie, planning_drempel_modus, planning_drempel_waarde FROM instellingen.instellingen WHERE id = 1"
+    (
+        bank, export_locatie, planning_drempel_modus, planning_drempel_waarde,
+        verzamelfacturen_locatie, data_te_oud_na_dagen, trend_venster_maanden,
+    ) = con.execute(
+        """SELECT bank, export_locatie, planning_drempel_modus, planning_drempel_waarde,
+                  verzamelfacturen_locatie, data_te_oud_na_dagen, trend_venster_maanden
+           FROM instellingen.instellingen WHERE id = 1"""
     ).fetchone()
     banken = beschikbare_banken()
     return InstellingenResponse(
@@ -46,6 +51,9 @@ def get_instellingen(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> Instel
             export_locatie=export_locatie,
             planning_drempel_modus=planning_drempel_modus,
             planning_drempel_waarde=planning_drempel_waarde,
+            verzamelfacturen_locatie=verzamelfacturen_locatie,
+            data_te_oud_na_dagen=data_te_oud_na_dagen,
+            trend_venster_maanden=trend_venster_maanden,
         ),
         beschikbare_banken=[BeschikbareBank(**b) for b in banken],
     )
@@ -61,15 +69,27 @@ def put_instellingen(
         raise HTTPException(status_code=400, detail=f"Onbekende bank {invoer.bank!r}.")
     if not invoer.export_locatie.strip():
         raise HTTPException(status_code=400, detail="Locatie mag niet leeg zijn.")
-    _valideer_export_locatie(invoer.export_locatie)
+    _valideer_locatie(invoer.export_locatie, "Locatie van de bank-exports")
     if invoer.planning_drempel_waarde <= 0:
         raise HTTPException(status_code=400, detail="Planning-drempelwaarde moet groter dan 0 zijn.")
+    if not invoer.verzamelfacturen_locatie.strip():
+        raise HTTPException(status_code=400, detail="Locatie voor verzamelfacturen mag niet leeg zijn.")
+    _valideer_locatie(invoer.verzamelfacturen_locatie, "Locatie voor verzamelfacturen")
+    if invoer.data_te_oud_na_dagen <= 0:
+        raise HTTPException(status_code=400, detail="'Te oud na' moet groter dan 0 zijn.")
+    if invoer.trend_venster_maanden <= 0:
+        raise HTTPException(status_code=400, detail="Trend-venster moet groter dan 0 zijn.")
 
     con.execute(
         """UPDATE instellingen.instellingen
-           SET bank = ?, export_locatie = ?, planning_drempel_modus = ?, planning_drempel_waarde = ?, aangepast_op = now()
+           SET bank = ?, export_locatie = ?, planning_drempel_modus = ?, planning_drempel_waarde = ?,
+               verzamelfacturen_locatie = ?, data_te_oud_na_dagen = ?, trend_venster_maanden = ?,
+               aangepast_op = now()
            WHERE id = 1""",
-        [invoer.bank, invoer.export_locatie, invoer.planning_drempel_modus, invoer.planning_drempel_waarde],
+        [
+            invoer.bank, invoer.export_locatie, invoer.planning_drempel_modus, invoer.planning_drempel_waarde,
+            invoer.verzamelfacturen_locatie, invoer.data_te_oud_na_dagen, invoer.trend_venster_maanden,
+        ],
     )
     return InstellingenResponse(
         instellingen=Instellingen(
@@ -78,6 +98,9 @@ def put_instellingen(
             export_locatie=invoer.export_locatie,
             planning_drempel_modus=invoer.planning_drempel_modus,
             planning_drempel_waarde=invoer.planning_drempel_waarde,
+            verzamelfacturen_locatie=invoer.verzamelfacturen_locatie,
+            data_te_oud_na_dagen=invoer.data_te_oud_na_dagen,
+            trend_venster_maanden=invoer.trend_venster_maanden,
         ),
         beschikbare_banken=[BeschikbareBank(**b) for b in banken],
     )

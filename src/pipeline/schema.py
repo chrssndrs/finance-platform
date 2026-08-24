@@ -3,7 +3,7 @@ import pandas as pd
 
 
 def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
-    for naam in ("meta", "landing", "bronze", "silver", "gold", "inboedel", "abonnementen", "instellingen", "vastgoed", "beleggingen", "hypotheek", "overzicht", "planning"):
+    for naam in ("meta", "landing", "bronze", "silver", "gold", "inboedel", "abonnementen", "instellingen", "vastgoed", "beleggingen", "hypotheek", "overzicht", "planning", "verzamelfacturen"):
         con.execute(f"CREATE SCHEMA IF NOT EXISTS {naam}")
 
     con.execute("CREATE SEQUENCE IF NOT EXISTS meta.bestanden_log_seq START 1")
@@ -124,6 +124,13 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
     # Planning-module verschijnt (zie planning_berekening.py).
     con.execute("ALTER TABLE instellingen.instellingen ADD COLUMN IF NOT EXISTS planning_drempel_modus VARCHAR DEFAULT 'maanden'")
     con.execute("ALTER TABLE instellingen.instellingen ADD COLUMN IF NOT EXISTS planning_drempel_waarde DOUBLE DEFAULT 3")
+    # Locatie voor geüploade verzamelfacturen (bv. creditcard/bol.com), zie
+    # verzamelfacturen_berekening.py — analoog aan export_locatie.
+    con.execute("ALTER TABLE instellingen.instellingen ADD COLUMN IF NOT EXISTS verzamelfacturen_locatie VARCHAR DEFAULT 'data/landing/verzamelfacturen'")
+    # Na hoeveel dagen zonder nieuwe transactie de rode "data is oud"-banner verschijnt.
+    con.execute("ALTER TABLE instellingen.instellingen ADD COLUMN IF NOT EXISTS data_te_oud_na_dagen DOUBLE DEFAULT 7")
+    # Aantal maanden voor het voortschrijdend gemiddelde (trendlijn) in de grafieken.
+    con.execute("ALTER TABLE instellingen.instellingen ADD COLUMN IF NOT EXISTS trend_venster_maanden INTEGER DEFAULT 3")
 
     # Eén woning (adres in de databank, niet in code — dat wordt gecommit;
     # zet 'm zelf via de Vastgoed-pagina).
@@ -249,6 +256,38 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
             omschrijving VARCHAR NOT NULL,
             bedrag DECIMAL(12,2) NOT NULL,
             datum DATE NOT NULL,
+            aangemaakt_op TIMESTAMP NOT NULL
+        )
+    """)
+
+    # Verzamelfacturen (bv. creditcard-afschrijving of bol.com-overzicht):
+    # één bankrekening-transactie ("factuur") die uit meerdere losse
+    # aankopen ("regels") bestaat, elk met een eigen categorie. Zodra een
+    # factuur regels heeft (status 'gesplitst') vervangt
+    # gold.transacties_effectief (zie transacties/gold.py) de oorspronkelijke
+    # transactie door de regels in alle rapportages.
+    con.execute("CREATE SEQUENCE IF NOT EXISTS verzamelfacturen.facturen_seq START 1")
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS verzamelfacturen.facturen (
+            id INTEGER PRIMARY KEY DEFAULT nextval('verzamelfacturen.facturen_seq'),
+            bestandsnaam VARCHAR NOT NULL,
+            origineel_bestandsnaam VARCHAR,
+            bron VARCHAR NOT NULL,
+            totaalbedrag DECIMAL(10,2),
+            transactie_id VARCHAR,
+            status VARCHAR NOT NULL DEFAULT 'nieuw',
+            geupload_op TIMESTAMP NOT NULL
+        )
+    """)
+    con.execute("CREATE SEQUENCE IF NOT EXISTS verzamelfacturen.regels_seq START 1")
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS verzamelfacturen.regels (
+            id INTEGER PRIMARY KEY DEFAULT nextval('verzamelfacturen.regels_seq'),
+            factuur_id INTEGER NOT NULL,
+            omschrijving VARCHAR NOT NULL,
+            bedrag DECIMAL(10,2) NOT NULL,
+            categorie VARCHAR,
+            subcategorie VARCHAR,
             aangemaakt_op TIMESTAMP NOT NULL
         )
     """)

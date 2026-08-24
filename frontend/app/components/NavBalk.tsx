@@ -12,6 +12,7 @@ const DOMEINEN = [
   { pad: "/vastgoed", label: "Vastgoed" },
   { pad: "/hypotheek", label: "Hypotheek" },
   { pad: "/planning", label: "Planning" },
+  { pad: "/verzamelfacturen", label: "Verzamelfacturen" },
 ];
 
 const iconKnopKlasse =

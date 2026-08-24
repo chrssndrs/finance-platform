@@ -53,6 +53,39 @@ export interface Transactie {
   mededelingen: string | null;
 }
 
+export interface TransactieDetail {
+  transactie_id: string;
+  datum: string;
+  naam_omschrijving: string;
+  afzender: string;
+  winkel: string | null;
+  rekening: string | null;
+  tegenrekening: string | null;
+  mededelingen: string | null;
+  bedrag_eur: number;
+  saldo_na_mutatie: number | null;
+  categorie: string;
+  subcategorie: string;
+  handmatig_overschreven: boolean;
+  bronbestand: string | null;
+  ruwe_rij: Record<string, string | null> | null;
+}
+
+export interface OngecategoriseerdAfzender {
+  afzender: string;
+  aantal: number;
+  totaalbedrag: number;
+}
+
+export interface OngecategoriseerdResponse {
+  afzenders: OngecategoriseerdAfzender[];
+}
+
+export interface AfzenderCategorieInvoer {
+  categorie: string;
+  subcategorie: string | null;
+}
+
 export interface TransactiesResponse {
   transacties: Transactie[];
 }
@@ -119,6 +152,9 @@ export interface Instellingen {
   export_locatie: string;
   planning_drempel_modus: PlanningDrempelModus;
   planning_drempel_waarde: number;
+  verzamelfacturen_locatie: string;
+  data_te_oud_na_dagen: number;
+  trend_venster_maanden: number;
 }
 
 export interface InstellingenInvoer {
@@ -126,6 +162,9 @@ export interface InstellingenInvoer {
   export_locatie: string;
   planning_drempel_modus: PlanningDrempelModus;
   planning_drempel_waarde: number;
+  verzamelfacturen_locatie: string;
+  data_te_oud_na_dagen: number;
+  trend_venster_maanden: number;
 }
 
 export interface InstellingenResponse {
@@ -339,6 +378,18 @@ async function postLeeg(pad: string): Promise<void> {
   }
 }
 
+async function zendJsonLeeg(pad: string, methode: "POST" | "PUT", body: unknown): Promise<void> {
+  const response = await fetch(`${API_BASE}${pad}`, {
+    method: methode,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const foutBody = await response.json().catch(() => null);
+    throw new ApiError(foutBody?.detail ?? `API-fout (${response.status})`);
+  }
+}
+
 export function getCategorieen(): Promise<CategorieenResponse> {
   return fetchJson<CategorieenResponse>("/api/rapportage/categorieen");
 }
@@ -393,6 +444,18 @@ export function getTransacties(params: {
   zoekParams.set("vanaf", params.vanaf);
   zoekParams.set("tot", params.tot);
   return fetchJson<TransactiesResponse>(`/api/rapportage/transacties?${zoekParams}`);
+}
+
+export function getTransactieDetail(transactieId: string): Promise<TransactieDetail> {
+  return fetchJson<TransactieDetail>(`/api/rapportage/transacties/${encodeURIComponent(transactieId)}/detail`);
+}
+
+export function getOngecategoriseerd(): Promise<OngecategoriseerdResponse> {
+  return fetchJson<OngecategoriseerdResponse>("/api/rapportage/ongecategoriseerd");
+}
+
+export function putOngecategoriseerd(afzender: string, invoer: AfzenderCategorieInvoer): Promise<void> {
+  return zendJsonLeeg(`/api/rapportage/ongecategoriseerd/${encodeURIComponent(afzender)}`, "PUT", invoer);
 }
 
 export function getAbonnementen(): Promise<AbonnementenResponse> {
@@ -639,4 +702,84 @@ export function putPlanningItem(id: number, item: PlanningItemInvoer): Promise<P
 
 export function deletePlanningItem(id: number): Promise<void> {
   return verwijder(`/api/planning/items/${id}`);
+}
+
+export type FactuurStatus = "nieuw" | "gematcht" | "gesplitst";
+
+export interface Factuur {
+  id: number;
+  bestandsnaam: string;
+  origineel_bestandsnaam: string | null;
+  bron: string;
+  totaalbedrag: number | null;
+  transactie_id: string | null;
+  status: FactuurStatus;
+  geupload_op: string;
+}
+
+export interface FactuurBijwerken {
+  bron: string;
+  totaalbedrag: number | null;
+  transactie_id: string | null;
+}
+
+export interface RegelInvoer {
+  omschrijving: string;
+  bedrag: number;
+  categorie: string | null;
+  subcategorie: string | null;
+}
+
+export interface Regel extends RegelInvoer {
+  id: number;
+  factuur_id: number;
+}
+
+export interface FactuurMetRegels extends Factuur {
+  regels: Regel[];
+}
+
+export interface FacturenResponse {
+  facturen: Factuur[];
+}
+
+export function getFacturen(): Promise<FacturenResponse> {
+  return fetchJson<FacturenResponse>("/api/verzamelfacturen/facturen");
+}
+
+export function getFactuur(id: number): Promise<FactuurMetRegels> {
+  return fetchJson<FactuurMetRegels>(`/api/verzamelfacturen/facturen/${id}`);
+}
+
+export function factuurBestandUrl(id: number): string {
+  return `${API_BASE}/api/verzamelfacturen/facturen/${id}/bestand`;
+}
+
+export async function postFactuur(bestand: File, bron: string, totaalbedrag: number | null): Promise<Factuur> {
+  const formData = new FormData();
+  formData.append("bestand", bestand);
+  formData.append("bron", bron);
+  if (totaalbedrag !== null) formData.append("totaalbedrag", String(totaalbedrag));
+  const response = await fetch(`${API_BASE}/api/verzamelfacturen/facturen`, { method: "POST", body: formData });
+  return afhandelenResponse<Factuur>(response);
+}
+
+export function putFactuur(id: number, invoer: FactuurBijwerken): Promise<Factuur> {
+  return zendJson<Factuur>(`/api/verzamelfacturen/facturen/${id}`, "PUT", invoer);
+}
+
+export function deleteFactuur(id: number): Promise<void> {
+  return verwijder(`/api/verzamelfacturen/facturen/${id}`);
+}
+
+export function postFactuurRegel(factuurId: number, regel: RegelInvoer): Promise<Regel> {
+  return zendJson<Regel>(`/api/verzamelfacturen/facturen/${factuurId}/regels`, "POST", regel);
+}
+
+export function putFactuurRegel(id: number, regel: RegelInvoer): Promise<Regel> {
+  return zendJson<Regel>(`/api/verzamelfacturen/regels/${id}`, "PUT", regel);
+}
+
+export function deleteFactuurRegel(id: number): Promise<void> {
+  return verwijder(`/api/verzamelfacturen/regels/${id}`);
 }

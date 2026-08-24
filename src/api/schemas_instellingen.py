@@ -14,6 +14,9 @@ class Instellingen(BaseModel):
     export_locatie: str
     planning_drempel_modus: Literal["maanden", "percentage"]
     planning_drempel_waarde: float
+    verzamelfacturen_locatie: str
+    data_te_oud_na_dagen: float
+    trend_venster_maanden: int
 
 
 class InstellingenInvoer(BaseModel):
@@ -21,6 +24,9 @@ class InstellingenInvoer(BaseModel):
     export_locatie: str
     planning_drempel_modus: Literal["maanden", "percentage"]
     planning_drempel_waarde: float
+    verzamelfacturen_locatie: str
+    data_te_oud_na_dagen: float
+    trend_venster_maanden: int
 
 
 class InstellingenResponse(BaseModel):

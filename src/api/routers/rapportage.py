@@ -1,3 +1,4 @@
+import json
 from datetime import date
 from itertools import groupby
 
@@ -5,25 +6,33 @@ import duckdb
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.api.banksaldo_berekening import bereken_banksaldo
-from src.api.deps import get_db
+from src.api.deps import get_db, get_write_db
 from src.api.queries import (
     GRANULARITEIT_NAAR_DUCKDB_EENHEID,
+    SQL_AFZENDER_CATEGORIE_TOEPASSEN,
+    SQL_AFZENDER_CATEGORIE_UPSERT,
     SQL_AFZENDERS,
     SQL_CATEGORIEEN,
     SQL_DATUM_BEREIK,
+    SQL_ONGECATEGORISEERD,
     SQL_STATUS,
     SQL_TOTALEN,
+    SQL_TRANSACTIE_DETAIL,
     SQL_TRANSACTIES,
     periode_starts_tussen,
 )
 from src.api.schemas import (
+    AfzenderCategorieInvoer,
     AfzendersResponse,
     Banksaldo,
     CategorieenResponse,
     CategorieGroep,
+    OngecategoriseerdAfzender,
+    OngecategoriseerdResponse,
     PeriodeTotaal,
     StatusResponse,
     Transactie,
+    TransactieDetail,
     TransactiesResponse,
     TotalenResponse,
 )
@@ -167,4 +176,63 @@ def get_transacties(
             )
             for transactie_id, datum, afzender_naam, bedrag_eur, mededelingen in rijen
         ]
+    )
+
+
+@router.get("/transacties/{transactie_id}/detail", response_model=TransactieDetail)
+def get_transactie_detail(
+    transactie_id: str,
+    con: duckdb.DuckDBPyConnection = Depends(get_db),
+) -> TransactieDetail:
+    rij = con.execute(SQL_TRANSACTIE_DETAIL, {"transactie_id": transactie_id}).fetchone()
+    if rij is None:
+        raise HTTPException(status_code=404, detail="Transactie niet gevonden.")
+    (
+        t_id, datum, naam_omschrijving, afzender, winkel, rekening, tegenrekening,
+        mededelingen, bedrag_eur, saldo_na_mutatie, categorie, subcategorie,
+        handmatig_overschreven, bronbestand, ruwe_rij_json,
+    ) = rij
+    return TransactieDetail(
+        transactie_id=t_id,
+        datum=datum,
+        naam_omschrijving=naam_omschrijving,
+        afzender=afzender,
+        winkel=winkel,
+        rekening=rekening,
+        tegenrekening=tegenrekening,
+        mededelingen=mededelingen,
+        bedrag_eur=bedrag_eur,
+        saldo_na_mutatie=saldo_na_mutatie,
+        categorie=categorie,
+        subcategorie=subcategorie,
+        handmatig_overschreven=handmatig_overschreven,
+        bronbestand=bronbestand,
+        ruwe_rij=json.loads(ruwe_rij_json) if ruwe_rij_json else None,
+    )
+
+
+@router.get("/ongecategoriseerd", response_model=OngecategoriseerdResponse)
+def get_ongecategoriseerd(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> OngecategoriseerdResponse:
+    rijen = con.execute(SQL_ONGECATEGORISEERD).fetchall()
+    return OngecategoriseerdResponse(
+        afzenders=[
+            OngecategoriseerdAfzender(afzender=afzender, aantal=aantal, totaalbedrag=totaalbedrag)
+            for afzender, aantal, totaalbedrag in rijen
+        ]
+    )
+
+
+@router.put("/ongecategoriseerd/{afzender}", status_code=204)
+def put_ongecategoriseerd(
+    afzender: str,
+    invoer: AfzenderCategorieInvoer,
+    con: duckdb.DuckDBPyConnection = Depends(get_write_db),
+) -> None:
+    con.execute(
+        SQL_AFZENDER_CATEGORIE_UPSERT,
+        {"afzender": afzender, "categorie": invoer.categorie, "subcategorie": invoer.subcategorie},
+    )
+    con.execute(
+        SQL_AFZENDER_CATEGORIE_TOEPASSEN,
+        {"afzender": afzender, "categorie": invoer.categorie, "subcategorie": invoer.subcategorie},
     )

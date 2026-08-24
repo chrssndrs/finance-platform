@@ -3,6 +3,7 @@ import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { DemoBanner } from "@/app/components/DemoBanner";
 import { NavBalk } from "@/app/components/NavBalk";
+import { OudeDataBanner } from "@/app/components/OudeDataBanner";
 import "./globals.css";
 
 // Zet de .dark class vóór hydratie, anders flitst de pagina eerst in het
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full flex flex-col">
         <DemoBanner />
+        <OudeDataBanner />
         <NavBalk>{children}</NavBalk>
       </body>
     </html>

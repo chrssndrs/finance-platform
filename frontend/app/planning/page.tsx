@@ -10,6 +10,7 @@ import {
   ApiError,
   getInboedelArtikelen,
   getInboedelOpties,
+  getInstellingen,
   getPlanningItems,
   type InboedelArtikel,
   type PeriodeTotaal,
@@ -78,6 +79,7 @@ export default function PlanningPagina() {
   const [toonNieuw, setToonNieuw] = useState(false);
   const [bewerktItem, setBewerktItem] = useState<PlanningItem | null>(null);
   const [bewerktArtikel, setBewerktArtikel] = useState<InboedelArtikel | null>(null);
+  const [trendVenster, setTrendVenster] = useState(3);
 
   function laadAlles() {
     Promise.all([getPlanningItems(), getInboedelArtikelen(), getInboedelOpties()])
@@ -92,6 +94,11 @@ export default function PlanningPagina() {
   }
 
   useEffect(laadAlles, []);
+  useEffect(() => {
+    getInstellingen()
+      .then((res) => setTrendVenster(res.instellingen.trend_venster_maanden))
+      .catch(() => {});
+  }, []);
 
   function planningOpgeslagen() {
     setToonNieuw(false);
@@ -182,7 +189,13 @@ export default function PlanningPagina() {
       </div>
 
       {!laden && !foutmelding && reeks.length > 0 && (
-        <TotalenChart reeks={reeks} granulariteit="maand" toonVerwacht zichtbareSeries={ALLEEN_VERWACHT} />
+        <TotalenChart
+          reeks={reeks}
+          granulariteit="maand"
+          toonVerwacht
+          zichtbareSeries={ALLEEN_VERWACHT}
+          trendVenster={trendVenster}
+        />
       )}
 
       {!laden && !foutmelding && (

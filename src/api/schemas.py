@@ -57,3 +57,36 @@ class Banksaldo(BaseModel):
     datum: date | None
     geschat_bedrag: float | None
 
+
+class OngecategoriseerdAfzender(BaseModel):
+    afzender: str
+    aantal: int
+    totaalbedrag: float
+
+
+class OngecategoriseerdResponse(BaseModel):
+    afzenders: list[OngecategoriseerdAfzender]
+
+
+class AfzenderCategorieInvoer(BaseModel):
+    categorie: str
+    subcategorie: str | None = None
+
+
+class TransactieDetail(BaseModel):
+    transactie_id: str
+    datum: date
+    naam_omschrijving: str
+    afzender: str
+    winkel: str | None
+    rekening: str | None
+    tegenrekening: str | None
+    mededelingen: str | None
+    bedrag_eur: float
+    saldo_na_mutatie: float | None
+    categorie: str
+    subcategorie: str
+    handmatig_overschreven: bool
+    bronbestand: str | None
+    ruwe_rij: dict[str, str | None] | None
+

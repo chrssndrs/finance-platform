@@ -2,13 +2,13 @@ from datetime import date, timedelta
 
 SQL_CATEGORIEEN = """
     SELECT DISTINCT categorie, subcategorie
-    FROM gold.transacties
+    FROM gold.transacties_effectief
     ORDER BY categorie, subcategorie
 """
 
 SQL_AFZENDERS = """
     SELECT DISTINCT afzender
-    FROM gold.transacties
+    FROM gold.transacties_effectief
     WHERE afzender IS NOT NULL
       AND ($categorie::VARCHAR IS NULL OR categorie = $categorie)
       AND ($subcategorie::VARCHAR IS NULL OR subcategorie = $subcategorie)
@@ -25,6 +25,40 @@ SQL_DATUM_BEREIK = """
     SELECT MIN(datum), MAX(datum) FROM gold.transacties
 """
 
+SQL_ONGECATEGORISEERD = """
+    SELECT afzender, COUNT(*) AS aantal, SUM(bedrag_eur)::DOUBLE AS totaalbedrag
+    FROM gold.transacties
+    WHERE categorie = 'Overig' AND afzender IS NOT NULL
+    GROUP BY afzender
+    ORDER BY aantal DESC
+"""
+
+SQL_AFZENDER_CATEGORIE_UPSERT = """
+    INSERT INTO gold.afzender_categorieen (afzender, categorie, subcategorie, aangemaakt_op)
+    VALUES ($afzender, $categorie, $subcategorie, now())
+    ON CONFLICT (afzender) DO UPDATE SET
+        categorie = excluded.categorie, subcategorie = excluded.subcategorie, aangemaakt_op = excluded.aangemaakt_op
+"""
+
+# Past meteen bestaande ongecategoriseerde transacties toe — zonder hierop
+# te wachten op de volgende nachtelijke pipeline-run (die run_gold's
+# LEFT JOIN op gold.afzender_categorieen zou hetzelfde effect geven).
+SQL_AFZENDER_CATEGORIE_TOEPASSEN = """
+    UPDATE gold.transacties SET categorie = $categorie, subcategorie = $subcategorie
+    WHERE afzender = $afzender AND categorie = 'Overig'
+"""
+
+SQL_TRANSACTIE_DETAIL = """
+    SELECT
+        t.transactie_id, t.datum, t.naam_omschrijving, t.afzender, t.winkel,
+        t.rekening, t.tegenrekening, t.mededelingen, t.bedrag_eur::DOUBLE, t.saldo_na_mutatie::DOUBLE,
+        t.categorie, t.subcategorie, t.handmatig_overschreven, t.bronbestand,
+        b.ruwe_rij
+    FROM gold.transacties_effectief t
+    LEFT JOIN bronze.transacties b ON b.rij_hash = t.rij_hash
+    WHERE t.transactie_id = $transactie_id
+"""
+
 # Meest recente bekende banksaldo — niet elke bank/rij heeft een
 # saldo_na_mutatie (afhankelijk van bank_config.saldo_kolom), dus expliciet
 # filteren i.p.v. aannemen dat de laatste rij op datum 'm heeft.
@@ -38,7 +72,7 @@ SQL_LAATSTE_SALDO = """
 
 SQL_TRANSACTIES = """
     SELECT transactie_id, datum, afzender, bedrag_eur::DOUBLE, mededelingen
-    FROM gold.transacties
+    FROM gold.transacties_effectief
     WHERE ($categorie::VARCHAR IS NULL OR categorie = $categorie)
       AND ($subcategorie::VARCHAR IS NULL OR subcategorie = $subcategorie)
       AND (len($afzenders::VARCHAR[]) = 0 OR list_contains($afzenders, afzender))
@@ -61,7 +95,7 @@ SQL_TOTALEN = """
     ),
     gefilterd AS (
         SELECT date_trunc($duckdb_eenheid, datum) AS periode_start, bedrag_eur
-        FROM gold.transacties
+        FROM gold.transacties_effectief
         WHERE ($categorie::VARCHAR IS NULL OR categorie = $categorie)
           AND ($subcategorie::VARCHAR IS NULL OR subcategorie = $subcategorie)
           AND (len($afzenders::VARCHAR[]) = 0 OR list_contains($afzenders, afzender))

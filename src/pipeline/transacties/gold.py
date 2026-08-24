@@ -93,6 +93,18 @@ def run_gold(
         )
     """)
 
+    # Door de gebruiker gekozen categorie per afzender (ongecategoriseerde-
+    # afzenders-inbox) — in tegenstelling tot gold.categorisatie_regels
+    # NIET herschreven vanuit config, blijft dus bewaard tussen pipeline-runs.
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS gold.afzender_categorieen (
+            afzender VARCHAR PRIMARY KEY,
+            categorie VARCHAR NOT NULL,
+            subcategorie VARCHAR,
+            aangemaakt_op TIMESTAMP
+        )
+    """)
+
     con.execute(
         """
         CREATE OR REPLACE TABLE gold.transacties AS
@@ -214,8 +226,8 @@ def run_gold(
         )
         SELECT
             s.*,
-            COALESCE(o.categorie, b.categorie, 'Overig')               AS categorie,
-            COALESCE(o.subcategorie, b.subcategorie, 'Ongecategoriseerd') AS subcategorie,
+            COALESCE(o.categorie, ac.categorie, b.categorie, 'Overig')               AS categorie,
+            COALESCE(o.subcategorie, ac.subcategorie, b.subcategorie, 'Ongecategoriseerd') AS subcategorie,
             (o.transactie_id IS NOT NULL)                                AS handmatig_overschreven,
             b.winkel                                                     AS winkel,
             a.afzender                                                   AS afzender
@@ -223,6 +235,7 @@ def run_gold(
         LEFT JOIN beste_match b ON b.transactie_id = s.transactie_id
         LEFT JOIN gold.categorie_overrides o ON o.transactie_id = s.transactie_id
         LEFT JOIN afzenders a ON a.transactie_id = s.transactie_id
+        LEFT JOIN gold.afzender_categorieen ac ON ac.afzender = a.afzender
         """,
         {
             "verwerker_patroon": VERWERKER_SUFFIX_PATROON,
@@ -230,6 +243,46 @@ def run_gold(
         },
     )
     logger.info("gold.transacties tabel klaar")
+
+    # Vervangt een verzamelfactuur-transactie (bv. één creditcard-afschrijving)
+    # door de handmatig gesplitste regels zodra die er zijn, zodat elke
+    # rapportage-query (totalen, transactielijst, categorieën, afzenders)
+    # automatisch de gesplitste bedragen/categorieën ziet i.p.v. de ene
+    # lump-transactie — zonder dat elke query zelf de splits-logica hoeft
+    # te kennen. Referentie naar een tabelnaam in een VIEW wordt door DuckDB
+    # bij elke query opnieuw opgezocht, dus deze hoeft niet herbouwd te
+    # worden als gold.transacties verandert — CREATE OR REPLACE hier is
+    # alleen zodat de view sowieso bestaat, ook bij de allereerste run.
+    con.execute("""
+        CREATE OR REPLACE VIEW gold.transacties_effectief AS
+        SELECT * FROM gold.transacties
+        WHERE transactie_id NOT IN (
+            SELECT transactie_id FROM verzamelfacturen.facturen
+            WHERE status = 'gesplitst' AND transactie_id IS NOT NULL
+        )
+        UNION ALL BY NAME
+        SELECT
+            f.transactie_id || '-regel-' || r.id AS transactie_id,
+            t.datum AS datum,
+            r.omschrijving AS naam_omschrijving,
+            t.rekening AS rekening,
+            t.tegenrekening AS tegenrekening,
+            r.omschrijving AS mededelingen,
+            r.bedrag AS bedrag_eur,
+            CAST(NULL AS DOUBLE) AS saldo_na_mutatie,
+            CAST(NULL AS VARCHAR) AS rij_hash,
+            t.bronbestand AS bronbestand,
+            t.ingelezen_op AS ingelezen_op,
+            COALESCE(r.categorie, 'Overig') AS categorie,
+            COALESCE(r.subcategorie, 'Ongecategoriseerd') AS subcategorie,
+            true AS handmatig_overschreven,
+            f.bron AS winkel,
+            f.bron AS afzender
+        FROM verzamelfacturen.regels r
+        JOIN verzamelfacturen.facturen f ON f.id = r.factuur_id
+        JOIN gold.transacties t ON t.transactie_id = f.transactie_id
+        WHERE f.status = 'gesplitst'
+    """)
 
     aantal_regels = con.execute("SELECT COUNT(*) FROM gold.categorisatie_regels").fetchone()[0]
     aantal_overrides = con.execute("SELECT COUNT(*) FROM gold.categorie_overrides").fetchone()[0]

@@ -24,24 +24,24 @@ const compactBedragFormat = new Intl.NumberFormat("nl-NL", {
   notation: "compact",
 });
 
-const TREND_VENSTER = 3;
+const STANDAARD_TREND_VENSTER = 3;
 
-function berekenVoortschrijdendGemiddelde(reeks: PeriodeTotaal[]): number[] {
+function berekenVoortschrijdendGemiddelde(reeks: PeriodeTotaal[], trendVenster: number): number[] {
   return reeks.map((_, i) => {
-    const start = Math.max(0, i - TREND_VENSTER + 1);
+    const start = Math.max(0, i - trendVenster + 1);
     const venster = reeks.slice(start, i + 1);
     const som = venster.reduce((acc, r) => acc + r.totaal, 0);
     return som / venster.length;
   });
 }
 
-function maakSerieLabels(granulariteit: Granulariteit): Record<string, string> {
+function maakSerieLabels(granulariteit: Granulariteit, trendVenster: number): Record<string, string> {
   return {
     inkomsten: "Inkomsten",
     uitgaven: "Uitgaven",
     verwachte_inkomsten: "Verwachte inkomsten",
     verwachte_uitgaven: "Verwachte uitgaven",
-    gemiddelde: `Gemiddelde (${TREND_VENSTER} ${EENHEID_ENKELVOUD[granulariteit]})`,
+    gemiddelde: `Gemiddelde (${trendVenster} ${EENHEID_ENKELVOUD[granulariteit]})`,
   };
 }
 
@@ -83,6 +83,10 @@ interface TotalenChartProps {
    * de kleine homepage-widgets die dit component ook gebruiken. */
   toonVerwacht?: boolean;
   zichtbareSeries?: Record<SerieKey, boolean>;
+  /** Aantal perioden voor het voortschrijdend gemiddelde (trendlijn),
+   * instelbaar via Instellingen — default 3 voor callers die 'm niet
+   * doorgeven (bv. homepage-widgets). */
+  trendVenster?: number;
 }
 
 export function TotalenChart({
@@ -92,8 +96,9 @@ export function TotalenChart({
   onPeriodeKlik,
   toonVerwacht = false,
   zichtbareSeries = ALLE_SERIES_ZICHTBAAR,
+  trendVenster = STANDAARD_TREND_VENSTER,
 }: TotalenChartProps) {
-  const gemiddelden = berekenVoortschrijdendGemiddelde(reeks);
+  const gemiddelden = berekenVoortschrijdendGemiddelde(reeks, trendVenster);
   const data = reeks.map((r, i) => ({
     periode: formatteerPeriode(r.periode_start, granulariteit),
     periodeStart: r.periode_start,
@@ -103,7 +108,7 @@ export function TotalenChart({
     verwachte_uitgaven: r.verwachte_uitgaven,
     gemiddelde: gemiddelden[i],
   }));
-  const serieLabels = maakSerieLabels(granulariteit);
+  const serieLabels = maakSerieLabels(granulariteit, trendVenster);
   const CustomTooltip = maakCustomTooltip(serieLabels);
 
   function klikBalk(item: { payload?: { periodeStart: string } }) {
@@ -114,6 +119,9 @@ export function TotalenChart({
     if (!geselecteerdePeriode) return 1;
     return periodeStart === geselecteerdePeriode ? 1 : 0.4;
   }
+
+  const toonVerwachteInkomsten = toonVerwacht && zichtbareSeries.verwachte_inkomsten;
+  const toonVerwachteUitgaven = toonVerwacht && zichtbareSeries.verwachte_uitgaven;
 
   return (
     <ResponsiveContainer width="100%" height={280}>
@@ -137,60 +145,69 @@ export function TotalenChart({
             <span className="text-neutral-600 dark:text-neutral-400">{serieLabels[value] ?? value}</span>
           )}
         />
-        {zichtbareSeries.inkomsten && (
-          <Bar
-            dataKey="inkomsten"
-            stackId="periode"
-            fill="var(--chart-series-1)"
-            maxBarSize={24}
-            isAnimationActive={false}
-            onClick={onPeriodeKlik ? klikBalk : undefined}
-            style={onPeriodeKlik ? { cursor: "pointer" } : undefined}
-          >
-            {onPeriodeKlik &&
-              data.map((d) => <Cell key={d.periodeStart} fillOpacity={celOpacity(d.periodeStart)} />)}
-          </Bar>
-        )}
-        {toonVerwacht && zichtbareSeries.verwachte_inkomsten && (
-          <Bar
-            dataKey="verwachte_inkomsten"
-            stackId="periode"
-            fill="var(--chart-series-1)"
-            fillOpacity={0.4}
-            maxBarSize={24}
-            isAnimationActive={false}
-            onClick={onPeriodeKlik ? klikBalk : undefined}
-            style={onPeriodeKlik ? { cursor: "pointer" } : undefined}
-          />
-        )}
-        {zichtbareSeries.uitgaven && (
-          <Bar
-            dataKey="uitgaven"
-            stackId="periode"
-            fill="var(--chart-series-2)"
-            radius={toonVerwacht && zichtbareSeries.verwachte_uitgaven ? undefined : [4, 4, 0, 0]}
-            maxBarSize={24}
-            isAnimationActive={false}
-            onClick={onPeriodeKlik ? klikBalk : undefined}
-            style={onPeriodeKlik ? { cursor: "pointer" } : undefined}
-          >
-            {onPeriodeKlik &&
-              data.map((d) => <Cell key={d.periodeStart} fillOpacity={celOpacity(d.periodeStart)} />)}
-          </Bar>
-        )}
-        {toonVerwacht && zichtbareSeries.verwachte_uitgaven && (
-          <Bar
-            dataKey="verwachte_uitgaven"
-            stackId="periode"
-            fill="var(--chart-series-2)"
-            fillOpacity={0.4}
-            radius={[4, 4, 0, 0]}
-            maxBarSize={24}
-            isAnimationActive={false}
-            onClick={onPeriodeKlik ? klikBalk : undefined}
-            style={onPeriodeKlik ? { cursor: "pointer" } : undefined}
-          />
-        )}
+        {/*
+          Alle 4 balken staan hier altijd, in een vaste volgorde — zichtbaarheid
+          wordt geregeld met Recharts' eigen "hide"-prop i.p.v. conditionele
+          JSX-mounting ({cond && <Bar/>}). Conditioneel mounten/unmounten zonder
+          stabiele identiteit liet een net-heraangemaakte balk soms bovenaan de
+          stack belanden i.p.v. op zijn vaste plek (bv. na inkomsten uit- en weer
+          aanvinken) — met "hide" blijven alle Bar-elementen de hele tijd
+          gemount, dus verandert de interne render-volgorde nooit.
+        */}
+        <Bar
+          key="inkomsten"
+          dataKey="inkomsten"
+          stackId="periode"
+          fill="var(--chart-series-1)"
+          maxBarSize={24}
+          hide={!zichtbareSeries.inkomsten}
+          isAnimationActive={false}
+          onClick={onPeriodeKlik ? klikBalk : undefined}
+          style={onPeriodeKlik ? { cursor: "pointer" } : undefined}
+        >
+          {onPeriodeKlik &&
+            data.map((d) => <Cell key={d.periodeStart} fillOpacity={celOpacity(d.periodeStart)} />)}
+        </Bar>
+        <Bar
+          key="verwachte_inkomsten"
+          dataKey="verwachte_inkomsten"
+          stackId="periode"
+          fill="var(--chart-series-1)"
+          fillOpacity={0.4}
+          maxBarSize={24}
+          hide={!toonVerwachteInkomsten}
+          isAnimationActive={false}
+          onClick={onPeriodeKlik ? klikBalk : undefined}
+          style={onPeriodeKlik ? { cursor: "pointer" } : undefined}
+        />
+        <Bar
+          key="uitgaven"
+          dataKey="uitgaven"
+          stackId="periode"
+          fill="var(--chart-series-2)"
+          radius={toonVerwachteUitgaven ? undefined : [4, 4, 0, 0]}
+          maxBarSize={24}
+          hide={!zichtbareSeries.uitgaven}
+          isAnimationActive={false}
+          onClick={onPeriodeKlik ? klikBalk : undefined}
+          style={onPeriodeKlik ? { cursor: "pointer" } : undefined}
+        >
+          {onPeriodeKlik &&
+            data.map((d) => <Cell key={d.periodeStart} fillOpacity={celOpacity(d.periodeStart)} />)}
+        </Bar>
+        <Bar
+          key="verwachte_uitgaven"
+          dataKey="verwachte_uitgaven"
+          stackId="periode"
+          fill="var(--chart-series-2)"
+          fillOpacity={0.4}
+          radius={[4, 4, 0, 0]}
+          maxBarSize={24}
+          hide={!toonVerwachteUitgaven}
+          isAnimationActive={false}
+          onClick={onPeriodeKlik ? klikBalk : undefined}
+          style={onPeriodeKlik ? { cursor: "pointer" } : undefined}
+        />
         <Line
           dataKey="gemiddelde"
           stroke="var(--chart-series-3)"
