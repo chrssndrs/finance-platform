@@ -253,13 +253,26 @@ def run_gold(
     # bij elke query opnieuw opgezocht, dus deze hoeft niet herbouwd te
     # worden als gold.transacties verandert — CREATE OR REPLACE hier is
     # alleen zodat de view sowieso bestaat, ook bij de allereerste run.
+    #
+    # De omruil (origineel -> regels) gebeurt pas als de som van de regels
+    # exact (op een cent na) het transactiebedrag dekt — zolang een factuur
+    # nog maar deels gesplitst is, blijft de originele lump-transactie hier
+    # gewoon staan. Zo verdwijnt er nooit geld uit de rapportages doordat een
+    # verzamelfactuur half gesplitst is blijven staan: pas als het klopt,
+    # wisselt de weergave om.
     con.execute("""
         CREATE OR REPLACE VIEW gold.transacties_effectief AS
-        SELECT * FROM gold.transacties
-        WHERE transactie_id NOT IN (
-            SELECT transactie_id FROM verzamelfacturen.facturen
-            WHERE status = 'gesplitst' AND transactie_id IS NOT NULL
+        WITH volledig_gesplitst AS (
+            SELECT f.transactie_id
+            FROM verzamelfacturen.facturen f
+            JOIN gold.transacties t ON t.transactie_id = f.transactie_id
+            JOIN verzamelfacturen.regels r ON r.factuur_id = f.id
+            WHERE f.status = 'gesplitst'
+            GROUP BY f.transactie_id, t.bedrag_eur
+            HAVING ABS(SUM(r.bedrag) - t.bedrag_eur) < 0.01
         )
+        SELECT * FROM gold.transacties
+        WHERE transactie_id NOT IN (SELECT transactie_id FROM volledig_gesplitst)
         UNION ALL BY NAME
         SELECT
             f.transactie_id || '-regel-' || r.id AS transactie_id,
@@ -281,7 +294,7 @@ def run_gold(
         FROM verzamelfacturen.regels r
         JOIN verzamelfacturen.facturen f ON f.id = r.factuur_id
         JOIN gold.transacties t ON t.transactie_id = f.transactie_id
-        WHERE f.status = 'gesplitst'
+        WHERE f.transactie_id IN (SELECT transactie_id FROM volledig_gesplitst)
     """)
 
     aantal_regels = con.execute("SELECT COUNT(*) FROM gold.categorisatie_regels").fetchone()[0]

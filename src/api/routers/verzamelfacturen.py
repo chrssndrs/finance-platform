@@ -36,11 +36,11 @@ router = APIRouter(prefix="/api/verzamelfacturen")
 MAX_BESTAND_BYTES = 20 * 1024 * 1024
 
 
-def _naar_factuur(id_, bestandsnaam, origineel_bestandsnaam, bron, totaalbedrag, transactie_id, status, geupload_op) -> Factuur:
+def _naar_factuur(id_, bestandsnaam, origineel_bestandsnaam, bron, totaalbedrag, transactie_id, status, geupload_op, transactie_bedrag) -> Factuur:
     return Factuur(
         id=id_, bestandsnaam=bestandsnaam, origineel_bestandsnaam=origineel_bestandsnaam,
         bron=bron, totaalbedrag=totaalbedrag, transactie_id=transactie_id,
-        status=status, geupload_op=geupload_op,
+        status=status, geupload_op=geupload_op, transactie_bedrag=transactie_bedrag,
     )
 
 
@@ -58,9 +58,36 @@ def _herbereken_status(con: duckdb.DuckDBPyConnection, factuur_id: int) -> None:
     if aantal_regels > 0:
         nieuwe_status = "gesplitst"
     else:
-        transactie_id = con.execute(SQL_FACTUUR_OPHALEN, {"id": factuur_id}).fetchone()[4]
+        transactie_id = con.execute(SQL_FACTUUR_OPHALEN, {"id": factuur_id}).fetchone()[5]
         nieuwe_status = "gematcht" if transactie_id else "nieuw"
     con.execute(SQL_FACTUUR_STATUS_ZETTEN, {"id": factuur_id, "status": nieuwe_status})
+
+
+def _valideer_som_regels(
+    con: duckdb.DuckDBPyConnection, factuur_id: int, nieuw_bedrag: float, regel_id_uitsluiten: int | None
+) -> None:
+    """Voorkomt dat de regels van een gesplitste factuur meer dan het
+    gekoppelde transactiebedrag optellen — anders kan de omruil in
+    gold.transacties_effectief (zie gold.py) nooit exact kloppen en blijft
+    de factuur voor altijd 'half gesplitst' zonder dat de gebruiker dat
+    doorheeft. Niet-gekoppelde facturen hebben geen doelbedrag om tegen te
+    toetsen en worden hier dus ongemoeid gelaten."""
+    factuur = con.execute(SQL_FACTUUR_OPHALEN, {"id": factuur_id}).fetchone()
+    transactie_bedrag = factuur[8]
+    if transactie_bedrag is None:
+        return
+    transactie_bedrag = float(transactie_bedrag)
+    regels = con.execute(SQL_REGELS_VOOR_FACTUUR, {"factuur_id": factuur_id}).fetchall()
+    som_overig = sum(float(r[3]) for r in regels if r[0] != regel_id_uitsluiten)
+    nieuwe_som = som_overig + nieuw_bedrag
+    if abs(nieuwe_som) > abs(transactie_bedrag) + 0.01:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Som van de regels (€{abs(nieuwe_som):.2f}) zou het transactiebedrag "
+                f"(€{abs(transactie_bedrag):.2f}) overschrijden."
+            ),
+        )
 
 
 @router.get("/facturen", response_model=FacturenResponse)
@@ -173,6 +200,7 @@ def post_regel(
 ) -> Regel:
     if con.execute(SQL_FACTUUR_OPHALEN, {"id": factuur_id}).fetchone() is None:
         raise HTTPException(status_code=404, detail="Verzamelfactuur niet gevonden.")
+    _valideer_som_regels(con, factuur_id, invoer.bedrag, regel_id_uitsluiten=None)
     nieuw_id = con.execute(
         SQL_REGEL_INVOEGEN,
         {
@@ -191,6 +219,10 @@ def put_regel(
     invoer: RegelInvoer,
     con: duckdb.DuckDBPyConnection = Depends(get_write_db),
 ) -> Regel:
+    bestaand = con.execute(SQL_REGEL_OPHALEN, {"id": regel_id}).fetchone()
+    if bestaand is None:
+        raise HTTPException(status_code=404, detail="Regel niet gevonden.")
+    _valideer_som_regels(con, bestaand[1], invoer.bedrag, regel_id_uitsluiten=regel_id)
     resultaat = con.execute(
         SQL_REGEL_BIJWERKEN,
         {

@@ -31,6 +31,7 @@ class Factuur(BaseModel):
     transactie_id: str | None
     status: Literal["nieuw", "gematcht", "gesplitst"]
     geupload_op: datetime
+    transactie_bedrag: float | None
 
 
 class FactuurMetRegels(Factuur):

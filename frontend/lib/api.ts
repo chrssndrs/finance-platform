@@ -704,6 +704,7 @@ export interface Factuur {
   transactie_id: string | null;
   status: FactuurStatus;
   geupload_op: string;
+  transactie_bedrag: number | null;
 }
 
 export interface FactuurBijwerken {

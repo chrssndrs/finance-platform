@@ -1,13 +1,17 @@
 SQL_FACTUREN = """
-    SELECT id, bestandsnaam, origineel_bestandsnaam, bron, totaalbedrag, transactie_id, status, geupload_op
-    FROM verzamelfacturen.facturen
-    ORDER BY geupload_op DESC
+    SELECT f.id, f.bestandsnaam, f.origineel_bestandsnaam, f.bron, f.totaalbedrag,
+           f.transactie_id, f.status, f.geupload_op, t.bedrag_eur
+    FROM verzamelfacturen.facturen f
+    LEFT JOIN gold.transacties t ON t.transactie_id = f.transactie_id
+    ORDER BY f.geupload_op DESC
 """
 
 SQL_FACTUUR_OPHALEN = """
-    SELECT id, bestandsnaam, origineel_bestandsnaam, bron, totaalbedrag, transactie_id, status, geupload_op
-    FROM verzamelfacturen.facturen
-    WHERE id = $id
+    SELECT f.id, f.bestandsnaam, f.origineel_bestandsnaam, f.bron, f.totaalbedrag,
+           f.transactie_id, f.status, f.geupload_op, t.bedrag_eur
+    FROM verzamelfacturen.facturen f
+    LEFT JOIN gold.transacties t ON t.transactie_id = f.transactie_id
+    WHERE f.id = $id
 """
 
 SQL_FACTUUR_INVOEGEN = """

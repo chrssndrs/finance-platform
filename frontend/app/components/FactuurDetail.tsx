@@ -43,18 +43,22 @@ function RegelRij({
   const [categorie, setCategorie] = useState<string | null>(regel.categorie);
   const [subcategorie, setSubcategorie] = useState<string | null>(regel.subcategorie);
   const [bezig, setBezig] = useState(false);
+  const [foutmelding, setFoutmelding] = useState<string | null>(null);
   const subcategorieen = categorieen.find((g) => g.categorie === categorie)?.subcategorieen ?? [];
 
-  async function opslaan() {
+  async function bijwerken(overrides: Partial<{ categorie: string | null; subcategorie: string | null }> = {}) {
     setBezig(true);
+    setFoutmelding(null);
     try {
       const bijgewerkt = await putFactuurRegel(regel.id, {
         omschrijving,
         bedrag: -Math.abs(Number(bedrag.replace(",", ".")) || 0),
-        categorie,
-        subcategorie,
+        categorie: overrides.categorie !== undefined ? overrides.categorie : categorie,
+        subcategorie: overrides.subcategorie !== undefined ? overrides.subcategorie : subcategorie,
       });
       onOpgeslagen(bijgewerkt);
+    } catch (err) {
+      setFoutmelding(err instanceof ApiError ? err.message : "Opslaan mislukt.");
     } finally {
       setBezig(false);
     }
@@ -66,7 +70,7 @@ function RegelRij({
         type="text"
         value={omschrijving}
         onChange={(e) => setOmschrijving(e.target.value)}
-        onBlur={opslaan}
+        onBlur={() => bijwerken()}
         className={`${inputKlasse} min-w-[8rem] flex-1`}
         placeholder="Omschrijving"
       />
@@ -75,7 +79,7 @@ function RegelRij({
         inputMode="decimal"
         value={bedrag}
         onChange={(e) => setBedrag(e.target.value)}
-        onBlur={opslaan}
+        onBlur={() => bijwerken()}
         className={`${inputKlasse} w-24`}
       />
       <div className="w-36">
@@ -86,10 +90,7 @@ function RegelRij({
           onChange={(c) => {
             setCategorie(c);
             setSubcategorie(null);
-            setBezig(true);
-            putFactuurRegel(regel.id, { omschrijving, bedrag: -Math.abs(Number(bedrag.replace(",", ".")) || 0), categorie: c, subcategorie: null })
-              .then(onOpgeslagen)
-              .finally(() => setBezig(false));
+            bijwerken({ categorie: c, subcategorie: null });
           }}
           vrijeInvoer
           placeholder="Categorie"
@@ -102,10 +103,7 @@ function RegelRij({
           waarde={subcategorie}
           onChange={(s) => {
             setSubcategorie(s);
-            setBezig(true);
-            putFactuurRegel(regel.id, { omschrijving, bedrag: -Math.abs(Number(bedrag.replace(",", ".")) || 0), categorie, subcategorie: s })
-              .then(onOpgeslagen)
-              .finally(() => setBezig(false));
+            bijwerken({ subcategorie: s });
           }}
           vrijeInvoer
           placeholder="Subcategorie"
@@ -119,6 +117,7 @@ function RegelRij({
       >
         Verwijderen
       </button>
+      {foutmelding && <p className="w-full text-sm text-red-700 dark:text-red-400">{foutmelding}</p>}
     </div>
   );
 }
@@ -126,10 +125,12 @@ function RegelRij({
 function NieuweRegelFormulier({
   factuurId,
   categorieen,
+  resterend,
   onToegevoegd,
 }: {
   factuurId: number;
   categorieen: CategorieGroep[];
+  resterend: number | null;
   onToegevoegd: (r: Regel) => void;
 }) {
   const [omschrijving, setOmschrijving] = useState("");
@@ -208,6 +209,15 @@ function NieuweRegelFormulier({
       >
         + Regel
       </button>
+      {resterend !== null && resterend > 0.01 && (
+        <button
+          type="button"
+          onClick={() => setBedrag(String(resterend.toFixed(2)).replace(".", ","))}
+          className="text-xs text-neutral-500 underline hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+        >
+          Vul resterend bedrag in ({bedragFormat.format(resterend)})
+        </button>
+      )}
       {foutmelding && <p className="w-full text-sm text-red-700 dark:text-red-400">{foutmelding}</p>}
     </div>
   );
@@ -337,7 +347,10 @@ export function FactuurDetail({
 
   if (!factuur) return <p className="text-sm text-neutral-400">Laden...</p>;
 
-  const som = factuur.regels.reduce((s, r) => s + Math.abs(r.bedrag), 0);
+  const somRegels = factuur.regels.reduce((s, r) => s + Math.abs(r.bedrag), 0);
+  const doelBedrag = factuur.transactie_bedrag !== null ? Math.abs(factuur.transactie_bedrag) : null;
+  const resterend = doelBedrag !== null ? Math.round((doelBedrag - somRegels) * 100) / 100 : null;
+  const volledigGesplitst = doelBedrag !== null && Math.abs(somRegels - doelBedrag) < 0.01;
   const isPdf = factuur.bestandsnaam.toLowerCase().endsWith(".pdf");
 
   return (
@@ -401,14 +414,19 @@ export function FactuurDetail({
           <NieuweRegelFormulier
             factuurId={factuur.id}
             categorieen={categorieen}
+            resterend={resterend}
             onToegevoegd={(r) => {
               setFactuur((huidig) => (huidig ? { ...huidig, regels: [...huidig.regels, r], status: "gesplitst" } : huidig));
               onGewijzigd();
             }}
           />
-          {factuur.totaalbedrag !== null && (
-            <div className={`mt-2 text-xs ${Math.abs(som - factuur.totaalbedrag) < 0.01 ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"}`}>
-              Som regels: {bedragFormat.format(som)} van {bedragFormat.format(factuur.totaalbedrag)}
+          {doelBedrag !== null && (
+            <div className={`mt-2 text-xs ${volledigGesplitst ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"}`}>
+              {volledigGesplitst
+                ? `✓ Volledig gesplitst — som regels: ${bedragFormat.format(somRegels)} van ${bedragFormat.format(doelBedrag)}`
+                : `Som regels: ${bedragFormat.format(somRegels)} van ${bedragFormat.format(doelBedrag)} — nog ${bedragFormat.format(
+                    resterend ?? 0
+                  )} te verdelen. Tot dit klopt blijft de oorspronkelijke transactie in rapportages staan.`}
             </div>
           )}
         </div>
