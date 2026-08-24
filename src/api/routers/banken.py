@@ -15,6 +15,7 @@ from src.api.queries_banken import (
 )
 from src.api.routers.instellingen import _valideer_locatie
 from src.api.schemas_banken import Bank, BankenResponse, BankRegistratie, KolomDetectie
+from src.pipeline.orchestrator import PipelineStapGefaald, run_pipeline
 from src.pipeline.paths import DATA_ROOT
 
 router = APIRouter(prefix="/api/banken")
@@ -124,5 +125,17 @@ async def post_bank_upload(
     doel_pad.write_bytes(inhoud)
 
     con.execute(SQL_BANK_LAATST_GEBRUIKT_ZETTEN, {"bank": bank})
+
+    # Meteen verwerken i.p.v. wachten op de nachtelijke cron — het bestand
+    # staat al veilig op schijf, dus bij een pipeline-fout melden we dat
+    # duidelijk maar hoeft de upload zelf niet als mislukt te gelden.
+    try:
+        run_pipeline(con)
+    except PipelineStapGefaald as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Bestand is opgeslagen, maar verwerken is mislukt bij stap '{e.stap}': {e.oorzaak}",
+        ) from e
+
     rij = con.execute(SQL_BANK_OPHALEN, {"bank": bank}).fetchone()
     return _naar_bank(rij)
