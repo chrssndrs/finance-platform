@@ -829,3 +829,45 @@ export async function postBankUpload(bank: string, bestand: File): Promise<Bank>
   });
   return afhandelenResponse<Bank>(response);
 }
+
+export interface Telling {
+  coupure: number;
+  aantal: number;
+}
+
+export interface ContantGeldLocatie {
+  id: number;
+  naam: string;
+  tellingen: Telling[];
+  totaal: number;
+}
+
+export interface ContantGeldResponse {
+  coupures: number[];
+  locaties: ContantGeldLocatie[];
+  totaal_algemeen: number;
+}
+
+export interface LocatieInvoer {
+  naam: string;
+}
+
+export function getContantGeld(): Promise<ContantGeldResponse> {
+  return fetchJson<ContantGeldResponse>("/api/contantgeld");
+}
+
+export function postContantGeldLocatie(locatie: LocatieInvoer): Promise<ContantGeldLocatie> {
+  return zendJson<ContantGeldLocatie>("/api/contantgeld/locaties", "POST", locatie);
+}
+
+export function putContantGeldLocatie(id: number, locatie: LocatieInvoer): Promise<ContantGeldLocatie> {
+  return zendJson<ContantGeldLocatie>(`/api/contantgeld/locaties/${id}`, "PUT", locatie);
+}
+
+export function deleteContantGeldLocatie(id: number): Promise<void> {
+  return verwijder(`/api/contantgeld/locaties/${id}`);
+}
+
+export function putContantGeldTellingen(id: number, tellingen: Telling[]): Promise<ContantGeldLocatie> {
+  return zendJson<ContantGeldLocatie>(`/api/contantgeld/locaties/${id}/tellingen`, "PUT", { tellingen });
+}

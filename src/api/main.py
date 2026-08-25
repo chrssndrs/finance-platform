@@ -10,6 +10,7 @@ from src.api.routers import (
     abonnementen,
     banken,
     beleggingen,
+    contantgeld,
     hypotheek,
     inboedel,
     instellingen,
@@ -67,3 +68,4 @@ app.include_router(overzicht.router)
 app.include_router(planning.router)
 app.include_router(verzamelfacturen.router)
 app.include_router(banken.router)
+app.include_router(contantgeld.router)

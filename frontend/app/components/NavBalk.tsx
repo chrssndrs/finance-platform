@@ -15,6 +15,7 @@ const DOMEINEN = [
   { pad: "/hypotheek", label: "Hypotheek" },
   { pad: "/planning", label: "Planning" },
   { pad: "/verzamelfacturen", label: "Verzamelfacturen" },
+  { pad: "/contant-geld", label: "Contant geld" },
 ];
 
 const iconKnopKlasse =

@@ -6,7 +6,7 @@ from src.pipeline.paths import CONFIG_ROOT
 
 
 def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
-    for naam in ("meta", "landing", "bronze", "silver", "gold", "inboedel", "abonnementen", "instellingen", "vastgoed", "beleggingen", "hypotheek", "overzicht", "planning", "verzamelfacturen"):
+    for naam in ("meta", "landing", "bronze", "silver", "gold", "inboedel", "abonnementen", "instellingen", "vastgoed", "beleggingen", "hypotheek", "overzicht", "planning", "verzamelfacturen", "contantgeld"):
         con.execute(f"CREATE SCHEMA IF NOT EXISTS {naam}")
 
     con.execute("CREATE SEQUENCE IF NOT EXISTS meta.bestanden_log_seq START 1")
@@ -354,6 +354,27 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
             categorie VARCHAR,
             subcategorie VARCHAR,
             aangemaakt_op TIMESTAMP NOT NULL
+        )
+    """)
+
+    # Contant geld: eenvoudige telling per coupure per bewaarlocatie
+    # (portemonnee, kluis, etc.) — geen koppeling met banktransacties,
+    # puur een handmatig bijgehouden momentopname.
+    con.execute("CREATE SEQUENCE IF NOT EXISTS contantgeld.locaties_seq START 1")
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS contantgeld.locaties (
+            id INTEGER PRIMARY KEY DEFAULT nextval('contantgeld.locaties_seq'),
+            naam VARCHAR NOT NULL,
+            aangemaakt_op TIMESTAMP NOT NULL
+        )
+    """)
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS contantgeld.tellingen (
+            locatie_id INTEGER NOT NULL,
+            coupure DECIMAL(10,2) NOT NULL,
+            aantal INTEGER NOT NULL DEFAULT 0,
+            bijgewerkt_op TIMESTAMP NOT NULL,
+            PRIMARY KEY (locatie_id, coupure)
         )
     """)
 
