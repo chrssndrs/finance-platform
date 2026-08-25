@@ -357,9 +357,12 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
         )
     """)
 
-    # Contant geld: eenvoudige telling per coupure per bewaarlocatie
-    # (portemonnee, kluis, etc.) — geen koppeling met banktransacties,
-    # puur een handmatig bijgehouden momentopname.
+    # Contant geld: telling per coupure per bewaarlocatie (portemonnee,
+    # kluis, etc.) — geen enkele-momentopname meer, maar een event-log
+    # (mutaties) zodat er geschiedenis is en geld tussen locaties verplaatst
+    # of uitgegeven kan worden. De huidige voorraad per locatie/coupure is
+    # afgeleid (SUM van signed mutatie-regels via de voorraad-view hieronder),
+    # nooit direct overschreven.
     con.execute("CREATE SEQUENCE IF NOT EXISTS contantgeld.locaties_seq START 1")
     con.execute("""
         CREATE TABLE IF NOT EXISTS contantgeld.locaties (
@@ -368,14 +371,66 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
             aangemaakt_op TIMESTAMP NOT NULL
         )
     """)
+    # Vervangen door het mutaties-model hieronder — leeg in de praktijk
+    # (nog geen tellingen ingevoerd via de vorige, niet-historische versie).
+    con.execute("DROP TABLE IF EXISTS contantgeld.tellingen")
+
+    con.execute("CREATE SEQUENCE IF NOT EXISTS contantgeld.mutaties_seq START 1")
     con.execute("""
-        CREATE TABLE IF NOT EXISTS contantgeld.tellingen (
-            locatie_id INTEGER NOT NULL,
-            coupure DECIMAL(10,2) NOT NULL,
-            aantal INTEGER NOT NULL DEFAULT 0,
-            bijgewerkt_op TIMESTAMP NOT NULL,
-            PRIMARY KEY (locatie_id, coupure)
+        CREATE TABLE IF NOT EXISTS contantgeld.mutaties (
+            id INTEGER PRIMARY KEY DEFAULT nextval('contantgeld.mutaties_seq'),
+            type VARCHAR NOT NULL,
+            datum DATE NOT NULL,
+            locatie_id INTEGER,
+            locatie_naam VARCHAR,
+            van_locatie_id INTEGER,
+            van_locatie_naam VARCHAR,
+            naar_locatie_id INTEGER,
+            naar_locatie_naam VARCHAR,
+            omschrijving VARCHAR,
+            categorie VARCHAR,
+            subcategorie VARCHAR,
+            bedrag DECIMAL(10,2) NOT NULL,
+            aangemaakt_op TIMESTAMP NOT NULL
         )
+    """)
+    # locatie_naam/van_locatie_naam/naar_locatie_naam zijn bewust een
+    # momentopname-snapshot (niet live via JOIN) — zo blijft de geschiedenis
+    # leesbaar ook als een locatie later hernoemd of verwijderd wordt.
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS contantgeld.mutatie_regels (
+            mutatie_id INTEGER NOT NULL,
+            coupure DECIMAL(10,2) NOT NULL,
+            aantal INTEGER NOT NULL,
+            PRIMARY KEY (mutatie_id, coupure)
+        )
+    """)
+    # Signed aantal per (locatie, coupure): 'telling' is zelf al een delta
+    # (kan negatief zijn, bv. een correctie naar beneden); 'verplaatsing' en
+    # 'uitgave' slaan altijd een positief aantal op, het teken hangt af van
+    # de rol (van/naar/locatie) — vandaar de losse UNION-takken hieronder
+    # i.p.v. één simpele SUM.
+    con.execute("""
+        CREATE OR REPLACE VIEW contantgeld.voorraad AS
+        SELECT locatie_id, coupure, SUM(delta)::INTEGER AS aantal
+        FROM (
+            SELECT m.locatie_id AS locatie_id, r.coupure AS coupure, r.aantal AS delta
+            FROM contantgeld.mutaties m JOIN contantgeld.mutatie_regels r ON r.mutatie_id = m.id
+            WHERE m.type = 'telling'
+            UNION ALL
+            SELECT m.locatie_id, r.coupure, -r.aantal
+            FROM contantgeld.mutaties m JOIN contantgeld.mutatie_regels r ON r.mutatie_id = m.id
+            WHERE m.type = 'uitgave'
+            UNION ALL
+            SELECT m.van_locatie_id, r.coupure, -r.aantal
+            FROM contantgeld.mutaties m JOIN contantgeld.mutatie_regels r ON r.mutatie_id = m.id
+            WHERE m.type = 'verplaatsing'
+            UNION ALL
+            SELECT m.naar_locatie_id, r.coupure, r.aantal
+            FROM contantgeld.mutaties m JOIN contantgeld.mutatie_regels r ON r.mutatie_id = m.id
+            WHERE m.type = 'verplaatsing'
+        ) alles
+        GROUP BY locatie_id, coupure
     """)
 
 

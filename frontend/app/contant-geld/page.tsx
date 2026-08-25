@@ -2,18 +2,24 @@
 
 import { useEffect, useState } from "react";
 
+import { Overlay } from "@/app/components/Overlay";
+import { UitgaveFormulier } from "@/app/components/UitgaveFormulier";
+import { VerplaatsFormulier } from "@/app/components/VerplaatsFormulier";
 import {
   ApiError,
   deleteContantGeldLocatie,
   getContantGeld,
+  getContantGeldHistorie,
   postContantGeldLocatie,
   putContantGeldLocatie,
-  putContantGeldTellingen,
+  putContantGeldTelling,
   type ContantGeldLocatie,
+  type ContantGeldMutatie,
   type ContantGeldResponse,
 } from "@/lib/api";
 
 const bedragFormat = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
+const datumFormat = new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "short", year: "numeric" });
 
 const inputKlasse =
   "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 sm:text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100";
@@ -21,6 +27,12 @@ const inputKlasse =
 // Coupures t/m 2 euro zijn munten, alles erboven briefgeld — bepaalt waar
 // de visuele scheidingslijn in de tabel komt.
 const MUNTEN_GRENS = 2;
+
+const TYPE_LABEL: Record<ContantGeldMutatie["type"], string> = {
+  telling: "Correctie",
+  verplaatsing: "Verplaatsing",
+  uitgave: "Uitgave",
+};
 
 function AantalInput({
   locatieId,
@@ -31,7 +43,7 @@ function AantalInput({
   locatieId: number;
   coupure: number;
   aantal: number;
-  onOpgeslagen: (locatie: ContantGeldLocatie) => void;
+  onOpgeslagen: (data: ContantGeldResponse) => void;
 }) {
   const [waarde, setWaarde] = useState(String(aantal));
   const [bezig, setBezig] = useState(false);
@@ -42,8 +54,8 @@ function AantalInput({
     if (nieuw === aantal) return;
     setBezig(true);
     try {
-      const locatie = await putContantGeldTellingen(locatieId, [{ coupure, aantal: nieuw }]);
-      onOpgeslagen(locatie);
+      const resultaat = await putContantGeldTelling(locatieId, { coupure, aantal: nieuw });
+      onOpgeslagen(resultaat);
     } catch {
       setWaarde(String(aantal));
     } finally {
@@ -70,7 +82,7 @@ function LocatieNaam({
   onOpgeslagen,
 }: {
   locatie: ContantGeldLocatie;
-  onOpgeslagen: (locatie: ContantGeldLocatie) => void;
+  onOpgeslagen: (data: ContantGeldResponse) => void;
 }) {
   const [naam, setNaam] = useState(locatie.naam);
   const [bezig, setBezig] = useState(false);
@@ -83,8 +95,8 @@ function LocatieNaam({
     }
     setBezig(true);
     try {
-      const bijgewerkt = await putContantGeldLocatie(locatie.id, { naam: nieuweNaam });
-      onOpgeslagen(bijgewerkt);
+      const resultaat = await putContantGeldLocatie(locatie.id, { naam: nieuweNaam });
+      onOpgeslagen(resultaat);
     } catch {
       setNaam(locatie.naam);
     } finally {
@@ -104,28 +116,39 @@ function LocatieNaam({
   );
 }
 
+function mutatieOmschrijving(m: ContantGeldMutatie): string {
+  if (m.type === "verplaatsing") {
+    return `${m.van_locatie_naam} → ${m.naar_locatie_naam}${m.omschrijving ? ` — ${m.omschrijving}` : ""}`;
+  }
+  if (m.type === "uitgave") {
+    return `${m.omschrijving} (uit ${m.locatie_naam})`;
+  }
+  return `${m.locatie_naam}`;
+}
+
 export default function ContantGeldPagina() {
   const [data, setData] = useState<ContantGeldResponse | null>(null);
+  const [historie, setHistorie] = useState<ContantGeldMutatie[] | null>(null);
   const [nieuweLocatieNaam, setNieuweLocatieNaam] = useState("");
   const [bezig, setBezig] = useState(false);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
+  const [toonVerplaatsen, setToonVerplaatsen] = useState(false);
+  const [toonUitgeven, setToonUitgeven] = useState(false);
+
+  function laadHistorie() {
+    getContantGeldHistorie().then((res) => setHistorie(res.mutaties));
+  }
 
   useEffect(() => {
     getContantGeld()
       .then(setData)
       .catch((err) => setFoutmelding(err instanceof ApiError ? err.message : "Kon contant geld niet laden."));
+    laadHistorie();
   }, []);
 
-  function herbereken(locaties: ContantGeldLocatie[]): number {
-    return Math.round(locaties.reduce((s, l) => s + l.totaal, 0) * 100) / 100;
-  }
-
-  function locatieBijgewerkt(bijgewerkt: ContantGeldLocatie) {
-    setData((huidig) => {
-      if (!huidig) return huidig;
-      const locaties = huidig.locaties.map((l) => (l.id === bijgewerkt.id ? bijgewerkt : l));
-      return { ...huidig, locaties, totaal_algemeen: herbereken(locaties) };
-    });
+  function bijgewerkt(resultaat: ContantGeldResponse) {
+    setData(resultaat);
+    laadHistorie();
   }
 
   async function locatieToevoegen(e: React.FormEvent) {
@@ -134,8 +157,8 @@ export default function ContantGeldPagina() {
     setBezig(true);
     setFoutmelding(null);
     try {
-      const locatie = await postContantGeldLocatie({ naam: nieuweLocatieNaam.trim() });
-      setData((huidig) => (huidig ? { ...huidig, locaties: [...huidig.locaties, locatie] } : huidig));
+      const resultaat = await postContantGeldLocatie({ naam: nieuweLocatieNaam.trim() });
+      setData(resultaat);
       setNieuweLocatieNaam("");
     } catch (err) {
       setFoutmelding(err instanceof ApiError ? err.message : "Toevoegen mislukt.");
@@ -146,21 +169,41 @@ export default function ContantGeldPagina() {
 
   async function locatieVerwijderen(locatie: ContantGeldLocatie) {
     if (!window.confirm(`"${locatie.naam}" verwijderen?`)) return;
+    setFoutmelding(null);
     try {
       await deleteContantGeldLocatie(locatie.id);
-      setData((huidig) => {
-        if (!huidig) return huidig;
-        const locaties = huidig.locaties.filter((l) => l.id !== locatie.id);
-        return { ...huidig, locaties, totaal_algemeen: herbereken(locaties) };
-      });
+      const resultaat = await getContantGeld();
+      setData(resultaat);
     } catch (err) {
       setFoutmelding(err instanceof ApiError ? err.message : "Verwijderen mislukt.");
     }
   }
 
+  const kanMuteren = !!data && data.locaties.length >= 1;
+
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-10">
-      <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">Contant geld</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">Contant geld</h1>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={!kanMuteren}
+            onClick={() => setToonVerplaatsen(true)}
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          >
+            Verplaatsen
+          </button>
+          <button
+            type="button"
+            disabled={!kanMuteren}
+            onClick={() => setToonUitgeven(true)}
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          >
+            Uitgeven
+          </button>
+        </div>
+      </div>
 
       <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
         <div className="text-sm text-neutral-500 dark:text-neutral-400">Totaal</div>
@@ -212,7 +255,7 @@ export default function ContantGeldPagina() {
               {data.locaties.map((locatie) => (
                 <tr key={locatie.id} className="border-b border-neutral-100 last:border-b-0 dark:border-neutral-900">
                   <td className="sticky left-0 bg-white px-3 py-2 dark:bg-neutral-900">
-                    <LocatieNaam locatie={locatie} onOpgeslagen={locatieBijgewerkt} />
+                    <LocatieNaam locatie={locatie} onOpgeslagen={bijgewerkt} />
                   </td>
                   {locatie.tellingen.map((t, i) => (
                     <td
@@ -224,12 +267,7 @@ export default function ContantGeldPagina() {
                           : "")
                       }
                     >
-                      <AantalInput
-                        locatieId={locatie.id}
-                        coupure={t.coupure}
-                        aantal={t.aantal}
-                        onOpgeslagen={locatieBijgewerkt}
-                      />
+                      <AantalInput locatieId={locatie.id} coupure={t.coupure} aantal={t.aantal} onOpgeslagen={bijgewerkt} />
                     </td>
                   ))}
                   <td className="whitespace-nowrap border-l border-neutral-200 px-3 py-2 text-right font-medium tabular-nums text-neutral-900 dark:border-neutral-800 dark:text-neutral-100">
@@ -271,6 +309,71 @@ export default function ContantGeldPagina() {
           {bezig ? "Bezig..." : "+ Locatie toevoegen"}
         </button>
       </form>
+
+      <div>
+        <div className="mb-2 text-sm font-medium text-neutral-900 dark:text-neutral-100">Geschiedenis</div>
+        {historie === null && <p className="text-sm text-neutral-400">Laden...</p>}
+        {historie !== null && historie.length === 0 && (
+          <p className="text-sm text-neutral-400">Nog geen mutaties.</p>
+        )}
+        {historie !== null && historie.length > 0 && (
+          <div className="overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-800">
+            {historie.map((m) => (
+              <div
+                key={m.id}
+                className="flex items-center justify-between gap-3 border-b border-neutral-100 px-3 py-2 text-sm last:border-b-0 dark:border-neutral-900"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="w-20 shrink-0 text-xs font-medium text-neutral-500 dark:text-neutral-400">
+                    {TYPE_LABEL[m.type]}
+                  </span>
+                  <span className="truncate text-neutral-900 dark:text-neutral-100">{mutatieOmschrijving(m)}</span>
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="text-xs text-neutral-400">{datumFormat.format(new Date(m.datum))}</span>
+                  <span
+                    className={
+                      "tabular-nums font-medium " +
+                      (m.type === "uitgave"
+                        ? "text-red-700 dark:text-red-400"
+                        : "text-neutral-900 dark:text-neutral-100")
+                    }
+                  >
+                    {m.type === "uitgave" ? "−" : ""}
+                    {bedragFormat.format(m.bedrag)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {data && (
+        <Overlay open={toonVerplaatsen} onClose={() => setToonVerplaatsen(false)} titel="Geld verplaatsen">
+          <VerplaatsFormulier
+            data={data}
+            onOpgeslagen={(resultaat) => {
+              bijgewerkt(resultaat);
+              setToonVerplaatsen(false);
+            }}
+            onAnnuleren={() => setToonVerplaatsen(false)}
+          />
+        </Overlay>
+      )}
+
+      {data && (
+        <Overlay open={toonUitgeven} onClose={() => setToonUitgeven(false)} titel="Geld uitgeven">
+          <UitgaveFormulier
+            data={data}
+            onOpgeslagen={(resultaat) => {
+              bijgewerkt(resultaat);
+              setToonUitgeven(false);
+            }}
+            onAnnuleren={() => setToonUitgeven(false)}
+          />
+        </Overlay>
+      )}
     </main>
   );
 }

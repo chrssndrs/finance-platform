@@ -852,22 +852,75 @@ export interface LocatieInvoer {
   naam: string;
 }
 
+export interface CoupureRegel {
+  coupure: number;
+  aantal: number;
+}
+
+export interface VerplaatsingInvoer {
+  van_locatie_id: number;
+  naar_locatie_id: number;
+  datum: string;
+  omschrijving: string | null;
+  regels: CoupureRegel[];
+}
+
+export interface UitgaveInvoer {
+  locatie_id: number;
+  datum: string;
+  omschrijving: string;
+  categorie: string | null;
+  subcategorie: string | null;
+  regels: CoupureRegel[];
+}
+
+export interface ContantGeldMutatie {
+  id: number;
+  type: "telling" | "verplaatsing" | "uitgave";
+  datum: string;
+  locatie_naam: string | null;
+  van_locatie_naam: string | null;
+  naar_locatie_naam: string | null;
+  omschrijving: string | null;
+  categorie: string | null;
+  subcategorie: string | null;
+  bedrag: number;
+  aangemaakt_op: string;
+  regels: CoupureRegel[];
+}
+
+export interface ContantGeldHistorieResponse {
+  mutaties: ContantGeldMutatie[];
+}
+
 export function getContantGeld(): Promise<ContantGeldResponse> {
   return fetchJson<ContantGeldResponse>("/api/contantgeld");
 }
 
-export function postContantGeldLocatie(locatie: LocatieInvoer): Promise<ContantGeldLocatie> {
-  return zendJson<ContantGeldLocatie>("/api/contantgeld/locaties", "POST", locatie);
+export function getContantGeldHistorie(): Promise<ContantGeldHistorieResponse> {
+  return fetchJson<ContantGeldHistorieResponse>("/api/contantgeld/historie");
 }
 
-export function putContantGeldLocatie(id: number, locatie: LocatieInvoer): Promise<ContantGeldLocatie> {
-  return zendJson<ContantGeldLocatie>(`/api/contantgeld/locaties/${id}`, "PUT", locatie);
+export function postContantGeldLocatie(locatie: LocatieInvoer): Promise<ContantGeldResponse> {
+  return zendJson<ContantGeldResponse>("/api/contantgeld/locaties", "POST", locatie);
+}
+
+export function putContantGeldLocatie(id: number, locatie: LocatieInvoer): Promise<ContantGeldResponse> {
+  return zendJson<ContantGeldResponse>(`/api/contantgeld/locaties/${id}`, "PUT", locatie);
 }
 
 export function deleteContantGeldLocatie(id: number): Promise<void> {
   return verwijder(`/api/contantgeld/locaties/${id}`);
 }
 
-export function putContantGeldTellingen(id: number, tellingen: Telling[]): Promise<ContantGeldLocatie> {
-  return zendJson<ContantGeldLocatie>(`/api/contantgeld/locaties/${id}/tellingen`, "PUT", { tellingen });
+export function putContantGeldTelling(id: number, telling: Telling): Promise<ContantGeldResponse> {
+  return zendJson<ContantGeldResponse>(`/api/contantgeld/locaties/${id}/telling`, "PUT", telling);
+}
+
+export function postContantGeldVerplaatsen(invoer: VerplaatsingInvoer): Promise<ContantGeldResponse> {
+  return zendJson<ContantGeldResponse>("/api/contantgeld/verplaatsen", "POST", invoer);
+}
+
+export function postContantGeldUitgeven(invoer: UitgaveInvoer): Promise<ContantGeldResponse> {
+  return zendJson<ContantGeldResponse>("/api/contantgeld/uitgeven", "POST", invoer);
 }

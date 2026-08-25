@@ -295,6 +295,26 @@ def run_gold(
         JOIN verzamelfacturen.facturen f ON f.id = r.factuur_id
         JOIN gold.transacties t ON t.transactie_id = f.transactie_id
         WHERE f.transactie_id IN (SELECT transactie_id FROM volledig_gesplitst)
+        UNION ALL BY NAME
+        SELECT
+            'cash-' || m.id AS transactie_id,
+            m.datum AS datum,
+            m.omschrijving AS naam_omschrijving,
+            CAST(NULL AS VARCHAR) AS rekening,
+            CAST(NULL AS VARCHAR) AS tegenrekening,
+            m.omschrijving AS mededelingen,
+            -m.bedrag AS bedrag_eur,
+            CAST(NULL AS DOUBLE) AS saldo_na_mutatie,
+            CAST(NULL AS VARCHAR) AS rij_hash,
+            CAST(NULL AS VARCHAR) AS bronbestand,
+            m.aangemaakt_op AS ingelezen_op,
+            COALESCE(m.categorie, 'Overig') AS categorie,
+            COALESCE(m.subcategorie, 'Ongecategoriseerd') AS subcategorie,
+            true AS handmatig_overschreven,
+            m.omschrijving AS winkel,
+            m.omschrijving AS afzender
+        FROM contantgeld.mutaties m
+        WHERE m.type = 'uitgave'
     """)
 
     aantal_regels = con.execute("SELECT COUNT(*) FROM gold.categorisatie_regels").fetchone()[0]
