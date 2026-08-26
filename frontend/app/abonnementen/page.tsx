@@ -8,6 +8,7 @@ import { AbonnementKaart } from "@/app/components/AbonnementKaart";
 import { Overlay } from "@/app/components/Overlay";
 import {
   ApiError,
+  bedragAbonnementPerMaand,
   getAanbevelingen,
   getAbonnementen,
   getAfzenders,
@@ -16,20 +17,6 @@ import {
 } from "@/lib/api";
 
 const bedragFormat = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
-
-// Zelfde tabel als src/api/queries_abonnementen.py — hier gedupliceerd i.p.v.
-// geïmporteerd (frontend/backend delen geen modules over die grens heen).
-const INTERVAL_NAAR_MAAND_FACTOR: Record<string, number> = {
-  wekelijks: 52 / 12,
-  maandelijks: 1,
-  tweemaandelijks: 1 / 2,
-  per_kwartaal: 1 / 3,
-  jaarlijks: 1 / 12,
-};
-
-function bedragPerMaand(a: Abonnement): number {
-  return a.bedrag * (INTERVAL_NAAR_MAAND_FACTOR[a.interval] ?? 1);
-}
 
 type SortVeld = "eerstvolgende_afschrijving" | "naam" | "bedrag";
 
@@ -123,8 +110,8 @@ export default function AbonnementenPagina() {
       // Sorteren op bedrag gebruikt altijd het naar-maand-genormaliseerde
       // bedrag — anders staat een jaarlijks abonnement van €120 boven een
       // maandelijks abonnement van €50, terwijl dat laatste per maand duurder is.
-      const va = sortVeld === "bedrag" ? bedragPerMaand(a) : a[sortVeld];
-      const vb = sortVeld === "bedrag" ? bedragPerMaand(b) : b[sortVeld];
+      const va = sortVeld === "bedrag" ? bedragAbonnementPerMaand(a) : a[sortVeld];
+      const vb = sortVeld === "bedrag" ? bedragAbonnementPerMaand(b) : b[sortVeld];
       const vergelijking = typeof va === "string" ? va.localeCompare(vb as string) : (va as number) - (vb as number);
       return aflopend ? -vergelijking : vergelijking;
     });

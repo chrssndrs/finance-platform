@@ -10,15 +10,18 @@ import {
   ApiError,
   getInboedelArtikelen,
   getInboedelOpties,
+  getInboedelPerMaand,
   getInstellingen,
   getPlanningItems,
   type InboedelArtikel,
+  type InboedelKostenPerMaandPunt,
   type PeriodeTotaal,
   type PlanningItem,
 } from "@/lib/api";
 
 const bedragFormat = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
 const datumFormat = new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium" });
+const maandLabelFormat = new Intl.DateTimeFormat("nl-NL", { month: "long", year: "numeric" });
 
 // Alleen de 2 "verwacht"-lagen tonen — deze grafiek heeft geen echte
 // bank-transacties (inkomsten/uitgaven), alleen geplande posten.
@@ -81,6 +84,8 @@ export default function PlanningPagina() {
   const [bewerktItem, setBewerktItem] = useState<PlanningItem | null>(null);
   const [bewerktArtikel, setBewerktArtikel] = useState<InboedelArtikel | null>(null);
   const [trendVenster, setTrendVenster] = useState(3);
+  const [vooruitkijkMaanden, setVooruitkijkMaanden] = useState(12);
+  const [inboedelPerMaand, setInboedelPerMaand] = useState<InboedelKostenPerMaandPunt[]>([]);
 
   function laadAlles() {
     Promise.all([getPlanningItems(), getInboedelArtikelen(), getInboedelOpties()])
@@ -97,9 +102,17 @@ export default function PlanningPagina() {
   useEffect(laadAlles, []);
   useEffect(() => {
     getInstellingen()
-      .then((res) => setTrendVenster(res.instellingen.trend_venster_maanden))
+      .then((res) => {
+        setTrendVenster(res.instellingen.trend_venster_maanden);
+        setVooruitkijkMaanden(res.instellingen.planning_vooruitkijk_maanden);
+      })
       .catch(() => {});
   }, []);
+  useEffect(() => {
+    getInboedelPerMaand(vooruitkijkMaanden)
+      .then((res) => setInboedelPerMaand(res.maanden))
+      .catch(() => {});
+  }, [vooruitkijkMaanden]);
 
   function planningOpgeslagen() {
     setToonNieuw(false);
@@ -219,6 +232,37 @@ export default function PlanningPagina() {
               {bedragFormat.format(verwachteInkomsten - verwachteUitgaven)}
             </div>
           </div>
+        </div>
+      )}
+
+      {!laden && !foutmelding && inboedelPerMaand.length > 0 && (
+        <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+          <div className="mb-2 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+            Verwachte inboedelkosten (komende {vooruitkijkMaanden} maanden)
+          </div>
+          <div className="flex flex-col gap-1">
+            {inboedelPerMaand.map((m) => (
+              <div key={m.maand} className="flex items-center justify-between text-sm">
+                <span
+                  className={m.bedrag === 0 ? "text-neutral-400 dark:text-neutral-500" : "text-neutral-700 dark:text-neutral-300"}
+                >
+                  {maandLabelFormat.format(new Date(`${m.maand}-01T00:00:00`))}
+                </span>
+                <span
+                  className={
+                    "tabular-nums font-medium " +
+                    (m.bedrag === 0 ? "text-neutral-400 dark:text-neutral-500" : "text-red-700 dark:text-red-400")
+                  }
+                >
+                  {m.bedrag !== 0 ? bedragFormat.format(m.bedrag) : "—"}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-neutral-400">
+            Alle te vervangen inboedel-artikelen, los van de planning-drempel — pas het vooruitkijk-venster
+            aan in Instellingen.
+          </p>
         </div>
       )}
 

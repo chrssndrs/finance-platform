@@ -3,7 +3,15 @@
 import { useEffect, useState } from "react";
 
 import { ThemeToggle } from "@/app/components/ThemeToggle";
-import { ApiError, getBanken, getInstellingen, putInstellingen, type Bank, type PlanningDrempelModus } from "@/lib/api";
+import {
+  ApiError,
+  getBanken,
+  getInstellingen,
+  postPipelineRun,
+  putInstellingen,
+  type Bank,
+  type PlanningDrempelModus,
+} from "@/lib/api";
 
 const inputKlasse =
   "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 sm:text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100";
@@ -14,11 +22,15 @@ export default function InstellingenPagina() {
   const [verzamelfacturenLocatie, setVerzamelfacturenLocatie] = useState("");
   const [dataTeOudNaDagen, setDataTeOudNaDagen] = useState(7);
   const [trendVensterMaanden, setTrendVensterMaanden] = useState(3);
+  const [planningVooruitkijkMaanden, setPlanningVooruitkijkMaanden] = useState(12);
   const [banken, setBanken] = useState<Bank[]>([]);
   const [laden, setLaden] = useState(true);
   const [bezig, setBezig] = useState(false);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
   const [opgeslagen, setOpgeslagen] = useState(false);
+  const [pipelineBezig, setPipelineBezig] = useState(false);
+  const [pipelineResultaat, setPipelineResultaat] = useState<string | null>(null);
+  const [pipelineFoutmelding, setPipelineFoutmelding] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([getInstellingen(), getBanken()])
@@ -28,6 +40,7 @@ export default function InstellingenPagina() {
         setVerzamelfacturenLocatie(res.instellingen.verzamelfacturen_locatie);
         setDataTeOudNaDagen(res.instellingen.data_te_oud_na_dagen);
         setTrendVensterMaanden(res.instellingen.trend_venster_maanden);
+        setPlanningVooruitkijkMaanden(res.instellingen.planning_vooruitkijk_maanden);
         setBanken(bankenRes.banken);
       })
       .catch((err) => setFoutmelding(err instanceof ApiError ? err.message : "Kon instellingen niet laden."))
@@ -46,17 +59,33 @@ export default function InstellingenPagina() {
         verzamelfacturen_locatie: verzamelfacturenLocatie,
         data_te_oud_na_dagen: dataTeOudNaDagen,
         trend_venster_maanden: trendVensterMaanden,
+        planning_vooruitkijk_maanden: planningVooruitkijkMaanden,
       });
       setPlanningDrempelModus(res.instellingen.planning_drempel_modus);
       setPlanningDrempelWaarde(res.instellingen.planning_drempel_waarde);
       setVerzamelfacturenLocatie(res.instellingen.verzamelfacturen_locatie);
       setDataTeOudNaDagen(res.instellingen.data_te_oud_na_dagen);
       setTrendVensterMaanden(res.instellingen.trend_venster_maanden);
+      setPlanningVooruitkijkMaanden(res.instellingen.planning_vooruitkijk_maanden);
       setOpgeslagen(true);
     } catch (err) {
       setFoutmelding(err instanceof ApiError ? err.message : "Opslaan mislukt.");
     } finally {
       setBezig(false);
+    }
+  }
+
+  async function pipelineOpnieuwDraaien() {
+    setPipelineBezig(true);
+    setPipelineFoutmelding(null);
+    setPipelineResultaat(null);
+    try {
+      const res = await postPipelineRun();
+      setPipelineResultaat(res.samenvatting);
+    } catch (err) {
+      setPipelineFoutmelding(err instanceof ApiError ? err.message : "Pipeline draaien mislukt.");
+    } finally {
+      setPipelineBezig(false);
     }
   }
 
@@ -88,6 +117,34 @@ export default function InstellingenPagina() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {!laden && (
+        <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Pipeline</div>
+              <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                Draait bronze → silver → gold → abonnementen → koersen opnieuw, ook als er geen nieuwe
+                bestanden zijn.
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={pipelineBezig}
+              onClick={pipelineOpnieuwDraaien}
+              className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            >
+              {pipelineBezig ? "Bezig..." : "Pipeline opnieuw draaien"}
+            </button>
+          </div>
+          {pipelineResultaat && (
+            <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-400">✓ Pipeline geslaagd.</p>
+          )}
+          {pipelineFoutmelding && (
+            <p className="mt-2 text-sm text-red-700 dark:text-red-400">{pipelineFoutmelding}</p>
+          )}
         </div>
       )}
 
@@ -128,10 +185,25 @@ export default function InstellingenPagina() {
                   className={`${inputKlasse} w-28`}
                 />
               </label>
+              <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
+                Vooruitkijken
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    required
+                    value={planningVooruitkijkMaanden}
+                    onChange={(e) => setPlanningVooruitkijkMaanden(Number(e.target.value))}
+                    className={`${inputKlasse} w-20`}
+                  />
+                  <span className="text-xs text-neutral-400">maanden</span>
+                </div>
+              </label>
             </div>
             <span className="mt-1 block text-xs text-neutral-400">
-              Vanaf wanneer een bijna-afgeschreven inboedel-artikel al als verwachte kostenpost in de
-              Planning-module verschijnt.
+              De drempel bepaalt vanaf wanneer een bijna-afgeschreven inboedel-artikel al als verwachte
+              kostenpost verschijnt. &ldquo;Vooruitkijken&rdquo; bepaalt hoever de maandelijkse
+              inboedel-kostenprojectie op de Planning-pagina vooruit kijkt, los van die drempel.
             </span>
           </div>
 

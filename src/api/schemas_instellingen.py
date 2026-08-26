@@ -9,6 +9,7 @@ class Instellingen(BaseModel):
     verzamelfacturen_locatie: str
     data_te_oud_na_dagen: float
     trend_venster_maanden: int
+    planning_vooruitkijk_maanden: int
 
 
 class InstellingenInvoer(BaseModel):
@@ -17,7 +18,12 @@ class InstellingenInvoer(BaseModel):
     verzamelfacturen_locatie: str
     data_te_oud_na_dagen: float
     trend_venster_maanden: int
+    planning_vooruitkijk_maanden: int
 
 
 class InstellingenResponse(BaseModel):
     instellingen: Instellingen
+
+
+class PipelineRunResponse(BaseModel):
+    samenvatting: str

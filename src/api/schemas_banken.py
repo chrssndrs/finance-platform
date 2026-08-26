@@ -33,3 +33,17 @@ class BankenResponse(BaseModel):
 
 class KolomDetectie(BaseModel):
     kolommen: list[str]
+
+
+class BankBestand(BaseModel):
+    bestandsnaam: str
+    grootte_bytes: int
+    aangemaakt_op: datetime
+
+
+class BankBestandenResponse(BaseModel):
+    bestanden: list[BankBestand]
+
+
+class BestandVerwijderdResponse(BaseModel):
+    pipeline_samenvatting: str

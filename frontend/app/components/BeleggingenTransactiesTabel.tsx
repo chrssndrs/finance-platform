@@ -7,11 +7,15 @@ import { formatteerDatumKort } from "@/lib/periode";
 
 const aantalFormat = new Intl.NumberFormat("nl-NL", { maximumFractionDigits: 6 });
 
-function formatteerValuta(bedrag: number, valuta: string): string {
+// Prijs per stuk op 3 decimalen — bij lagere koersen (bv. penny stocks,
+// sommige ETF's) geeft 2 decimalen te veel afronding om zinvol te zijn.
+function formatteerPrijsPerStuk(bedrag: number, valuta: string): string {
   try {
-    return new Intl.NumberFormat("nl-NL", { style: "currency", currency: valuta }).format(bedrag);
+    return new Intl.NumberFormat("nl-NL", {
+      style: "currency", currency: valuta, minimumFractionDigits: 3, maximumFractionDigits: 3,
+    }).format(bedrag);
   } catch {
-    return `${bedrag.toFixed(2)} ${valuta}`;
+    return `${bedrag.toFixed(3)} ${valuta}`;
   }
 }
 
@@ -102,7 +106,7 @@ export function BeleggingenTransactiesTabel({ transacties, onRijKlik }: Beleggin
                 <div className="text-xs text-neutral-400">{t.code}</div>
               </td>
               <td className="py-2 pr-4 tabular-nums">{aantalFormat.format(t.aantal)}</td>
-              <td className="py-2 tabular-nums">{formatteerValuta(t.prijs_per_stuk, t.valuta)}</td>
+              <td className="py-2 tabular-nums">{formatteerPrijsPerStuk(t.prijs_per_stuk, t.valuta)}</td>
             </tr>
           ))}
         </tbody>

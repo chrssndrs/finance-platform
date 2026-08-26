@@ -18,11 +18,20 @@ class PipelineStapGefaald(Exception):
         self.oorzaak = oorzaak
 
 
-def run_pipeline(con: duckdb.DuckDBPyConnection) -> dict:
+def run_pipeline(con: duckdb.DuckDBPyConnection, forceer_silver: bool = False) -> dict:
     """Draait bronze -> silver -> gold -> abonnementen -> koersen op de
     gegeven connectie (fail-fast per stap). Gebruikt door zowel de
     nachtelijke cron (main.py) als de bank-upload-endpoint (meteen
-    verwerken na een handmatige upload)."""
+    verwerken na een handmatige upload).
+
+    forceer_silver: negeert de "geen nieuwe bestanden -> silver overslaan"-
+    optimalisatie hieronder. Nodig voor een handmatige "pipeline opnieuw
+    draaien"-knop en na het verwijderen van een fout geüpload bestand — in
+    beide gevallen zijn er geen NIEUWE bestanden, maar moet silver/gold wel
+    opnieuw volledig herberekend worden (silver/gold herbouwen sowieso altijd
+    volledig vanaf bronze, dus dit is de enige manier om een verwijderd
+    bestand daadwerkelijk uit de downstream-tabellen te laten verdwijnen).
+    """
     gestart_op = pd.Timestamp.now()
     schema.init_schemas(con)
     resultaten: dict = {}
@@ -36,7 +45,7 @@ def run_pipeline(con: duckdb.DuckDBPyConnection) -> dict:
         raise PipelineStapGefaald("bronze", e) from e
     logger.info("Stap 'bronze' geslaagd: %s", resultaten["bronze"])
 
-    if resultaten["bronze"].bestanden_verwerkt == 0:
+    if resultaten["bronze"].bestanden_verwerkt == 0 and not forceer_silver:
         logger.info("Geen nieuwe bronze-data — silver overgeslagen (zou identieke output geven)")
     else:
         logger.info("Start stap: silver")

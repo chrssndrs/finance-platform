@@ -29,3 +29,12 @@ class MagicDatumResponse(BaseModel):
     nu_al_haalbaar: bool
     huidig_liquide_vermogen: float
     gemiddeld_netto_maandelijks: float
+
+
+class InboedelKostenPerMaandPunt(BaseModel):
+    maand: str
+    bedrag: float
+
+
+class InboedelKostenPerMaandResponse(BaseModel):
+    maanden: list[InboedelKostenPerMaandPunt]

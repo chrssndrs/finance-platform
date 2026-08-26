@@ -1,5 +1,6 @@
 import io
 import re
+from datetime import datetime
 from pathlib import Path
 
 import duckdb
@@ -13,7 +14,15 @@ from src.api.queries_banken import (
     SQL_BANK_OPHALEN,
     SQL_BANKEN,
 )
-from src.api.schemas_banken import Bank, BankenResponse, BankRegistratie, KolomDetectie
+from src.api.schemas_banken import (
+    Bank,
+    BankBestand,
+    BankBestandenResponse,
+    BankenResponse,
+    BankRegistratie,
+    BestandVerwijderdResponse,
+    KolomDetectie,
+)
 from src.pipeline.orchestrator import PipelineStapGefaald, run_pipeline
 from src.pipeline.paths import DATA_ROOT
 
@@ -140,3 +149,70 @@ async def post_bank_upload(
 
     rij = con.execute(SQL_BANK_OPHALEN, {"bank": bank}).fetchone()
     return _naar_bank(rij)
+
+
+@router.get("/{bank}/bestanden", response_model=BankBestandenResponse)
+def get_bank_bestanden(bank: str, con: duckdb.DuckDBPyConnection = Depends(get_db)) -> BankBestandenResponse:
+    rij = con.execute(SQL_BANK_OPHALEN, {"bank": bank}).fetchone()
+    if rij is None:
+        raise HTTPException(status_code=404, detail="Bank niet gevonden.")
+    bank_config = _naar_bank(rij)
+    map_pad = DATA_ROOT / bank_config.locatie
+    bestanden = []
+    if map_pad.is_dir():
+        for pad in sorted(map_pad.glob("*.csv")):
+            stat = pad.stat()
+            bestanden.append(BankBestand(
+                bestandsnaam=pad.name,
+                grootte_bytes=stat.st_size,
+                aangemaakt_op=datetime.fromtimestamp(stat.st_mtime),
+            ))
+    return BankBestandenResponse(bestanden=bestanden)
+
+
+@router.delete("/{bank}/bestanden/{bestandsnaam}", response_model=BestandVerwijderdResponse)
+def delete_bank_bestand(
+    bank: str,
+    bestandsnaam: str,
+    con: duckdb.DuckDBPyConnection = Depends(get_write_db),
+) -> BestandVerwijderdResponse:
+    """Verwijdert een per ongeluk geüpload bestand: van schijf, uit
+    bronze.transacties (anders blijven de foutieve rijen daar voor altijd
+    staan) en uit meta.landing_bestanden_log (anders herkent een latere,
+    gecorrigeerde upload met dezelfde inhoud dit als 'al verwerkt' en slaat
+    'm over). Draait daarna de pipeline meteen opnieuw (gedwongen silver/gold-
+    herbouw) zodat de foutieve data ook echt overal verdwijnt."""
+    rij = con.execute(SQL_BANK_OPHALEN, {"bank": bank}).fetchone()
+    if rij is None:
+        raise HTTPException(status_code=404, detail="Bank niet gevonden.")
+    bank_config = _naar_bank(rij)
+
+    map_pad = (DATA_ROOT / bank_config.locatie).resolve()
+    doel_pad = (map_pad / bestandsnaam).resolve()
+    if doel_pad.parent != map_pad:
+        raise HTTPException(status_code=400, detail="Ongeldige bestandsnaam.")
+    if not doel_pad.is_file():
+        raise HTTPException(status_code=404, detail="Bestand niet gevonden.")
+
+    doel_pad.unlink()
+
+    bestaat_bronze = con.execute("""
+        SELECT count(*) FROM information_schema.tables
+        WHERE table_schema = 'bronze' AND table_name = 'transacties'
+    """).fetchone()[0]
+    if bestaat_bronze:
+        con.execute(
+            "DELETE FROM bronze.transacties WHERE bank = ? AND bronbestand = ?",
+            [bank, bestandsnaam],
+        )
+    con.execute("DELETE FROM meta.landing_bestanden_log WHERE bestandsnaam = ?", [bestandsnaam])
+
+    try:
+        resultaten = run_pipeline(con, forceer_silver=True)
+    except PipelineStapGefaald as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Bestand is verwijderd, maar de pipeline opnieuw draaien is mislukt bij stap '{e.stap}': {e.oorzaak}",
+        ) from e
+
+    return BestandVerwijderdResponse(pipeline_samenvatting=str(resultaten))

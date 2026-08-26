@@ -2,16 +2,15 @@
 
 import { useState } from "react";
 
-import { API_BASE, type Abonnement } from "@/lib/api";
+import { API_BASE, bedragAbonnementPerMaand, type Abonnement } from "@/lib/api";
 
 const bedragFormat = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
 
-const INTERVAL_LABEL: Record<string, string> = {
-  wekelijks: "Wekelijks",
-  maandelijks: "Maandelijks",
-  tweemaandelijks: "Tweemaandelijks",
-  per_kwartaal: "Per kwartaal",
-  jaarlijks: "Jaarlijks",
+const INTERVAL_KORT: Record<string, string> = {
+  wekelijks: "week",
+  tweemaandelijks: "2 mnd",
+  per_kwartaal: "kwartaal",
+  jaarlijks: "jaar",
 };
 
 const AVATAR_KLEUREN = [
@@ -75,9 +74,9 @@ export function AbonnementKaart({ abonnement, onKlik }: AbonnementKaartProps) {
       <div className="min-w-0 flex-1">
         <div className="truncate font-medium text-neutral-900 dark:text-neutral-100">{abonnement.naam}</div>
         <div className="text-sm text-neutral-500 dark:text-neutral-400">
-          {abonnement.interval === "jaarlijks"
-            ? `${bedragFormat.format(abonnement.bedrag / 12)}/maand (${bedragFormat.format(abonnement.bedrag)}/jaar)`
-            : `${bedragFormat.format(abonnement.bedrag)} · ${INTERVAL_LABEL[abonnement.interval] ?? abonnement.interval}`}
+          {abonnement.interval === "maandelijks"
+            ? `${bedragFormat.format(abonnement.bedrag)}/maand`
+            : `${bedragFormat.format(bedragAbonnementPerMaand(abonnement))}/maand (${bedragFormat.format(abonnement.bedrag)}/${INTERVAL_KORT[abonnement.interval] ?? abonnement.interval})`}
         </div>
       </div>
 

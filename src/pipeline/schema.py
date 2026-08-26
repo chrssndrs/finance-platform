@@ -136,6 +136,10 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("ALTER TABLE instellingen.instellingen ADD COLUMN IF NOT EXISTS data_te_oud_na_dagen DOUBLE DEFAULT 7")
     # Aantal maanden voor het voortschrijdend gemiddelde (trendlijn) in de grafieken.
     con.execute("ALTER TABLE instellingen.instellingen ADD COLUMN IF NOT EXISTS trend_venster_maanden INTEGER DEFAULT 3")
+    # Hoever de Planning-pagina vooruitkijkt voor de maandelijkse inboedel-
+    # kostenprojectie (los van planning_drempel_*, dat alleen bepaalt welke
+    # posten al als 'binnenkort'/'afgeschreven' in de losse lijst verschijnen).
+    con.execute("ALTER TABLE instellingen.instellingen ADD COLUMN IF NOT EXISTS planning_vooruitkijk_maanden INTEGER DEFAULT 12")
 
     # Dynamisch geregistreerde banken — vervangt de statische config/banken/*.yaml
     # + het enkele bank/export_locatie-veld hierboven. Elke bank heeft zijn eigen

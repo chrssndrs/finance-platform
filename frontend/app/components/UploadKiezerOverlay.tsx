@@ -6,8 +6,9 @@ import { useState } from "react";
 import { BankUploadFormulier } from "@/app/components/BankUploadFormulier";
 import { FactuurUploadFormulier } from "@/app/components/FactuurUploadFormulier";
 import { Overlay } from "@/app/components/Overlay";
+import { UploadsBeherenFormulier } from "@/app/components/UploadsBeherenFormulier";
 
-type Keuze = "menu" | "bank" | "factuur" | "factuur-klaar";
+type Keuze = "menu" | "bank" | "factuur" | "factuur-klaar" | "beheren";
 
 const keuzeKnopKlasse =
   "flex flex-col items-start gap-1 rounded-lg border border-neutral-200 p-4 text-left hover:border-neutral-400 hover:bg-neutral-50 dark:border-neutral-800 dark:hover:border-neutral-600 dark:hover:bg-neutral-800";
@@ -27,7 +28,9 @@ export function UploadKiezerOverlay({ open, onClose }: { open: boolean; onClose:
         ? "Bankexport uploaden"
         : keuze === "factuur"
           ? "Verzamelfactuur uploaden"
-          : "Geüpload";
+          : keuze === "beheren"
+            ? "Geüploade bestanden beheren"
+            : "Geüpload";
 
   return (
     <Overlay open={open} onClose={sluiten} titel={titel}>
@@ -45,10 +48,18 @@ export function UploadKiezerOverlay({ open, onClose }: { open: boolean; onClose:
               Eén factuur met meerdere posten, later handmatig te splitsen.
             </span>
           </button>
+          <button type="button" onClick={() => setKeuze("beheren")} className={keuzeKnopKlasse}>
+            <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Geüploade bestanden beheren</span>
+            <span className="text-xs text-neutral-500 dark:text-neutral-400">
+              Bekijk of verwijder eerder geüploade bankexports, bv. na een foute upload.
+            </span>
+          </button>
         </div>
       )}
 
       {keuze === "bank" && <BankUploadFormulier onAnnuleren={() => setKeuze("menu")} />}
+
+      {keuze === "beheren" && <UploadsBeherenFormulier onAnnuleren={() => setKeuze("menu")} />}
 
       {keuze === "factuur" && (
         <FactuurUploadFormulier onGeupload={() => setKeuze("factuur-klaar")} onAnnuleren={() => setKeuze("menu")} />

@@ -90,6 +90,21 @@ export interface TransactiesResponse {
   transacties: Transactie[];
 }
 
+// Zelfde tabel als src/api/queries_abonnementen.py — hier gedupliceerd
+// i.p.v. geïmporteerd (frontend/backend delen geen modules over die grens
+// heen).
+export const INTERVAL_NAAR_MAAND_FACTOR: Record<string, number> = {
+  wekelijks: 52 / 12,
+  maandelijks: 1,
+  tweemaandelijks: 1 / 2,
+  per_kwartaal: 1 / 3,
+  jaarlijks: 1 / 12,
+};
+
+export function bedragAbonnementPerMaand(abonnement: { bedrag: number; interval: string }): number {
+  return abonnement.bedrag * (INTERVAL_NAAR_MAAND_FACTOR[abonnement.interval] ?? 1);
+}
+
 export interface Abonnement {
   id: number;
   naam: string;
@@ -146,6 +161,7 @@ export interface Instellingen {
   verzamelfacturen_locatie: string;
   data_te_oud_na_dagen: number;
   trend_venster_maanden: number;
+  planning_vooruitkijk_maanden: number;
 }
 
 export interface InstellingenInvoer {
@@ -154,6 +170,11 @@ export interface InstellingenInvoer {
   verzamelfacturen_locatie: string;
   data_te_oud_na_dagen: number;
   trend_venster_maanden: number;
+  planning_vooruitkijk_maanden: number;
+}
+
+export interface PipelineRunResponse {
+  samenvatting: string;
 }
 
 export interface InstellingenResponse {
@@ -520,6 +541,10 @@ export function putInstellingen(instellingen: InstellingenInvoer): Promise<Inste
   return zendJson<InstellingenResponse>("/api/instellingen", "PUT", instellingen);
 }
 
+export function postPipelineRun(): Promise<PipelineRunResponse> {
+  return zendJson<PipelineRunResponse>("/api/instellingen/pipeline-run", "POST", {});
+}
+
 export function getVastgoedLocaties(): Promise<VastgoedLocatiesResponse> {
   return fetchJson<VastgoedLocatiesResponse>("/api/vastgoed/locaties");
 }
@@ -739,6 +764,19 @@ export function getMagicDatum(itemId: number): Promise<MagicDatumResponse> {
   return fetchJson<MagicDatumResponse>(`/api/planning/items/${itemId}/magic-datum`);
 }
 
+export interface InboedelKostenPerMaandPunt {
+  maand: string;
+  bedrag: number;
+}
+
+export interface InboedelKostenPerMaandResponse {
+  maanden: InboedelKostenPerMaandPunt[];
+}
+
+export function getInboedelPerMaand(maandenVooruit: number): Promise<InboedelKostenPerMaandResponse> {
+  return fetchJson<InboedelKostenPerMaandResponse>(`/api/planning/inboedel-per-maand?maanden_vooruit=${maandenVooruit}`);
+}
+
 export function postPlanningItem(item: PlanningItemInvoer): Promise<PlanningItem> {
   return zendJson<PlanningItem>("/api/planning/items", "POST", item);
 }
@@ -910,6 +948,32 @@ export async function postBankUpload(bank: string, bestand: File): Promise<Bank>
     body: formData,
   });
   return afhandelenResponse<Bank>(response);
+}
+
+export interface BankBestand {
+  bestandsnaam: string;
+  grootte_bytes: number;
+  aangemaakt_op: string;
+}
+
+export interface BankBestandenResponse {
+  bestanden: BankBestand[];
+}
+
+export interface BestandVerwijderdResponse {
+  pipeline_samenvatting: string;
+}
+
+export function getBankBestanden(bank: string): Promise<BankBestandenResponse> {
+  return fetchJson<BankBestandenResponse>(`/api/banken/${encodeURIComponent(bank)}/bestanden`);
+}
+
+export async function deleteBankBestand(bank: string, bestandsnaam: string): Promise<BestandVerwijderdResponse> {
+  const response = await fetch(
+    `${API_BASE}/api/banken/${encodeURIComponent(bank)}/bestanden/${encodeURIComponent(bestandsnaam)}`,
+    { method: "DELETE" }
+  );
+  return afhandelenResponse<BestandVerwijderdResponse>(response);
 }
 
 export interface Telling {

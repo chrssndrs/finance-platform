@@ -1,11 +1,20 @@
+from datetime import date
+
 import duckdb
 from fastapi import APIRouter, Depends, HTTPException, Response
 
 from src.api.deps import get_db, get_write_db
-from src.api.planning_berekening import bereken_planning_items
+from src.api.planning_berekening import bereken_inboedel_kosten_per_maand, bereken_planning_items
 from src.api.planning_magic_berekening import bereken_magic_datum
 from src.api.queries_planning import SQL_ITEM_BIJWERKEN, SQL_ITEM_INVOEGEN, SQL_ITEM_VERWIJDEREN
-from src.api.schemas_planning import MagicDatumResponse, PlanningItem, PlanningItemInvoer, PlanningResponse
+from src.api.schemas_planning import (
+    InboedelKostenPerMaandPunt,
+    InboedelKostenPerMaandResponse,
+    MagicDatumResponse,
+    PlanningItem,
+    PlanningItemInvoer,
+    PlanningResponse,
+)
 
 router = APIRouter(prefix="/api/planning")
 
@@ -38,6 +47,16 @@ def put_item(
     return PlanningItem(
         **{**item.model_dump(), "id": item_id, "bron": "handmatig", "artikel_id": None}
     )
+
+
+@router.get("/inboedel-per-maand", response_model=InboedelKostenPerMaandResponse)
+def get_inboedel_per_maand(
+    maanden_vooruit: int = 12, con: duckdb.DuckDBPyConnection = Depends(get_db)
+) -> InboedelKostenPerMaandResponse:
+    if maanden_vooruit <= 0:
+        raise HTTPException(status_code=400, detail="maanden_vooruit moet groter dan 0 zijn.")
+    resultaat = bereken_inboedel_kosten_per_maand(con, date.today(), maanden_vooruit)
+    return InboedelKostenPerMaandResponse(maanden=[InboedelKostenPerMaandPunt(**p) for p in resultaat])
 
 
 @router.get("/items/{item_id}/magic-datum", response_model=MagicDatumResponse)

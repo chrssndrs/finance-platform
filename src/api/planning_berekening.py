@@ -78,6 +78,42 @@ def bereken_inboedel_planning(
     return posten
 
 
+def bereken_inboedel_kosten_per_maand(
+    con: duckdb.DuckDBPyConnection, vandaag: date, maanden_vooruit: int
+) -> list[dict]:
+    """Verwachte inboedel-vervangingskosten, gebucket per kalendermaand voor
+    de komende `maanden_vooruit` maanden — een volledige projectie over ALLE
+    te vervangen artikelen, los van de planning-drempel (die alleen bepaalt
+    welke posten al als 'binnenkort'/'afgeschreven' in de losse lijst
+    verschijnen). Geeft dus ook zicht op kosten die pas ver in de toekomst
+    verwacht worden.
+    """
+    rijen = con.execute("""
+        SELECT bedrag::DOUBLE, datum, levensduur_maanden
+        FROM inboedel.artikelen
+        WHERE bedrag IS NOT NULL AND datum IS NOT NULL
+          AND levensduur_maanden IS NOT NULL AND levensduur_maanden > 0
+          AND wordt_vervangen
+    """).fetchall()
+
+    start_maand = date(vandaag.year, vandaag.month, 1)
+    maanden = []
+    maand = start_maand
+    for _ in range(maanden_vooruit):
+        maanden.append(maand)
+        maand = _plus_een_kalendermaand(maand)
+    eind_exclusief = maand
+
+    totalen = {m: 0.0 for m in maanden}
+    for bedrag, datum, levensduur_maanden in rijen:
+        verwacht = verwachte_datum(datum, levensduur_maanden, vandaag)
+        verwacht_maand = date(verwacht.year, verwacht.month, 1)
+        if start_maand <= verwacht_maand < eind_exclusief:
+            totalen[verwacht_maand] += bedrag
+
+    return [{"maand": m.isoformat()[:7], "bedrag": round(-totalen[m], 2) or 0.0} for m in maanden]
+
+
 def bereken_planning_items(con: duckdb.DuckDBPyConnection, vandaag: date | None = None) -> list[dict]:
     vandaag = vandaag or date.today()
 
