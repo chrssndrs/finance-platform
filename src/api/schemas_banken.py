@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -19,6 +20,7 @@ class BankRegistratie(BaseModel):
     richting_negatief_waarde: str | None = None
     mededelingen_kolom: str | None = None
     saldo_kolom: str | None = None
+    rekening_type: Literal["betaalrekening", "spaarrekening"] = "betaalrekening"
 
 
 class Bank(BankRegistratie):

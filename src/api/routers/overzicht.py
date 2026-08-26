@@ -3,8 +3,6 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 
 from src.api.deps import get_db, get_write_db
 from src.api.queries_overzicht import (
-    SQL_SPAREN_BIJWERKEN,
-    SQL_SPAREN_OPHALEN,
     SQL_WIDGET_BIJWERKEN,
     SQL_WIDGET_INVOEGEN,
     SQL_WIDGET_OPHALEN,
@@ -12,8 +10,6 @@ from src.api.queries_overzicht import (
     SQL_WIDGETS,
 )
 from src.api.schemas_overzicht import (
-    Sparen,
-    SparenInvoer,
     VermogenOnderdeel,
     VermogenResponse,
     Widget,
@@ -42,22 +38,6 @@ def get_vermogen(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> VermogenRe
         totaal=round(bereken_totaal(onderdelen), 2),
         onderdelen=[VermogenOnderdeel(**{**o, "bedrag": round(o["bedrag"], 2)}) for o in onderdelen],
     )
-
-
-@router.get("/sparen", response_model=Sparen)
-def get_sparen(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> Sparen:
-    bedrag, aangepast_op = con.execute(SQL_SPAREN_OPHALEN).fetchone()
-    return Sparen(bedrag=bedrag, aangepast_op=aangepast_op.date() if aangepast_op else None)
-
-
-@router.put("/sparen", response_model=Sparen)
-def put_sparen(
-    sparen: SparenInvoer,
-    con: duckdb.DuckDBPyConnection = Depends(get_write_db),
-) -> Sparen:
-    con.execute(SQL_SPAREN_BIJWERKEN, {"bedrag": sparen.bedrag})
-    bedrag, aangepast_op = con.execute(SQL_SPAREN_OPHALEN).fetchone()
-    return Sparen(bedrag=bedrag, aangepast_op=aangepast_op.date() if aangepast_op else None)
 
 
 @router.get("/widgets", response_model=WidgetenResponse)

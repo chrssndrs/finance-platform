@@ -17,6 +17,7 @@ from src.api.routers import (
     overzicht,
     planning,
     rapportage,
+    sparen,
     vastgoed,
     verzamelfacturen,
 )
@@ -69,3 +70,4 @@ app.include_router(planning.router)
 app.include_router(verzamelfacturen.router)
 app.include_router(banken.router)
 app.include_router(contantgeld.router)
+app.include_router(sparen.router)

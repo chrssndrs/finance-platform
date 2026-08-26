@@ -16,15 +16,6 @@ class VermogenResponse(BaseModel):
     onderdelen: list[VermogenOnderdeel]
 
 
-class SparenInvoer(BaseModel):
-    bedrag: float
-
-
-class Sparen(BaseModel):
-    bedrag: float
-    aangepast_op: date | None
-
-
 class WidgetInvoer(BaseModel):
     titel: str | None = None
     categorie: str | None = None

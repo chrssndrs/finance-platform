@@ -162,6 +162,11 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
             aangemaakt_op TIMESTAMP NOT NULL
         )
     """)
+    # Onderscheidt spaarrekeningen van betaalrekeningen — bepaalt of een
+    # geregistreerde bank meetelt in de Sparen-module (zie sparen_berekening.py)
+    # i.p.v. als gewone uitgaven-rekening. Bestaande banken (zoals de
+    # ING-migratie hieronder) zijn per definitie een betaalrekening.
+    con.execute("ALTER TABLE instellingen.banken ADD COLUMN IF NOT EXISTS rekening_type VARCHAR DEFAULT 'betaalrekening'")
 
     # Eenmalige migratie: als er nog geen banken geregistreerd zijn en de oude
     # config/banken/ing.yaml bestaat nog, zaai 'm met die config + de huidige
@@ -298,9 +303,9 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
         )
     """)
 
-    # Eén handmatig bedrag — geen bron in de bankexport (aparte
-    # spaarrekening, niet dit rekening-overzicht), dus net als
-    # vastgoed.woning een singleton die je zelf bijwerkt.
+    # Eén handmatig restbedrag, als aanvulling op de Sparen-module (zie
+    # sparen_berekening.py) voor spaargeld dat niet als bank geregistreerd
+    # is — een singleton die je zelf bijwerkt via de Sparen-pagina.
     con.execute("""
         CREATE TABLE IF NOT EXISTS overzicht.sparen (
             id INTEGER PRIMARY KEY DEFAULT 1,

@@ -603,15 +603,6 @@ export interface VermogenResponse {
   onderdelen: VermogenOnderdeel[];
 }
 
-export interface Sparen {
-  bedrag: number;
-  aangepast_op: string | null;
-}
-
-export interface SparenInvoer {
-  bedrag: number;
-}
-
 export type WidgetWeergave = "totaal" | "grafiek" | "transacties";
 export type WidgetPeriodeModus = "relatief" | "alles" | "aangepast";
 
@@ -640,14 +631,6 @@ export interface WidgetenResponse {
 
 export function getVermogen(): Promise<VermogenResponse> {
   return fetchJson<VermogenResponse>("/api/overzicht/vermogen");
-}
-
-export function getSparen(): Promise<Sparen> {
-  return fetchJson<Sparen>("/api/overzicht/sparen");
-}
-
-export function putSparen(sparen: SparenInvoer): Promise<Sparen> {
-  return zendJson<Sparen>("/api/overzicht/sparen", "PUT", sparen);
 }
 
 export function getWidgets(): Promise<WidgetenResponse> {
@@ -816,6 +799,7 @@ export interface BankRegistratie {
   richting_negatief_waarde: string | null;
   mededelingen_kolom: string | null;
   saldo_kolom: string | null;
+  rekening_type: "betaalrekening" | "spaarrekening";
 }
 
 export interface Bank extends BankRegistratie {
@@ -828,6 +812,29 @@ export interface BankenResponse {
 
 export interface KolomDetectie {
   kolommen: string[];
+}
+
+export interface SpaarRekening {
+  bank: string;
+  naam: string;
+  rekening: string;
+  saldo: number;
+  datum: string;
+}
+
+export interface SparenResponse {
+  rekeningen: SpaarRekening[];
+  handmatig_saldo: number;
+  handmatig_aangepast_op: string | null;
+  totaal: number;
+}
+
+export function getSparen(): Promise<SparenResponse> {
+  return fetchJson<SparenResponse>("/api/sparen");
+}
+
+export function putHandmatigSpaarsaldo(bedrag: number): Promise<SparenResponse> {
+  return zendJson<SparenResponse>("/api/sparen/handmatig", "PUT", { bedrag });
 }
 
 export function getBanken(): Promise<BankenResponse> {

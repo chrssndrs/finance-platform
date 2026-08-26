@@ -30,6 +30,7 @@ def _naar_bank(rij: tuple) -> Bank:
         omschrijving_kolom, rekening_kolom, tegenrekening_kolom,
         bedrag_kolom, bedrag_decimaal_teken, richting_kolom,
         richting_negatief_waarde, mededelingen_kolom, saldo_kolom, laatst_gebruikt_op,
+        rekening_type,
     ) = rij
     return Bank(
         bank=bank, naam=naam, locatie=locatie, separator=separator,
@@ -39,7 +40,7 @@ def _naar_bank(rij: tuple) -> Bank:
         bedrag_decimaal_teken=bedrag_decimaal_teken, richting_kolom=richting_kolom,
         richting_negatief_waarde=richting_negatief_waarde,
         mededelingen_kolom=mededelingen_kolom, saldo_kolom=saldo_kolom,
-        laatst_gebruikt_op=laatst_gebruikt_op,
+        laatst_gebruikt_op=laatst_gebruikt_op, rekening_type=rekening_type or "betaalrekening",
     )
 
 

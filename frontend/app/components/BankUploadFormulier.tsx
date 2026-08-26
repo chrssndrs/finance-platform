@@ -51,6 +51,7 @@ export function BankUploadFormulier({ onAnnuleren }: { onAnnuleren: () => void }
   const [datumFormaat, setDatumFormaat] = useState("%Y%m%d");
   const [decimaalTeken, setDecimaalTeken] = useState(",");
   const [richtingNegatief, setRichtingNegatief] = useState("");
+  const [rekeningType, setRekeningType] = useState<"betaalrekening" | "spaarrekening">("betaalrekening");
   const [mapping, setMapping] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -127,6 +128,7 @@ export function BankUploadFormulier({ onAnnuleren }: { onAnnuleren: () => void }
         richting_negatief_waarde: mapping.richting_kolom ? richtingNegatief || null : null,
         mededelingen_kolom: mapping.mededelingen_kolom || null,
         saldo_kolom: mapping.saldo_kolom || null,
+        rekening_type: rekeningType,
       });
       await postBankUpload(bankSlug.trim().toLowerCase(), bestand);
       setSucces(true);
@@ -267,6 +269,17 @@ export function BankUploadFormulier({ onAnnuleren }: { onAnnuleren: () => void }
         <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400 sm:col-span-2">
           Landingsmap (relatief aan de data-map)
           <input type="text" value={locatie} onChange={(e) => setLocatie(e.target.value)} className={`${inputKlasse} font-mono`} />
+        </label>
+        <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
+          Type rekening
+          <select
+            value={rekeningType}
+            onChange={(e) => setRekeningType(e.target.value as "betaalrekening" | "spaarrekening")}
+            className={inputKlasse}
+          >
+            <option value="betaalrekening">Betaalrekening</option>
+            <option value="spaarrekening">Spaarrekening</option>
+          </select>
         </label>
         <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
           Datumformaat

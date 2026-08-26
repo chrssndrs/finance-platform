@@ -1,11 +1,3 @@
-SQL_SPAREN_OPHALEN = """
-    SELECT bedrag::DOUBLE, aangepast_op FROM overzicht.sparen WHERE id = 1
-"""
-
-SQL_SPAREN_BIJWERKEN = """
-    UPDATE overzicht.sparen SET bedrag = $bedrag, aangepast_op = now() WHERE id = 1
-"""
-
 SQL_WIDGETS = """
     SELECT id, titel, categorie, subcategorie, afzender, granulariteit, periode_modus,
            periode_aantal, periode_eenheid, periode_vanaf, periode_tot, weergave, volgorde

@@ -12,6 +12,7 @@ from src.api.banksaldo_berekening import bereken_banksaldo
 from src.api.beleggingen_berekening import bereken_posities
 from src.api.hypotheek_berekening import actuele_schuld_totaal
 from src.api.inboedel_berekening import dagwaarde_totaal
+from src.api.sparen_berekening import bereken_spaarrekeningen
 
 
 def bereken_overzicht(con: duckdb.DuckDBPyConnection) -> list[dict]:
@@ -29,12 +30,20 @@ def bereken_overzicht(con: duckdb.DuckDBPyConnection) -> list[dict]:
             "laatst_bijgewerkt": saldo["datum"], "type": "bezit", "is_geschat": True,
         })
 
+    # Som van elke geregistreerde spaarrekening (afgeleid uit bankexports)
+    # plus het handmatige restbedrag — zelfde bron als de Sparen-module,
+    # niet los opnieuw berekend.
+    spaarrekeningen = bereken_spaarrekeningen(con)
     sparen_rij = con.execute("SELECT bedrag::DOUBLE, aangepast_op FROM overzicht.sparen WHERE id = 1").fetchone()
-    if sparen_rij is not None:
-        bedrag, aangepast_op = sparen_rij
+    handmatig_saldo, handmatig_aangepast_op = sparen_rij if sparen_rij is not None else (0.0, None)
+    sparen_totaal = sum(r["saldo"] for r in spaarrekeningen) + handmatig_saldo
+    if spaarrekeningen or handmatig_saldo:
+        laatste_datums = [r["datum"] for r in spaarrekeningen] + (
+            [handmatig_aangepast_op.date()] if handmatig_saldo and handmatig_aangepast_op else []
+        )
         onderdelen.append({
-            "label": "Sparen", "bedrag": bedrag,
-            "laatst_bijgewerkt": aangepast_op.date() if aangepast_op else None, "type": "bezit",
+            "label": "Sparen", "bedrag": sparen_totaal,
+            "laatst_bijgewerkt": max(laatste_datums) if laatste_datums else None, "type": "bezit",
         })
 
     posities = bereken_posities(con)
