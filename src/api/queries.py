@@ -80,6 +80,15 @@ SQL_LAATSTE_SALDO = """
     LIMIT 1
 """
 
+# Rekeningen waarvan de gebruiker zelf bank-exports heeft geïmporteerd —
+# gebruikt om overboekingen naar eigen (bv. spaar-)rekeningen desgewenst
+# uit Uitgaven te filteren, zonder dat daar een aparte instelling voor
+# hoeft te worden bijgehouden: elke rekening die ooit als 'rekening'
+# (i.p.v. tegenrekening) is voorgekomen, is per definitie van de gebruiker.
+SQL_EIGEN_REKENINGEN = """
+    SELECT DISTINCT rekening FROM gold.transacties WHERE rekening != ''
+"""
+
 SQL_TRANSACTIES = """
     SELECT transactie_id, datum, afzender, bedrag_eur::DOUBLE, mededelingen
     FROM gold.transacties_effectief
@@ -88,6 +97,7 @@ SQL_TRANSACTIES = """
       AND (len($afzenders::VARCHAR[]) = 0 OR list_contains($afzenders, afzender))
       AND ($vanaf::DATE IS NULL OR datum >= $vanaf)
       AND ($tot::DATE IS NULL OR datum <= $tot)
+      AND (len($eigen_rekeningen::VARCHAR[]) = 0 OR tegenrekening IS NULL OR NOT list_contains($eigen_rekeningen, tegenrekening))
     ORDER BY datum DESC
 """
 
@@ -109,6 +119,7 @@ SQL_TOTALEN = """
         WHERE ($categorie::VARCHAR IS NULL OR categorie = $categorie)
           AND ($subcategorie::VARCHAR IS NULL OR subcategorie = $subcategorie)
           AND (len($afzenders::VARCHAR[]) = 0 OR list_contains($afzenders, afzender))
+          AND (len($eigen_rekeningen::VARCHAR[]) = 0 OR tegenrekening IS NULL OR NOT list_contains($eigen_rekeningen, tegenrekening))
     )
     SELECT
         p.periode_start::DATE AS periode_start,

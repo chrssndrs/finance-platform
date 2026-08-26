@@ -36,6 +36,8 @@ interface FilterBalkProps {
   onReset: () => void;
   zichtbareSeries?: Record<SerieKey, boolean>;
   onZichtbareSeriesChange?: (series: Record<SerieKey, boolean>) => void;
+  verbergEigenRekeningen?: boolean;
+  onVerbergEigenRekeningenChange?: (waarde: boolean) => void;
 }
 
 export function FilterBalk({
@@ -54,6 +56,8 @@ export function FilterBalk({
   onReset,
   zichtbareSeries,
   onZichtbareSeriesChange,
+  verbergEigenRekeningen,
+  onVerbergEigenRekeningenChange,
 }: FilterBalkProps) {
   const subcategorieen = categorieen.find((g) => g.categorie === categorie)?.subcategorieen ?? [];
 
@@ -129,22 +133,34 @@ export function FilterBalk({
         </div>
       </div>
 
-      {zichtbareSeries && onZichtbareSeriesChange && (
+      {(zichtbareSeries && onZichtbareSeriesChange) || onVerbergEigenRekeningenChange ? (
         <div className="flex flex-wrap gap-x-4 gap-y-2">
-          {(Object.keys(SERIE_LABEL) as SerieKey[]).map((serie) => (
-            <label key={serie} className="flex items-center gap-1.5 text-sm text-neutral-600 dark:text-neutral-400">
+          {zichtbareSeries &&
+            onZichtbareSeriesChange &&
+            (Object.keys(SERIE_LABEL) as SerieKey[]).map((serie) => (
+              <label key={serie} className="flex items-center gap-1.5 text-sm text-neutral-600 dark:text-neutral-400">
+                <input
+                  type="checkbox"
+                  checked={zichtbareSeries[serie]}
+                  onChange={(e) =>
+                    onZichtbareSeriesChange({ ...zichtbareSeries, [serie]: e.target.checked })
+                  }
+                />
+                {SERIE_LABEL[serie]}
+              </label>
+            ))}
+          {onVerbergEigenRekeningenChange && (
+            <label className="flex items-center gap-1.5 text-sm text-neutral-600 dark:text-neutral-400">
               <input
                 type="checkbox"
-                checked={zichtbareSeries[serie]}
-                onChange={(e) =>
-                  onZichtbareSeriesChange({ ...zichtbareSeries, [serie]: e.target.checked })
-                }
+                checked={verbergEigenRekeningen ?? false}
+                onChange={(e) => onVerbergEigenRekeningenChange(e.target.checked)}
               />
-              {SERIE_LABEL[serie]}
+              Overboekingen naar eigen rekeningen verbergen
             </label>
-          ))}
+          )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -24,10 +24,6 @@ const datumFormat = new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "s
 const inputKlasse =
   "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 sm:text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100";
 
-// Coupures t/m 2 euro zijn munten, alles erboven briefgeld — bepaalt waar
-// de visuele scheidingslijn in de tabel komt.
-const MUNTEN_GRENS = 2;
-
 const TYPE_LABEL: Record<ContantGeldMutatie["type"], string> = {
   telling: "Correctie",
   verplaatsing: "Verplaatsing",
@@ -116,6 +112,47 @@ function LocatieNaam({
   );
 }
 
+function LocatieOverlayInhoud({
+  locatie,
+  coupures,
+  onOpgeslagen,
+  onVerwijderd,
+}: {
+  locatie: ContantGeldLocatie;
+  coupures: number[];
+  onOpgeslagen: (data: ContantGeldResponse) => void;
+  onVerwijderd: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <LocatieNaam locatie={locatie} onOpgeslagen={onOpgeslagen} />
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+        {coupures.map((c) => {
+          const telling = locatie.tellingen.find((t) => t.coupure === c);
+          return (
+            <label key={c} className="flex flex-col gap-1 text-xs text-neutral-500 dark:text-neutral-400">
+              {bedragFormat.format(c)}
+              <AantalInput locatieId={locatie.id} coupure={c} aantal={telling?.aantal ?? 0} onOpgeslagen={onOpgeslagen} />
+            </label>
+          );
+        })}
+      </div>
+      <div className="flex items-center justify-between border-t border-neutral-200 pt-3 dark:border-neutral-800">
+        <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+          Totaal: {bedragFormat.format(locatie.totaal)}
+        </span>
+        <button
+          type="button"
+          onClick={onVerwijderd}
+          className="text-sm text-red-700 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+        >
+          Locatie verwijderen
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function mutatieOmschrijving(m: ContantGeldMutatie): string {
   if (m.type === "verplaatsing") {
     return `${m.van_locatie_naam} → ${m.naar_locatie_naam}${m.omschrijving ? ` — ${m.omschrijving}` : ""}`;
@@ -126,7 +163,7 @@ function mutatieOmschrijving(m: ContantGeldMutatie): string {
   return `${m.locatie_naam}`;
 }
 
-export default function ContantGeldPagina() {
+export default function CashPagina() {
   const [data, setData] = useState<ContantGeldResponse | null>(null);
   const [historie, setHistorie] = useState<ContantGeldMutatie[] | null>(null);
   const [nieuweLocatieNaam, setNieuweLocatieNaam] = useState("");
@@ -134,6 +171,8 @@ export default function ContantGeldPagina() {
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
   const [toonVerplaatsen, setToonVerplaatsen] = useState(false);
   const [toonUitgeven, setToonUitgeven] = useState(false);
+  const [bewerktLocatieId, setBewerktLocatieId] = useState<number | null>(null);
+  const bewerktLocatie = data?.locaties.find((l) => l.id === bewerktLocatieId) ?? null;
 
   function laadHistorie() {
     getContantGeldHistorie().then((res) => setHistorie(res.mutaties));
@@ -142,7 +181,7 @@ export default function ContantGeldPagina() {
   useEffect(() => {
     getContantGeld()
       .then(setData)
-      .catch((err) => setFoutmelding(err instanceof ApiError ? err.message : "Kon contant geld niet laden."));
+      .catch((err) => setFoutmelding(err instanceof ApiError ? err.message : "Kon cash niet laden."));
     laadHistorie();
   }, []);
 
@@ -184,7 +223,7 @@ export default function ContantGeldPagina() {
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">Contant geld</h1>
+        <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">Cash</h1>
         <div className="flex gap-2">
           <button
             type="button"
@@ -225,68 +264,20 @@ export default function ContantGeldPagina() {
       )}
 
       {data && data.locaties.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-800">
-          <table className="min-w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900/60">
-                <th className="sticky left-0 bg-neutral-50 px-3 py-2 text-left font-medium text-neutral-500 dark:bg-neutral-900/60 dark:text-neutral-400">
-                  Locatie
-                </th>
-                {data.coupures.map((c, i) => (
-                  <th
-                    key={c}
-                    className={
-                      "whitespace-nowrap px-2 py-2 text-right font-medium text-neutral-500 dark:text-neutral-400" +
-                      (i > 0 && data.coupures[i - 1] <= MUNTEN_GRENS && c > MUNTEN_GRENS
-                        ? " border-l border-neutral-200 dark:border-neutral-800"
-                        : "")
-                    }
-                  >
-                    {bedragFormat.format(c)}
-                  </th>
-                ))}
-                <th className="whitespace-nowrap border-l border-neutral-200 px-3 py-2 text-right font-medium text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
-                  Totaal
-                </th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {data.locaties.map((locatie) => (
-                <tr key={locatie.id} className="border-b border-neutral-100 last:border-b-0 dark:border-neutral-900">
-                  <td className="sticky left-0 bg-white px-3 py-2 dark:bg-neutral-900">
-                    <LocatieNaam locatie={locatie} onOpgeslagen={bijgewerkt} />
-                  </td>
-                  {locatie.tellingen.map((t, i) => (
-                    <td
-                      key={t.coupure}
-                      className={
-                        "px-2 py-2 text-right" +
-                        (i > 0 && locatie.tellingen[i - 1].coupure <= MUNTEN_GRENS && t.coupure > MUNTEN_GRENS
-                          ? " border-l border-neutral-200 dark:border-neutral-800"
-                          : "")
-                      }
-                    >
-                      <AantalInput locatieId={locatie.id} coupure={t.coupure} aantal={t.aantal} onOpgeslagen={bijgewerkt} />
-                    </td>
-                  ))}
-                  <td className="whitespace-nowrap border-l border-neutral-200 px-3 py-2 text-right font-medium tabular-nums text-neutral-900 dark:border-neutral-800 dark:text-neutral-100">
-                    {bedragFormat.format(locatie.totaal)}
-                  </td>
-                  <td className="px-2 py-2">
-                    <button
-                      type="button"
-                      onClick={() => locatieVerwijderen(locatie)}
-                      aria-label={`${locatie.naam} verwijderen`}
-                      className="text-xs text-red-700 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                    >
-                      ✕
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+          {data.locaties.map((locatie) => (
+            <button
+              key={locatie.id}
+              type="button"
+              onClick={() => setBewerktLocatieId(locatie.id)}
+              className="flex flex-col items-start gap-1 rounded-lg border border-neutral-200 bg-white p-4 text-left hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-900/60"
+            >
+              <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{locatie.naam}</span>
+              <span className="text-lg font-semibold tabular-nums text-neutral-900 dark:text-neutral-100">
+                {bedragFormat.format(locatie.totaal)}
+              </span>
+            </button>
+          ))}
         </div>
       )}
 
@@ -348,6 +339,22 @@ export default function ContantGeldPagina() {
           </div>
         )}
       </div>
+
+      {data && (
+        <Overlay open={bewerktLocatie !== null} onClose={() => setBewerktLocatieId(null)} titel={bewerktLocatie?.naam ?? ""}>
+          {bewerktLocatie && (
+            <LocatieOverlayInhoud
+              locatie={bewerktLocatie}
+              coupures={data.coupures}
+              onOpgeslagen={bijgewerkt}
+              onVerwijderd={() => {
+                locatieVerwijderen(bewerktLocatie);
+                setBewerktLocatieId(null);
+              }}
+            />
+          )}
+        </Overlay>
+      )}
 
       {data && (
         <Overlay open={toonVerplaatsen} onClose={() => setToonVerplaatsen(false)} titel="Geld verplaatsen">

@@ -4,6 +4,8 @@ gematerialiseerde tabel — bij dit datavolume ruim snel genoeg, en zo hoeft er
 nergens iets ongeldig gemaakt te worden zodra een transactie wijzigt).
 """
 
+from datetime import date
+
 import duckdb
 import pandas as pd
 
@@ -46,12 +48,18 @@ def _fx_serie(wisselkoersen: pd.DataFrame, valuta: str, datums: pd.Series) -> pd
 
 
 def bereken_portfolio_reeks(
-    con: duckdb.DuckDBPyConnection, code_filter: str | None = None
+    con: duckdb.DuckDBPyConnection, code_filter: str | None = None,
+    vanaf: date | None = None, tot: date | None = None,
 ) -> list[tuple[object, float]]:
     """Waarde van de (gefilterde of totale) portfolio per dag waarop er
     koersdata is. Gefilterd op één code: de waarde van díe positie alleen
     (aantal-in-bezit x koers) — begint op 0 vóór de eerste aankoop, eindigt
     op 0 ná volledige verkoop. Geen filter: som over alle codes.
+
+    vanaf/tot knippen alleen de GETOONDE reeks in — de positie-opbouw zelf
+    (cumsum van alle transacties) rekent altijd vanaf het allereerste begin
+    door, anders zou een venster dat na de eerste aankoop begint een
+    verkeerd (te lage) aantal-in-bezit laten zien.
     """
     transacties, koersen, wisselkoersen = _laad_dataframes(con)
     if code_filter:
@@ -94,6 +102,10 @@ def bereken_portfolio_reeks(
     totaal = pd.concat(reeksen, axis=1).sort_index().ffill().fillna(0).sum(axis=1)
     eerste_transactiedatum = transacties["datum"].min()
     totaal = totaal[totaal.index >= eerste_transactiedatum]
+    if vanaf is not None:
+        totaal = totaal[totaal.index >= pd.Timestamp(vanaf)]
+    if tot is not None:
+        totaal = totaal[totaal.index <= pd.Timestamp(tot)]
     return [(datum.date(), waarde) for datum, waarde in totaal.items()]
 
 

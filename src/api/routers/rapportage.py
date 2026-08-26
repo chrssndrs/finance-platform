@@ -15,6 +15,7 @@ from src.api.queries import (
     SQL_AFZENDERS,
     SQL_CATEGORIEEN,
     SQL_DATUM_BEREIK,
+    SQL_EIGEN_REKENINGEN,
     SQL_ONGECATEGORISEERD,
     SQL_STATUS,
     SQL_TOTALEN,
@@ -81,6 +82,7 @@ def get_totalen(
     granulariteit: str = Query(default="maand"),
     vanaf: date | None = None,
     tot: date | None = None,
+    verberg_eigen_rekeningen: bool = False,
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ) -> TotalenResponse:
     if subcategorie is not None and categorie is None:
@@ -114,6 +116,9 @@ def get_totalen(
         vanaf_effectief, tot_effectief = vanaf, tot
 
     starts = periode_starts_tussen(granulariteit, vanaf_effectief, tot_effectief)
+    eigen_rekeningen = (
+        [r[0] for r in con.execute(SQL_EIGEN_REKENINGEN).fetchall()] if verberg_eigen_rekeningen else []
+    )
     rijen = con.execute(
         SQL_TOTALEN,
         {
@@ -122,6 +127,7 @@ def get_totalen(
             "categorie": categorie,
             "subcategorie": subcategorie,
             "afzenders": afzenders,
+            "eigen_rekeningen": eigen_rekeningen,
         },
     ).fetchall()
 
@@ -146,6 +152,7 @@ def get_transacties(
     afzenders: list[str] = Query(default=[]),
     vanaf: date | None = None,
     tot: date | None = None,
+    verberg_eigen_rekeningen: bool = False,
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ) -> TransactiesResponse:
     if subcategorie is not None and categorie is None:
@@ -156,6 +163,9 @@ def get_transacties(
     if vanaf is not None and tot is not None and vanaf > tot:
         raise HTTPException(status_code=400, detail="vanaf moet voor of gelijk aan tot liggen.")
 
+    eigen_rekeningen = (
+        [r[0] for r in con.execute(SQL_EIGEN_REKENINGEN).fetchall()] if verberg_eigen_rekeningen else []
+    )
     rijen = con.execute(
         SQL_TRANSACTIES,
         {
@@ -164,6 +174,7 @@ def get_transacties(
             "afzenders": afzenders,
             "vanaf": vanaf,
             "tot": tot,
+            "eigen_rekeningen": eigen_rekeningen,
         },
     ).fetchall()
 

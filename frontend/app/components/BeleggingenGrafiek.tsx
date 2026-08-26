@@ -25,26 +25,48 @@ function CustomTooltip({ active, payload }: TooltipContentProps) {
   );
 }
 
+const PERIODE_OPTIES: { key: string; label: string; maanden: number | null }[] = [
+  { key: "1m", label: "1M", maanden: 1 },
+  { key: "3m", label: "3M", maanden: 3 },
+  { key: "6m", label: "6M", maanden: 6 },
+  { key: "1j", label: "1J", maanden: 12 },
+  { key: "alles", label: "Alles", maanden: null },
+];
+
+function vanafVoorPeriode(maanden: number | null): string | null {
+  if (maanden === null) return null;
+  const d = new Date();
+  d.setMonth(d.getMonth() - maanden);
+  return d.toISOString().slice(0, 10);
+}
+
 interface BeleggingenGrafiekProps {
   posities: Positie[];
 }
 
 export function BeleggingenGrafiek({ posities }: BeleggingenGrafiekProps) {
   const [code, setCode] = useState<string | null>(null);
+  const [periode, setPeriode] = useState("3m");
   const [data, setData] = useState<{ datum: string; waarde: number }[]>([]);
   const [laden, setLaden] = useState(true);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
 
   useEffect(() => {
-    getPortfolio(code)
+    const maanden = PERIODE_OPTIES.find((p) => p.key === periode)?.maanden ?? null;
+    getPortfolio(code, vanafVoorPeriode(maanden), null)
       .then((res) => setData(res.reeks.map((p) => ({ datum: p.datum, waarde: p.waarde }))))
       .catch((err) => setFoutmelding(err instanceof ApiError ? err.message : "Kon grafiek niet laden."))
       .finally(() => setLaden(false));
-  }, [code]);
+  }, [code, periode]);
 
   function kiesCode(nieuweCode: string | null) {
     setLaden(true);
     setCode(nieuweCode);
+  }
+
+  function kiesPeriode(nieuwePeriode: string) {
+    setLaden(true);
+    setPeriode(nieuwePeriode);
   }
 
   return (
@@ -75,6 +97,24 @@ export function BeleggingenGrafiek({ posities }: BeleggingenGrafiekProps) {
             }
           >
             {p.naam}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5 text-sm text-neutral-500 dark:text-neutral-400">
+        {PERIODE_OPTIES.map((p) => (
+          <button
+            key={p.key}
+            type="button"
+            onClick={() => kiesPeriode(p.key)}
+            className={
+              "rounded-full border px-2.5 py-1 text-xs " +
+              (periode === p.key
+                ? "border-neutral-900 text-neutral-900 dark:border-neutral-100 dark:text-neutral-100"
+                : "border-neutral-300 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800")
+            }
+          >
+            {p.label}
           </button>
         ))}
       </div>

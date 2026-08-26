@@ -85,6 +85,7 @@ export function UitgavenInhoud() {
     return waarde ? waarde.split(",") : [];
   });
   const [zichtbareSeries, setZichtbareSeries] = useState<Record<SerieKey, boolean>>(ALLE_SERIES_ZICHTBAAR);
+  const [verbergEigenRekeningen, setVerbergEigenRekeningen] = useState(false);
   // Verhoogd bij elke filterwijziging (wijzigFilter) zodat de totalen-fetch
   // hieronder altijd opnieuw draait en "laden" weer op false zet — ook als
   // bv. dezelfde periode opnieuw gekozen wordt en de afgeleide vanaf/tot-
@@ -132,11 +133,14 @@ export function UitgavenInhoud() {
   const { vanaf, tot } = resolveerPeriodeSelectie(periodeSelectie);
 
   useEffect(() => {
-    getTotalen({ categorie, subcategorie, afzenders: geselecteerdeAfzenders, granulariteit, vanaf, tot })
+    getTotalen({
+      categorie, subcategorie, afzenders: geselecteerdeAfzenders, granulariteit, vanaf, tot,
+      verbergEigenRekeningen,
+    })
       .then((res) => setReeks(res.reeks))
       .catch((err) => setFoutmelding(err instanceof ApiError ? err.message : "Kon totalen niet laden."))
       .finally(() => setLaden(false));
-  }, [categorie, subcategorie, geselecteerdeAfzenders, granulariteit, vanaf, tot, verversTeller]);
+  }, [categorie, subcategorie, geselecteerdeAfzenders, granulariteit, vanaf, tot, verbergEigenRekeningen, verversTeller]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -171,7 +175,10 @@ export function UitgavenInhoud() {
     setGeselecteerdePeriode(periodeStart);
     setLadenTransacties(true);
     const bereik = berekenPeriodeBereik(periodeStart, granulariteit);
-    getTransacties({ categorie, subcategorie, afzenders: geselecteerdeAfzenders, vanaf: bereik.vanaf, tot: bereik.tot })
+    getTransacties({
+      categorie, subcategorie, afzenders: geselecteerdeAfzenders, vanaf: bereik.vanaf, tot: bereik.tot,
+      verbergEigenRekeningen,
+    })
       .then((res) => setTransacties(res.transacties))
       .catch(() => setTransacties([]))
       .finally(() => setLadenTransacties(false));
@@ -223,10 +230,13 @@ export function UitgavenInhoud() {
             setGeselecteerdeAfzenders([]);
             setGranulariteit("maand");
             setPeriodeSelectie(STANDAARD_PERIODE_SELECTIE);
+            setVerbergEigenRekeningen(false);
           })
         }
         zichtbareSeries={zichtbareSeries}
         onZichtbareSeriesChange={setZichtbareSeries}
+        verbergEigenRekeningen={verbergEigenRekeningen}
+        onVerbergEigenRekeningenChange={(v) => wijzigFilter(() => setVerbergEigenRekeningen(v))}
       />
 
       {foutmelding && (

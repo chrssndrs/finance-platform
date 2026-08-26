@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 
 import duckdb
 import requests
@@ -135,9 +136,11 @@ def get_zoek(q: str = Query(min_length=1)) -> ZoekResponse:
 @router.get("/portfolio", response_model=PortfolioResponse)
 def get_portfolio(
     code: str | None = None,
+    vanaf: date | None = None,
+    tot: date | None = None,
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ) -> PortfolioResponse:
-    reeks = bereken_portfolio_reeks(con, code_filter=code)
+    reeks = bereken_portfolio_reeks(con, code_filter=code, vanaf=vanaf, tot=tot)
     return PortfolioResponse(
         code=code,
         reeks=[PortfolioPunt(datum=datum, waarde=round(waarde, 2)) for datum, waarde in reeks],

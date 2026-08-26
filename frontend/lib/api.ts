@@ -408,6 +408,7 @@ export function getTotalen(params: {
   granulariteit: Granulariteit;
   vanaf: string | null;
   tot: string | null;
+  verbergEigenRekeningen?: boolean;
 }): Promise<TotalenResponse> {
   const zoekParams = new URLSearchParams();
   if (params.categorie) zoekParams.set("categorie", params.categorie);
@@ -416,6 +417,7 @@ export function getTotalen(params: {
   zoekParams.set("granulariteit", params.granulariteit);
   if (params.vanaf) zoekParams.set("vanaf", params.vanaf);
   if (params.tot) zoekParams.set("tot", params.tot);
+  if (params.verbergEigenRekeningen) zoekParams.set("verberg_eigen_rekeningen", "true");
   return fetchJson<TotalenResponse>(`/api/rapportage/totalen?${zoekParams}`);
 }
 
@@ -425,6 +427,7 @@ export function getTransacties(params: {
   afzenders: string[];
   vanaf: string;
   tot: string;
+  verbergEigenRekeningen?: boolean;
 }): Promise<TransactiesResponse> {
   const zoekParams = new URLSearchParams();
   if (params.categorie) zoekParams.set("categorie", params.categorie);
@@ -432,6 +435,7 @@ export function getTransacties(params: {
   for (const a of params.afzenders) zoekParams.append("afzenders", a);
   zoekParams.set("vanaf", params.vanaf);
   zoekParams.set("tot", params.tot);
+  if (params.verbergEigenRekeningen) zoekParams.set("verberg_eigen_rekeningen", "true");
   return fetchJson<TransactiesResponse>(`/api/rapportage/transacties?${zoekParams}`);
 }
 
@@ -538,9 +542,11 @@ export function zoekTicker(q: string): Promise<TickerZoekResponse> {
   return fetchJson<TickerZoekResponse>(`/api/beleggingen/zoek?q=${encodeURIComponent(q)}`);
 }
 
-export function getPortfolio(code: string | null): Promise<PortfolioResponse> {
+export function getPortfolio(code: string | null, vanaf?: string | null, tot?: string | null): Promise<PortfolioResponse> {
   const zoekParams = new URLSearchParams();
   if (code) zoekParams.set("code", code);
+  if (vanaf) zoekParams.set("vanaf", vanaf);
+  if (tot) zoekParams.set("tot", tot);
   return fetchJson<PortfolioResponse>(`/api/beleggingen/portfolio?${zoekParams}`);
 }
 
