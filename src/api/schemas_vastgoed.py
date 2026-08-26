@@ -3,15 +3,21 @@ from datetime import date
 from pydantic import BaseModel
 
 
-class Woning(BaseModel):
+class LocatieInvoer(BaseModel):
     adres: str
 
 
-class WoningInvoer(BaseModel):
+class Locatie(BaseModel):
+    id: int
     adres: str
+
+
+class LocatiesResponse(BaseModel):
+    locaties: list[Locatie]
 
 
 class WaardeInvoer(BaseModel):
+    locatie_id: int
     datum: date
     waarde: float
     bron: str | None = None
@@ -20,6 +26,7 @@ class WaardeInvoer(BaseModel):
 
 class Waarde(BaseModel):
     id: int
+    locatie_id: int
     datum: date
     waarde: float
     bron: str | None

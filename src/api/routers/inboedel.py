@@ -41,6 +41,14 @@ def _naar_artikel(
     restwaarde = None
     is_afgeschreven = False
     maanden_tot_afschrijving = None
+    # Kosten per dag over de hele verwachte levensduur — heeft geen datum
+    # nodig (i.t.t. de andere afgeleide velden hieronder), alleen bedrag en
+    # levensduur.
+    kosten_per_dag = (
+        round(bedrag / (levensduur_maanden * DAGEN_PER_MAAND), 4)
+        if bedrag is not None and levensduur_maanden is not None and levensduur_maanden > 0
+        else None
+    )
 
     if datum is not None and levensduur_maanden is not None and levensduur_maanden > 0:
         leeftijd_dagen = (vandaag - datum).days
@@ -67,6 +75,7 @@ def _naar_artikel(
         restwaarde=restwaarde,
         is_afgeschreven=is_afgeschreven,
         maanden_tot_afschrijving=maanden_tot_afschrijving,
+        kosten_per_dag=kosten_per_dag,
     )
 
 

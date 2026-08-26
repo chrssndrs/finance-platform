@@ -8,13 +8,14 @@ const inputKlasse =
   "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 sm:text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100";
 
 interface VastgoedFormulierProps {
+  locatieId: number;
   waarde?: Waarde;
   onOpgeslagen: (waarde: Waarde) => void;
   onAnnuleren?: () => void;
   onVerwijderd?: (id: number) => void;
 }
 
-export function VastgoedFormulier({ waarde, onOpgeslagen, onAnnuleren, onVerwijderd }: VastgoedFormulierProps) {
+export function VastgoedFormulier({ locatieId, waarde, onOpgeslagen, onAnnuleren, onVerwijderd }: VastgoedFormulierProps) {
   const [datum, setDatum] = useState(waarde?.datum ?? "");
   const [bedrag, setBedrag] = useState(waarde ? String(waarde.waarde).replace(".", ",") : "");
   const [bron, setBron] = useState(waarde?.bron ?? "");
@@ -32,6 +33,7 @@ export function VastgoedFormulier({ waarde, onOpgeslagen, onAnnuleren, onVerwijd
     setBezig(true);
     setFoutmelding(null);
     const invoer: WaardeInvoer = {
+      locatie_id: locatieId,
       datum,
       waarde: Number(bedrag.replace(",", ".")),
       bron: bron.trim() || null,

@@ -14,6 +14,12 @@ import {
 
 const BINNEN_MAANDEN_DREMPEL = 6;
 const bedragFormat = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
+const dagbedragFormat = new Intl.NumberFormat("nl-NL", {
+  style: "currency",
+  currency: "EUR",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 3,
+});
 
 interface SectieProps {
   titel: string;
@@ -83,6 +89,7 @@ export default function InboedelPagina() {
     (a) => !a.is_afgeschreven && a.maanden_tot_afschrijving !== null && a.maanden_tot_afschrijving <= BINNEN_MAANDEN_DREMPEL
   );
   const totaalRestwaarde = artikelen.reduce((som, a) => som + (a.restwaarde ?? 0), 0);
+  const totaalKostenPerDag = artikelen.reduce((som, a) => som + (a.kosten_per_dag ?? 0), 0);
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-10">
@@ -109,10 +116,18 @@ export default function InboedelPagina() {
       )}
 
       {!laden && !foutmelding && (
-        <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
-          <div className="text-sm text-neutral-500 dark:text-neutral-400">Totale restwaarde</div>
-          <div className="text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-100">
-            {bedragFormat.format(totaalRestwaarde)}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+            <div className="text-sm text-neutral-500 dark:text-neutral-400">Totale restwaarde</div>
+            <div className="text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-100">
+              {bedragFormat.format(totaalRestwaarde)}
+            </div>
+          </div>
+          <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+            <div className="text-sm text-neutral-500 dark:text-neutral-400">Kosten per dag (totaal)</div>
+            <div className="text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-100">
+              {dagbedragFormat.format(totaalKostenPerDag)}
+            </div>
           </div>
         </div>
       )}

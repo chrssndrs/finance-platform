@@ -31,6 +31,7 @@ class InboedelArtikel(BaseModel):
     restwaarde: float | None
     is_afgeschreven: bool
     maanden_tot_afschrijving: float | None
+    kosten_per_dag: float | None
 
 
 class InboedelArtikelenResponse(BaseModel):

@@ -5,6 +5,12 @@ import { useMemo, useState } from "react";
 import type { InboedelArtikel } from "@/lib/api";
 
 const bedragFormat = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
+const dagbedragFormat = new Intl.NumberFormat("nl-NL", {
+  style: "currency",
+  currency: "EUR",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 3,
+});
 const datumFormat = new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "short", year: "numeric" });
 
 type SortKey =
@@ -16,6 +22,7 @@ type SortKey =
   | "datum"
   | "levensduur_maanden"
   | "restwaarde"
+  | "kosten_per_dag"
   | "serienummer"
   | "wordt_vervangen";
 
@@ -28,14 +35,17 @@ const KOLOMMEN: { key: SortKey; label: string }[] = [
   { key: "datum", label: "Datum" },
   { key: "levensduur_maanden", label: "Levensduur" },
   { key: "restwaarde", label: "Restwaarde" },
+  { key: "kosten_per_dag", label: "Kosten/dag" },
   { key: "serienummer", label: "Serienummer" },
   { key: "wordt_vervangen", label: "Vervangen?" },
 ];
 
+const NUMERIEKE_VELDEN: SortKey[] = ["bedrag", "levensduur_maanden", "restwaarde", "kosten_per_dag"];
+
 function vergelijk(a: InboedelArtikel, key: SortKey): string | number {
   const v = a[key];
   if (typeof v === "boolean") return v ? 1 : 0;
-  if (v === null || v === undefined) return key === "bedrag" || key === "levensduur_maanden" || key === "restwaarde" ? -Infinity : "";
+  if (v === null || v === undefined) return NUMERIEKE_VELDEN.includes(key) ? -Infinity : "";
   return v;
 }
 
@@ -111,6 +121,9 @@ export function InboedelTabel({ artikelen, onRijKlik }: InboedelTabelProps) {
               </td>
               <td className="py-2 pr-4 tabular-nums">
                 {a.restwaarde !== null ? bedragFormat.format(a.restwaarde) : "—"}
+              </td>
+              <td className="py-2 pr-4 tabular-nums">
+                {a.kosten_per_dag !== null ? dagbedragFormat.format(a.kosten_per_dag) : "—"}
               </td>
               <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">{a.serienummer ?? "—"}</td>
               <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">{a.wordt_vervangen ? "Ja" : "Nee"}</td>

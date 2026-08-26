@@ -3,41 +3,70 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 
 from src.api.deps import get_db, get_write_db
 from src.api.queries_vastgoed import (
+    SQL_LOCATIE_BIJWERKEN,
+    SQL_LOCATIE_INVOEGEN,
+    SQL_LOCATIE_OPHALEN,
+    SQL_LOCATIE_VERWIJDEREN,
+    SQL_LOCATIES,
     SQL_WAARDE_BIJWERKEN,
     SQL_WAARDE_INVOEGEN,
     SQL_WAARDE_VERWIJDEREN,
     SQL_WAARDES,
-    SQL_WONING_BIJWERKEN,
-    SQL_WONING_OPHALEN,
+    SQL_WAARDES_VERWIJDEREN_VOOR_LOCATIE,
 )
-from src.api.schemas_vastgoed import Waarde, WaardeInvoer, WaardenResponse, Woning, WoningInvoer
+from src.api.schemas_vastgoed import Locatie, LocatieInvoer, LocatiesResponse, Waarde, WaardeInvoer, WaardenResponse
 
 router = APIRouter(prefix="/api/vastgoed")
 
 
-@router.get("/woning", response_model=Woning)
-def get_woning(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> Woning:
-    (adres,) = con.execute(SQL_WONING_OPHALEN).fetchone()
-    return Woning(adres=adres)
+@router.get("/locaties", response_model=LocatiesResponse)
+def get_locaties(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> LocatiesResponse:
+    rijen = con.execute(SQL_LOCATIES).fetchall()
+    return LocatiesResponse(locaties=[Locatie(id=id_, adres=adres) for id_, adres in rijen])
 
 
-@router.put("/woning", response_model=Woning)
-def put_woning(
-    woning: WoningInvoer,
+@router.post("/locaties", response_model=Locatie)
+def post_locatie(
+    locatie: LocatieInvoer,
     con: duckdb.DuckDBPyConnection = Depends(get_write_db),
-) -> Woning:
-    if not woning.adres.strip():
+) -> Locatie:
+    if not locatie.adres.strip():
         raise HTTPException(status_code=400, detail="Adres mag niet leeg zijn.")
-    con.execute(SQL_WONING_BIJWERKEN, {"adres": woning.adres.strip()})
-    return Woning(adres=woning.adres.strip())
+    nieuw_id = con.execute(SQL_LOCATIE_INVOEGEN, {"adres": locatie.adres.strip()}).fetchone()[0]
+    return Locatie(id=nieuw_id, adres=locatie.adres.strip())
+
+
+@router.put("/locaties/{locatie_id}", response_model=Locatie)
+def put_locatie(
+    locatie_id: int,
+    locatie: LocatieInvoer,
+    con: duckdb.DuckDBPyConnection = Depends(get_write_db),
+) -> Locatie:
+    if not locatie.adres.strip():
+        raise HTTPException(status_code=400, detail="Adres mag niet leeg zijn.")
+    resultaat = con.execute(SQL_LOCATIE_BIJWERKEN, {"id": locatie_id, "adres": locatie.adres.strip()}).fetchone()
+    if resultaat is None:
+        raise HTTPException(status_code=404, detail="Locatie niet gevonden.")
+    return Locatie(id=locatie_id, adres=locatie.adres.strip())
+
+
+@router.delete("/locaties/{locatie_id}", status_code=204)
+def delete_locatie(locatie_id: int, con: duckdb.DuckDBPyConnection = Depends(get_write_db)) -> Response:
+    if con.execute(SQL_LOCATIE_OPHALEN, {"id": locatie_id}).fetchone() is None:
+        raise HTTPException(status_code=404, detail="Locatie niet gevonden.")
+    con.execute(SQL_WAARDES_VERWIJDEREN_VOOR_LOCATIE, {"locatie_id": locatie_id})
+    con.execute(SQL_LOCATIE_VERWIJDEREN, {"id": locatie_id})
+    return Response(status_code=204)
 
 
 @router.get("/waardes", response_model=WaardenResponse)
-def get_waardes(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> WaardenResponse:
-    rijen = con.execute(SQL_WAARDES).fetchall()
+def get_waardes(locatie_id: int, con: duckdb.DuckDBPyConnection = Depends(get_db)) -> WaardenResponse:
+    rijen = con.execute(SQL_WAARDES, {"locatie_id": locatie_id}).fetchall()
     return WaardenResponse(
-        waardes=[Waarde(id=id_, datum=datum, waarde=waarde, bron=bron, opmerking=opmerking)
-                 for id_, datum, waarde, bron, opmerking in rijen]
+        waardes=[
+            Waarde(id=id_, locatie_id=loc_id, datum=datum, waarde=waarde, bron=bron, opmerking=opmerking)
+            for id_, loc_id, datum, waarde, bron, opmerking in rijen
+        ]
     )
 
 
@@ -46,11 +75,19 @@ def post_waarde(
     waarde: WaardeInvoer,
     con: duckdb.DuckDBPyConnection = Depends(get_write_db),
 ) -> Waarde:
+    if con.execute(SQL_LOCATIE_OPHALEN, {"id": waarde.locatie_id}).fetchone() is None:
+        raise HTTPException(status_code=404, detail="Locatie niet gevonden.")
     nieuw_id = con.execute(
         SQL_WAARDE_INVOEGEN,
-        {"datum": waarde.datum, "waarde": waarde.waarde, "bron": waarde.bron, "opmerking": waarde.opmerking},
+        {
+            "locatie_id": waarde.locatie_id, "datum": waarde.datum, "waarde": waarde.waarde,
+            "bron": waarde.bron, "opmerking": waarde.opmerking,
+        },
     ).fetchone()[0]
-    return Waarde(id=nieuw_id, datum=waarde.datum, waarde=waarde.waarde, bron=waarde.bron, opmerking=waarde.opmerking)
+    return Waarde(
+        id=nieuw_id, locatie_id=waarde.locatie_id, datum=waarde.datum, waarde=waarde.waarde,
+        bron=waarde.bron, opmerking=waarde.opmerking,
+    )
 
 
 @router.put("/waardes/{waarde_id}", response_model=Waarde)
@@ -68,7 +105,11 @@ def put_waarde(
     ).fetchone()
     if resultaat is None:
         raise HTTPException(status_code=404, detail="Waarde niet gevonden.")
-    return Waarde(id=waarde_id, datum=waarde.datum, waarde=waarde.waarde, bron=waarde.bron, opmerking=waarde.opmerking)
+    locatie_id = resultaat[1]
+    return Waarde(
+        id=waarde_id, locatie_id=locatie_id, datum=waarde.datum, waarde=waarde.waarde,
+        bron=waarde.bron, opmerking=waarde.opmerking,
+    )
 
 
 @router.delete("/waardes/{waarde_id}", status_code=204)

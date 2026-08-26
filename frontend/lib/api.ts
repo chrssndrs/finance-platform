@@ -161,16 +161,22 @@ export interface InstellingenResponse {
   instellingen: Instellingen;
 }
 
-export interface Woning {
+export interface VastgoedLocatie {
+  id: number;
   adres: string;
 }
 
-export interface WoningInvoer {
+export interface VastgoedLocatieInvoer {
   adres: string;
+}
+
+export interface VastgoedLocatiesResponse {
+  locaties: VastgoedLocatie[];
 }
 
 export interface Waarde {
   id: number;
+  locatie_id: number;
   datum: string;
   waarde: number;
   bron: string | null;
@@ -178,6 +184,7 @@ export interface Waarde {
 }
 
 export interface WaardeInvoer {
+  locatie_id: number;
   datum: string;
   waarde: number;
   bron: string | null;
@@ -304,6 +311,7 @@ export interface InboedelArtikel {
   restwaarde: number | null;
   is_afgeschreven: boolean;
   maanden_tot_afschrijving: number | null;
+  kosten_per_dag: number | null;
 }
 
 export interface InboedelArtikelenResponse {
@@ -498,16 +506,24 @@ export function putInstellingen(instellingen: InstellingenInvoer): Promise<Inste
   return zendJson<InstellingenResponse>("/api/instellingen", "PUT", instellingen);
 }
 
-export function getWoning(): Promise<Woning> {
-  return fetchJson<Woning>("/api/vastgoed/woning");
+export function getVastgoedLocaties(): Promise<VastgoedLocatiesResponse> {
+  return fetchJson<VastgoedLocatiesResponse>("/api/vastgoed/locaties");
 }
 
-export function putWoning(woning: WoningInvoer): Promise<Woning> {
-  return zendJson<Woning>("/api/vastgoed/woning", "PUT", woning);
+export function postVastgoedLocatie(locatie: VastgoedLocatieInvoer): Promise<VastgoedLocatie> {
+  return zendJson<VastgoedLocatie>("/api/vastgoed/locaties", "POST", locatie);
 }
 
-export function getWaardes(): Promise<WaardenResponse> {
-  return fetchJson<WaardenResponse>("/api/vastgoed/waardes");
+export function putVastgoedLocatie(id: number, locatie: VastgoedLocatieInvoer): Promise<VastgoedLocatie> {
+  return zendJson<VastgoedLocatie>(`/api/vastgoed/locaties/${id}`, "PUT", locatie);
+}
+
+export function deleteVastgoedLocatie(id: number): Promise<void> {
+  return verwijder(`/api/vastgoed/locaties/${id}`);
+}
+
+export function getWaardes(locatieId: number): Promise<WaardenResponse> {
+  return fetchJson<WaardenResponse>(`/api/vastgoed/waardes?locatie_id=${locatieId}`);
 }
 
 export function postWaarde(waarde: WaardeInvoer): Promise<Waarde> {

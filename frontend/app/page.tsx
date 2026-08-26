@@ -12,6 +12,7 @@ import {
   getPosities,
   getSchuldverloop,
   getTotalen,
+  getVastgoedLocaties,
   getVermogen,
   getWaardes,
   getWidgets,
@@ -41,18 +42,28 @@ export default function HomePagina() {
       getAbonnementen(),
       getInboedelArtikelen(),
       getPosities(),
-      getWaardes(),
+      getVastgoedLocaties(),
       getSchuldverloop(),
       getTotalen({
         categorie: null, subcategorie: null, afzenders: [],
         granulariteit: "maand", vanaf: eersteVanDezeMaand(), tot: vandaagIso(),
       }),
-    ]).then(([abonnementen, inboedel, posities, vastgoed, hypotheek, totalen]) => {
+    ]).then(async ([abonnementen, inboedel, posities, vastgoedLocaties, hypotheek, totalen]) => {
       const inboedelWaarde = inboedel.artikelen.reduce((som, a) => som + (a.restwaarde ?? 0), 0);
       const beleggingenWaarde = posities.posities.length > 0
         ? posities.posities.reduce((som, p) => som + (p.huidige_waarde ?? 0), 0)
         : null;
-      const laatsteVastgoed = [...vastgoed.waardes].sort((a, b) => a.datum.localeCompare(b.datum)).at(-1);
+
+      // Som van de laatste waarde PER locatie (meerdere panden mogen niet
+      // bij elkaar opgeteld lijken in de grafiek, maar horen wel samen op
+      // te tellen in het totale vermogen op deze kaart).
+      const vastgoedPerLocatie = await Promise.all(vastgoedLocaties.locaties.map((l) => getWaardes(l.id)));
+      const heeftVastgoedData = vastgoedPerLocatie.some((res) => res.waardes.length > 0);
+      const totaalVastgoedWaarde = vastgoedPerLocatie.reduce((som, res) => {
+        const laatste = [...res.waardes].sort((a, b) => a.datum.localeCompare(b.datum)).at(-1);
+        return som + (laatste?.waarde ?? 0);
+      }, 0);
+
       const uitgavenDezeMaand = totalen.reeks.reduce((som, r) => som + r.uitgaven, 0);
 
       setModules([
@@ -60,7 +71,7 @@ export default function HomePagina() {
         { titel: "Abonnementen / mnd", pad: "/abonnementen", waarde: abonnementen.totaal_per_maand },
         { titel: "Inboedel (dagwaarde)", pad: "/inboedel", waarde: inboedelWaarde },
         { titel: "Beleggingen", pad: "/beleggingen", waarde: beleggingenWaarde },
-        { titel: "Woningwaarde", pad: "/vastgoed", waarde: laatsteVastgoed?.waarde ?? null },
+        { titel: "Woningwaarde", pad: "/vastgoed", waarde: heeftVastgoedData ? totaalVastgoedWaarde : null },
         { titel: "Hypotheekschuld", pad: "/hypotheek", waarde: hypotheek.actuele_schuld_totaal },
       ]);
     });

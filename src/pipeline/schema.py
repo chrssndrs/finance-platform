@@ -197,24 +197,22 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("ALTER TABLE instellingen.instellingen DROP COLUMN IF EXISTS bank")
     con.execute("ALTER TABLE instellingen.instellingen DROP COLUMN IF EXISTS export_locatie")
 
-    # Eén woning (adres in de databank, niet in code — dat wordt gecommit;
-    # zet 'm zelf via de Vastgoed-pagina).
+    # Meerdere panden i.p.v. één vaste woning — locaties zelf toe te voegen
+    # via de Vastgoed-pagina (adres in de databank, niet in code).
+    con.execute("CREATE SEQUENCE IF NOT EXISTS vastgoed.locaties_seq START 1")
     con.execute("""
-        CREATE TABLE IF NOT EXISTS vastgoed.woning (
-            id INTEGER PRIMARY KEY DEFAULT 1,
-            adres VARCHAR NOT NULL DEFAULT '',
-            aangepast_op TIMESTAMP
+        CREATE TABLE IF NOT EXISTS vastgoed.locaties (
+            id INTEGER PRIMARY KEY DEFAULT nextval('vastgoed.locaties_seq'),
+            adres VARCHAR NOT NULL,
+            aangemaakt_op TIMESTAMP NOT NULL
         )
-    """)
-    con.execute("""
-        INSERT INTO vastgoed.woning (id, aangepast_op) VALUES (1, now())
-        ON CONFLICT (id) DO NOTHING
     """)
 
     con.execute("CREATE SEQUENCE IF NOT EXISTS vastgoed.waardes_seq START 1")
     con.execute("""
         CREATE TABLE IF NOT EXISTS vastgoed.waardes (
             id INTEGER PRIMARY KEY DEFAULT nextval('vastgoed.waardes_seq'),
+            locatie_id INTEGER,
             datum DATE NOT NULL,
             waarde DECIMAL(12,2) NOT NULL,
             bron VARCHAR,
@@ -222,6 +220,30 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
             aangemaakt_op TIMESTAMP NOT NULL
         )
     """)
+    # locatie_id bestond niet vóór de overstap naar meerdere panden — op een
+    # al-bestaande tabel raakt CREATE TABLE IF NOT EXISTS de kolom niet aan.
+    con.execute("ALTER TABLE vastgoed.waardes ADD COLUMN IF NOT EXISTS locatie_id INTEGER")
+
+    # Eenmalige migratie: de oude enkele-woning-singleton (vastgoed.woning)
+    # wordt de eerste rij in vastgoed.locaties, en alle bestaande waardes
+    # (die voorheen impliciet bij "de" woning hoorden) krijgen die locatie_id
+    # — zodat een al ingevulde woning/waardegeschiedenis niet verdwijnt.
+    if con.execute("SELECT COUNT(*) FROM vastgoed.locaties").fetchone()[0] == 0:
+        oude_woning_tabel_bestaat = con.execute(
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'vastgoed' AND table_name = 'woning'"
+        ).fetchone()[0] > 0
+        if oude_woning_tabel_bestaat:
+            rij = con.execute("SELECT adres FROM vastgoed.woning WHERE id = 1").fetchone()
+            if rij is not None and rij[0].strip():
+                nieuwe_id = con.execute(
+                    "INSERT INTO vastgoed.locaties (adres, aangemaakt_op) VALUES ($adres, now()) RETURNING id",
+                    {"adres": rij[0].strip()},
+                ).fetchone()[0]
+                con.execute(
+                    "UPDATE vastgoed.waardes SET locatie_id = $id WHERE locatie_id IS NULL",
+                    {"id": nieuwe_id},
+                )
+    con.execute("DROP TABLE IF EXISTS vastgoed.woning")
 
     con.execute("CREATE SEQUENCE IF NOT EXISTS beleggingen.transacties_seq START 1")
     con.execute("""

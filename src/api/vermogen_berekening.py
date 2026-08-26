@@ -45,11 +45,20 @@ def bereken_overzicht(con: duckdb.DuckDBPyConnection) -> list[dict]:
         "laatst_bijgewerkt": laatste_koers_datum, "type": "bezit",
     })
 
-    woning_rij = con.execute(
-        "SELECT waarde::DOUBLE, datum FROM vastgoed.waardes ORDER BY datum DESC LIMIT 1"
-    ).fetchone()
-    if woning_rij is not None:
-        waarde, datum = woning_rij
+    # Som van de laatst bekende waarde PER locatie — niet zomaar de meest
+    # recente rij over alle locaties heen (dat zou bij meerdere panden alle
+    # andere panden dan het net-bijgewerkte laten verdwijnen uit het vermogen).
+    vastgoed_rij = con.execute("""
+        WITH laatste AS (
+            SELECT locatie_id, waarde::DOUBLE AS waarde, datum,
+                   ROW_NUMBER() OVER (PARTITION BY locatie_id ORDER BY datum DESC) AS rn
+            FROM vastgoed.waardes
+            WHERE locatie_id IS NOT NULL
+        )
+        SELECT SUM(waarde)::DOUBLE, MAX(datum) FROM laatste WHERE rn = 1
+    """).fetchone()
+    if vastgoed_rij is not None and vastgoed_rij[0] is not None:
+        waarde, datum = vastgoed_rij
         onderdelen.append({"label": "Woningwaarde", "bedrag": waarde, "laatst_bijgewerkt": datum, "type": "bezit"})
 
     onderdelen.append({
