@@ -77,6 +77,7 @@ def _laad_transacties(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
         SELECT afzender, bedrag_eur, datum, categorie, subcategorie
         FROM gold.transacties
         WHERE bedrag_eur < 0 AND afzender IS NOT NULL
+          AND (rekening IS NULL OR rekening NOT IN (SELECT rekening FROM gold.spaarrekening_nummers))
     """).df()
     df["datum"] = pd.to_datetime(df["datum"]).dt.date
     return df

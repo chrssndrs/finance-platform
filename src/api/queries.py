@@ -29,6 +29,7 @@ SQL_ONGECATEGORISEERD = """
     SELECT afzender, COUNT(*) AS aantal, SUM(bedrag_eur)::DOUBLE AS totaalbedrag
     FROM gold.transacties
     WHERE categorie = 'Overig' AND afzender IS NOT NULL
+      AND (rekening IS NULL OR rekening NOT IN (SELECT rekening FROM gold.spaarrekening_nummers))
     GROUP BY afzender
     ORDER BY aantal DESC
 """
@@ -71,11 +72,14 @@ SQL_TRANSACTIE_DETAIL = """
 
 # Meest recente bekende banksaldo — niet elke bank/rij heeft een
 # saldo_na_mutatie (afhankelijk van bank_config.saldo_kolom), dus expliciet
-# filteren i.p.v. aannemen dat de laatste rij op datum 'm heeft.
+# filteren i.p.v. aannemen dat de laatste rij op datum 'm heeft. Sluit
+# spaarrekeningen uit: anders kan een recentere spaarrekening-upload het
+# banksaldo van de betaalrekening verdringen met het spaarsaldo.
 SQL_LAATSTE_SALDO = """
     SELECT saldo_na_mutatie::DOUBLE, datum
     FROM gold.transacties
     WHERE saldo_na_mutatie IS NOT NULL
+      AND (rekening IS NULL OR rekening NOT IN (SELECT rekening FROM gold.spaarrekening_nummers))
     ORDER BY datum DESC, ingelezen_op DESC
     LIMIT 1
 """

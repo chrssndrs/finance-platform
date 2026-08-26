@@ -36,7 +36,9 @@ def _dag_van_maand_profiel(con: duckdb.DuckDBPyConnection, vanaf: date) -> dict[
     kalendermaanden waarin die dag daadwerkelijk voorkwam (dus dag 31 wordt
     niet kunstmatig verlaagd door 'm te delen door maanden zonder 31e)."""
     df = con.execute(
-        "SELECT datum, bedrag_eur::DOUBLE AS bedrag_eur FROM gold.transacties WHERE datum >= $vanaf",
+        """SELECT datum, bedrag_eur::DOUBLE AS bedrag_eur FROM gold.transacties
+           WHERE datum >= $vanaf
+             AND (rekening IS NULL OR rekening NOT IN (SELECT rekening FROM gold.spaarrekening_nummers))""",
         {"vanaf": vanaf},
     ).df()
     if df.empty:

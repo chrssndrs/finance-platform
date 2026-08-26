@@ -105,6 +105,22 @@ def run_gold(
         )
     """)
 
+    # Rekeningnummers van banken die als spaarrekening geregistreerd staan
+    # (instellingen.banken.rekening_type) — hun eigen geüploade transacties
+    # (rentebijschrijvingen, overboekingen naar/van de spaarrekening zelf)
+    # horen niet als Uitgaven-post mee te tellen; het saldo wordt al apart
+    # via sparen_berekening.py afgeleid. rij_hash is de enige stabiele link
+    # terug naar de bank-slug, want die overleeft de stap naar silver niet
+    # (zie ook sparen_berekening.py).
+    con.execute("""
+        CREATE OR REPLACE VIEW gold.spaarrekening_nummers AS
+        SELECT DISTINCT s.rekening
+        FROM silver.transacties s
+        JOIN bronze.transacties br ON br.rij_hash = s.rij_hash
+        JOIN instellingen.banken b ON b.bank = br.bank AND b.rekening_type = 'spaarrekening'
+        WHERE s.rekening IS NOT NULL AND s.rekening != ''
+    """)
+
     con.execute(
         """
         CREATE OR REPLACE TABLE gold.transacties AS
@@ -273,6 +289,7 @@ def run_gold(
         )
         SELECT * FROM gold.transacties
         WHERE transactie_id NOT IN (SELECT transactie_id FROM volledig_gesplitst)
+          AND (rekening IS NULL OR rekening NOT IN (SELECT rekening FROM gold.spaarrekening_nummers))
         UNION ALL BY NAME
         SELECT
             f.transactie_id || '-regel-' || r.id AS transactie_id,
