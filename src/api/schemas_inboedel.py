@@ -8,6 +8,7 @@ class InboedelArtikelInvoer(BaseModel):
     merk: str | None = None
     model: str | None = None
     winkel: str | None = None
+    categorie: str | None = None
     bedrag: float | None = None
     datum: date | None = None
     levensduur_maanden: int | None = None
@@ -21,6 +22,7 @@ class InboedelArtikel(BaseModel):
     merk: str | None
     model: str | None
     winkel: str | None
+    categorie: str | None
     bedrag: float | None
     datum: date | None
     levensduur_maanden: int | None
@@ -32,6 +34,7 @@ class InboedelArtikel(BaseModel):
     is_afgeschreven: bool
     maanden_tot_afschrijving: float | None
     kosten_per_dag: float | None
+    opgebouwde_buffer: float | None
 
 
 class InboedelArtikelenResponse(BaseModel):
@@ -41,3 +44,4 @@ class InboedelArtikelenResponse(BaseModel):
 class InboedelOptiesResponse(BaseModel):
     merken: list[str]
     winkels: list[str]
+    categorieen: list[str]

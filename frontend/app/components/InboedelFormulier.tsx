@@ -24,6 +24,7 @@ interface InboedelFormulierProps {
   voorinvoer?: InboedelVoorinvoer;
   merken: string[];
   winkels: string[];
+  categorieen: string[];
   onOpgeslagen: (artikel: InboedelArtikel) => void;
   onAnnuleren: () => void;
   onVerwijderd?: (id: number) => void;
@@ -37,6 +38,7 @@ export function InboedelFormulier({
   voorinvoer,
   merken,
   winkels,
+  categorieen,
   onOpgeslagen,
   onAnnuleren,
   onVerwijderd,
@@ -45,6 +47,7 @@ export function InboedelFormulier({
   const [merk, setMerk] = useState<string | null>(artikel?.merk ?? null);
   const [model, setModel] = useState(artikel?.model ?? "");
   const [winkel, setWinkel] = useState<string | null>(artikel?.winkel ?? voorinvoer?.winkel ?? null);
+  const [categorie, setCategorie] = useState<string | null>(artikel?.categorie ?? null);
   const [bedrag, setBedrag] = useState(() => {
     if (artikel?.bedrag !== null && artikel?.bedrag !== undefined) return String(artikel.bedrag);
     if (voorinvoer?.bedrag !== null && voorinvoer?.bedrag !== undefined) return String(voorinvoer.bedrag);
@@ -74,6 +77,7 @@ export function InboedelFormulier({
         merk,
         model: model.trim() || null,
         winkel,
+        categorie,
         bedrag: bedrag.trim() ? Number(bedrag.replace(",", ".")) : null,
         datum: datum || null,
         levensduur_maanden: levensduur.trim() ? Number(levensduur) : null,
@@ -127,6 +131,15 @@ export function InboedelFormulier({
         opties={winkels}
         waarde={winkel}
         onChange={setWinkel}
+        vrijeInvoer
+        placeholder="Kies of typ"
+      />
+
+      <Combobox
+        label="Categorie"
+        opties={categorieen}
+        waarde={categorie}
+        onChange={setCategorie}
         vrijeInvoer
         placeholder="Kies of typ"
       />

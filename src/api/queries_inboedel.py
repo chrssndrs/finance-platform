@@ -1,5 +1,5 @@
 SQL_ARTIKELEN = """
-    SELECT id, omschrijving, merk, model, winkel, bedrag::DOUBLE, datum, levensduur_maanden, serienummer, wordt_vervangen
+    SELECT id, omschrijving, merk, model, winkel, categorie, bedrag::DOUBLE, datum, levensduur_maanden, serienummer, wordt_vervangen
     FROM inboedel.artikelen
     ORDER BY id
 """
@@ -12,16 +12,20 @@ SQL_WINKELS = """
     SELECT DISTINCT winkel FROM inboedel.artikelen WHERE winkel IS NOT NULL ORDER BY winkel
 """
 
+SQL_CATEGORIEEN = """
+    SELECT DISTINCT categorie FROM inboedel.artikelen WHERE categorie IS NOT NULL ORDER BY categorie
+"""
+
 SQL_ARTIKEL_INVOEGEN = """
     INSERT INTO inboedel.artikelen
-        (omschrijving, merk, model, winkel, bedrag, datum, levensduur_maanden, serienummer, wordt_vervangen, aangemaakt_op)
-    VALUES ($omschrijving, $merk, $model, $winkel, $bedrag, $datum, $levensduur_maanden, $serienummer, $wordt_vervangen, now())
+        (omschrijving, merk, model, winkel, categorie, bedrag, datum, levensduur_maanden, serienummer, wordt_vervangen, aangemaakt_op)
+    VALUES ($omschrijving, $merk, $model, $winkel, $categorie, $bedrag, $datum, $levensduur_maanden, $serienummer, $wordt_vervangen, now())
     RETURNING id
 """
 
 SQL_ARTIKEL_BIJWERKEN = """
     UPDATE inboedel.artikelen
-    SET omschrijving = $omschrijving, merk = $merk, model = $model, winkel = $winkel,
+    SET omschrijving = $omschrijving, merk = $merk, model = $model, winkel = $winkel, categorie = $categorie,
         bedrag = $bedrag, datum = $datum, levensduur_maanden = $levensduur_maanden,
         serienummer = $serienummer, wordt_vervangen = $wordt_vervangen
     WHERE id = $id

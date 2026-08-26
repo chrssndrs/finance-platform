@@ -90,6 +90,7 @@ export default function PlanningPagina() {
   const [artikelen, setArtikelen] = useState<InboedelArtikel[]>([]);
   const [merken, setMerken] = useState<string[]>([]);
   const [winkels, setWinkels] = useState<string[]>([]);
+  const [categorieen, setCategorieen] = useState<string[]>([]);
   const [laden, setLaden] = useState(true);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
   const [toonNieuw, setToonNieuw] = useState(false);
@@ -106,6 +107,7 @@ export default function PlanningPagina() {
         setArtikelen(artikelenRes.artikelen);
         setMerken(optiesRes.merken);
         setWinkels(optiesRes.winkels);
+        setCategorieen(optiesRes.categorieen);
       })
       .catch((err) => setFoutmelding(err instanceof ApiError ? err.message : "Kon planning niet laden."))
       .finally(() => setLaden(false));
@@ -321,6 +323,7 @@ export default function PlanningPagina() {
             artikel={bewerktArtikel}
             merken={merken}
             winkels={winkels}
+            categorieen={categorieen}
             onOpgeslagen={artikelOpgeslagen}
             onAnnuleren={() => setBewerktArtikel(null)}
             onVerwijderd={artikelVerwijderd}

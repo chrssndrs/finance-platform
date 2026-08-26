@@ -4,12 +4,13 @@ import duckdb
 from fastapi import APIRouter, Depends, HTTPException, Response
 
 from src.api.deps import get_db, get_write_db
-from src.api.inboedel_berekening import DAGEN_PER_MAAND, bereken_restwaarde
+from src.api.inboedel_berekening import DAGEN_PER_MAAND, bereken_opgebouwde_buffer, bereken_restwaarde
 from src.api.queries_inboedel import (
     SQL_ARTIKEL_BIJWERKEN,
     SQL_ARTIKEL_INVOEGEN,
     SQL_ARTIKEL_VERWIJDEREN,
     SQL_ARTIKELEN,
+    SQL_CATEGORIEEN,
     SQL_MERKEN,
     SQL_WINKELS,
 )
@@ -29,6 +30,7 @@ def _naar_artikel(
     merk: str | None,
     model: str | None,
     winkel: str | None,
+    categorie: str | None,
     bedrag: float | None,
     datum: date | None,
     levensduur_maanden: int | None,
@@ -41,6 +43,7 @@ def _naar_artikel(
     restwaarde = None
     is_afgeschreven = False
     maanden_tot_afschrijving = None
+    opgebouwde_buffer = None
     # Kosten per dag over de hele verwachte levensduur — heeft geen datum
     # nodig (i.t.t. de andere afgeleide velden hieronder), alleen bedrag en
     # levensduur.
@@ -58,6 +61,7 @@ def _naar_artikel(
         is_afgeschreven = leeftijd_dagen >= levensduur_dagen
         maanden_tot_afschrijving = levensduur_maanden - leeftijd_maanden
         restwaarde = bereken_restwaarde(bedrag, datum, levensduur_maanden, vandaag)
+        opgebouwde_buffer = bereken_opgebouwde_buffer(bedrag, datum, levensduur_maanden, vandaag)
 
     return InboedelArtikel(
         id=id_,
@@ -65,6 +69,7 @@ def _naar_artikel(
         merk=merk,
         model=model,
         winkel=winkel,
+        categorie=categorie,
         bedrag=bedrag,
         datum=datum,
         levensduur_maanden=levensduur_maanden,
@@ -76,6 +81,7 @@ def _naar_artikel(
         is_afgeschreven=is_afgeschreven,
         maanden_tot_afschrijving=maanden_tot_afschrijving,
         kosten_per_dag=kosten_per_dag,
+        opgebouwde_buffer=opgebouwde_buffer,
     )
 
 
@@ -92,7 +98,8 @@ def get_artikelen(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> InboedelA
 def get_opties(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> InboedelOptiesResponse:
     merken = [r[0] for r in con.execute(SQL_MERKEN).fetchall()]
     winkels = [r[0] for r in con.execute(SQL_WINKELS).fetchall()]
-    return InboedelOptiesResponse(merken=merken, winkels=winkels)
+    categorieen = [r[0] for r in con.execute(SQL_CATEGORIEEN).fetchall()]
+    return InboedelOptiesResponse(merken=merken, winkels=winkels, categorieen=categorieen)
 
 
 @router.post("/artikelen", response_model=InboedelArtikel)
@@ -107,6 +114,7 @@ def post_artikel(
             "merk": artikel.merk,
             "model": artikel.model,
             "winkel": artikel.winkel,
+            "categorie": artikel.categorie,
             "bedrag": artikel.bedrag,
             "datum": artikel.datum,
             "levensduur_maanden": artikel.levensduur_maanden,
@@ -121,6 +129,7 @@ def post_artikel(
         artikel.merk,
         artikel.model,
         artikel.winkel,
+        artikel.categorie,
         artikel.bedrag,
         artikel.datum,
         artikel.levensduur_maanden,
@@ -144,6 +153,7 @@ def put_artikel(
             "merk": artikel.merk,
             "model": artikel.model,
             "winkel": artikel.winkel,
+            "categorie": artikel.categorie,
             "bedrag": artikel.bedrag,
             "datum": artikel.datum,
             "levensduur_maanden": artikel.levensduur_maanden,
@@ -160,6 +170,7 @@ def put_artikel(
         artikel.merk,
         artikel.model,
         artikel.winkel,
+        artikel.categorie,
         artikel.bedrag,
         artikel.datum,
         artikel.levensduur_maanden,

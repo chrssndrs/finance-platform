@@ -59,6 +59,7 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
     # niet vervangen gaat worden — de verwachte vervangingskosten vallen dan
     # weg uit de Planning-module (planning_berekening.py).
     con.execute("ALTER TABLE inboedel.artikelen ADD COLUMN IF NOT EXISTS wordt_vervangen BOOLEAN DEFAULT true")
+    con.execute("ALTER TABLE inboedel.artikelen ADD COLUMN IF NOT EXISTS categorie VARCHAR")
 
     # De geaccepteerde/handmatige abonnementen-lijst — vervangt de oude,
     # volledig herberekende gold.abonnementen. afzender NULL = puur

@@ -339,6 +339,7 @@ export interface InboedelArtikel {
   merk: string | null;
   model: string | null;
   winkel: string | null;
+  categorie: string | null;
   bedrag: number | null;
   datum: string | null;
   levensduur_maanden: number | null;
@@ -350,6 +351,7 @@ export interface InboedelArtikel {
   is_afgeschreven: boolean;
   maanden_tot_afschrijving: number | null;
   kosten_per_dag: number | null;
+  opgebouwde_buffer: number | null;
 }
 
 export interface InboedelArtikelenResponse {
@@ -359,6 +361,7 @@ export interface InboedelArtikelenResponse {
 export interface InboedelOptiesResponse {
   merken: string[];
   winkels: string[];
+  categorieen: string[];
 }
 
 export interface InboedelArtikelInvoer {
@@ -366,6 +369,7 @@ export interface InboedelArtikelInvoer {
   merk: string | null;
   model: string | null;
   winkel: string | null;
+  categorie: string | null;
   bedrag: number | null;
   datum: string | null;
   levensduur_maanden: number | null;

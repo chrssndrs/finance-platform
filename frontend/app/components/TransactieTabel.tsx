@@ -66,12 +66,14 @@ function InboedelVanTransactieOverlay({
 }) {
   const [merken, setMerken] = useState<string[]>([]);
   const [winkels, setWinkels] = useState<string[]>([]);
+  const [categorieen, setCategorieen] = useState<string[]>([]);
   const [aangemaakt, setAangemaakt] = useState<InboedelArtikel | null>(null);
 
   useEffect(() => {
     getInboedelOpties().then((res) => {
       setMerken(res.merken);
       setWinkels(res.winkels);
+      setCategorieen(res.categorieen);
     });
   }, []);
 
@@ -85,6 +87,7 @@ function InboedelVanTransactieOverlay({
         <InboedelFormulier
           merken={merken}
           winkels={winkels}
+          categorieen={categorieen}
           voorinvoer={{ winkel: detail.afzender, bedrag: Math.abs(detail.bedrag_eur), datum: detail.datum }}
           onOpgeslagen={setAangemaakt}
           onAnnuleren={onClose}

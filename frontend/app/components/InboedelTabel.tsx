@@ -18,10 +18,12 @@ type SortKey =
   | "merk"
   | "model"
   | "winkel"
+  | "categorie"
   | "bedrag"
   | "datum"
   | "levensduur_maanden"
   | "restwaarde"
+  | "opgebouwde_buffer"
   | "kosten_per_dag"
   | "serienummer"
   | "wordt_vervangen";
@@ -31,16 +33,18 @@ const KOLOMMEN: { key: SortKey; label: string }[] = [
   { key: "merk", label: "Merk" },
   { key: "model", label: "Model" },
   { key: "winkel", label: "Winkel" },
+  { key: "categorie", label: "Categorie" },
   { key: "bedrag", label: "Bedrag" },
   { key: "datum", label: "Datum" },
   { key: "levensduur_maanden", label: "Levensduur" },
   { key: "restwaarde", label: "Restwaarde" },
+  { key: "opgebouwde_buffer", label: "Opgebouwde buffer" },
   { key: "kosten_per_dag", label: "Kosten/dag" },
   { key: "serienummer", label: "Serienummer" },
   { key: "wordt_vervangen", label: "Vervangen?" },
 ];
 
-const NUMERIEKE_VELDEN: SortKey[] = ["bedrag", "levensduur_maanden", "restwaarde", "kosten_per_dag"];
+const NUMERIEKE_VELDEN: SortKey[] = ["bedrag", "levensduur_maanden", "restwaarde", "opgebouwde_buffer", "kosten_per_dag"];
 
 function vergelijk(a: InboedelArtikel, key: SortKey): string | number {
   const v = a[key];
@@ -112,6 +116,7 @@ export function InboedelTabel({ artikelen, onRijKlik }: InboedelTabelProps) {
               <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">{a.merk ?? "—"}</td>
               <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">{a.model ?? "—"}</td>
               <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">{a.winkel ?? "—"}</td>
+              <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">{a.categorie ?? "—"}</td>
               <td className="py-2 pr-4 tabular-nums">{a.bedrag !== null ? bedragFormat.format(a.bedrag) : "—"}</td>
               <td className="whitespace-nowrap py-2 pr-4 tabular-nums">
                 {a.datum ? datumFormat.format(new Date(`${a.datum}T00:00:00`)) : "—"}
@@ -121,6 +126,11 @@ export function InboedelTabel({ artikelen, onRijKlik }: InboedelTabelProps) {
               </td>
               <td className="py-2 pr-4 tabular-nums">
                 {a.restwaarde !== null ? bedragFormat.format(a.restwaarde) : "—"}
+              </td>
+              <td className="py-2 pr-4 tabular-nums">
+                {a.opgebouwde_buffer !== null && a.opgebouwde_buffer > 0
+                  ? bedragFormat.format(a.opgebouwde_buffer)
+                  : "—"}
               </td>
               <td className="py-2 pr-4 tabular-nums">
                 {a.kosten_per_dag !== null ? dagbedragFormat.format(a.kosten_per_dag) : "—"}
