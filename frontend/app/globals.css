@@ -43,6 +43,34 @@
   --chart-surface: #1a1a19;
 }
 
+/* Kleurenthema's voor grafieken — alleen de 3 data-series-kleuren wisselen,
+   de rest (tekst/gridlines/baseline/surface) blijft gedeeld zodat een
+   thema-wissel de rest van de grafiek-styling niet verstoort. Geselecteerd
+   via .chart-thema-* op <html>, naast (niet i.p.v.) .dark. */
+.chart-thema-warm {
+  --chart-series-1: #c0392b;
+  --chart-series-2: #e08e0b;
+  --chart-series-3: #8e44ad;
+}
+
+.dark.chart-thema-warm {
+  --chart-series-1: #e05d4e;
+  --chart-series-2: #f2a736;
+  --chart-series-3: #a569bd;
+}
+
+.chart-thema-koel {
+  --chart-series-1: #1b6ca8;
+  --chart-series-2: #16a3b8;
+  --chart-series-3: #5b6ee1;
+}
+
+.dark.chart-thema-koel {
+  --chart-series-1: #4a9fd6;
+  --chart-series-2: #3fc3d6;
+  --chart-series-3: #8391ea;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

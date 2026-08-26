@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 
 import { ModuleKaarten, type ModuleKaartData } from "@/app/components/ModuleKaarten";
-import { VermogenOverzicht } from "@/app/components/VermogenOverzicht";
 import { WidgetenSectie } from "@/app/components/WidgetenSectie";
 import {
   ApiError,
@@ -13,10 +12,8 @@ import {
   getSchuldverloop,
   getTotalen,
   getVastgoedLocaties,
-  getVermogen,
   getWaardes,
   getWidgets,
-  type VermogenResponse,
   type Widget,
 } from "@/lib/api";
 
@@ -31,7 +28,6 @@ function vandaagIso(): string {
 }
 
 export default function HomePagina() {
-  const [vermogen, setVermogen] = useState<VermogenResponse | null>(null);
   const [modules, setModules] = useState<ModuleKaartData[]>([]);
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [laden, setLaden] = useState(true);
@@ -65,14 +61,17 @@ export default function HomePagina() {
       }, 0);
 
       const uitgavenDezeMaand = totalen.reeks.reduce((som, r) => som + r.uitgaven, 0);
+      // Netto overwaarde (woningwaarde - hypotheekschuld) i.p.v. twee losse
+      // kaarten — Woning is nu ook echt één pagina, dus hoort hier ook als
+      // één cijfer te tonen.
+      const woningOverwaarde = heeftVastgoedData ? totaalVastgoedWaarde - hypotheek.actuele_schuld_totaal : null;
 
       setModules([
         { titel: "Uitgaven deze maand", pad: "/uitgaven", waarde: uitgavenDezeMaand },
-        { titel: "Abonnementen / mnd", pad: "/abonnementen", waarde: abonnementen.totaal_per_maand },
-        { titel: "Inboedel (dagwaarde)", pad: "/inboedel", waarde: inboedelWaarde },
+        { titel: "Vaste lasten / mnd", pad: "/vaste-lasten", waarde: abonnementen.totaal_per_maand },
+        { titel: "Spullen (dagwaarde)", pad: "/spullen", waarde: inboedelWaarde },
         { titel: "Beleggingen", pad: "/beleggingen", waarde: beleggingenWaarde },
-        { titel: "Woningwaarde", pad: "/vastgoed", waarde: heeftVastgoedData ? totaalVastgoedWaarde : null },
-        { titel: "Hypotheekschuld", pad: "/hypotheek", waarde: hypotheek.actuele_schuld_totaal },
+        { titel: "Woning (overwaarde)", pad: "/woning", waarde: woningOverwaarde },
       ]);
     });
   }
@@ -82,7 +81,7 @@ export default function HomePagina() {
   }
 
   useEffect(() => {
-    Promise.all([getVermogen().then(setVermogen), laadModuleKaarten(), laadWidgets()])
+    Promise.all([laadModuleKaarten(), laadWidgets()])
       .catch((err) => setFoutmelding(err instanceof ApiError ? err.message : "Kon overzicht niet laden."))
       .finally(() => setLaden(false));
   }, []);
@@ -100,8 +99,6 @@ export default function HomePagina() {
       )}
 
       <div className={laden ? "flex flex-col gap-6 opacity-50 transition-opacity" : "flex flex-col gap-6 transition-opacity"}>
-        {vermogen && <VermogenOverzicht totaal={vermogen.totaal} onderdelen={vermogen.onderdelen} />}
-
         <div>
           <h2 className="mb-2 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Modules</h2>
           <ModuleKaarten modules={modules} />

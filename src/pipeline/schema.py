@@ -364,6 +364,25 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
             aangemaakt_op TIMESTAMP NOT NULL
         )
     """)
+    # locatie_id bestond niet vóór het samenvoegen van Vastgoed en Hypotheek
+    # tot de Woning-pagina — koppelt een leningdeel aan het pand waarvoor het
+    # is afgesloten.
+    con.execute("ALTER TABLE hypotheek.leningdelen ADD COLUMN IF NOT EXISTS locatie_id INTEGER")
+
+    # Eenmalige migratie: als er precies één vastgoed-locatie is, horen alle
+    # nog niet-gekoppelde leningdelen daar per definitie bij (bij meerdere
+    # panden kan dit niet automatisch geraden worden — dan moet de gebruiker
+    # zelf koppelen via de Woning-pagina).
+    (aantal_niet_gekoppeld,) = con.execute(
+        "SELECT COUNT(*) FROM hypotheek.leningdelen WHERE locatie_id IS NULL"
+    ).fetchone()
+    if aantal_niet_gekoppeld > 0:
+        locaties = con.execute("SELECT id FROM vastgoed.locaties").fetchall()
+        if len(locaties) == 1:
+            con.execute(
+                "UPDATE hypotheek.leningdelen SET locatie_id = ? WHERE locatie_id IS NULL",
+                [locaties[0][0]],
+            )
 
     # Eén handmatig restbedrag, als aanvulling op de Sparen-module (zie
     # sparen_berekening.py) voor spaargeld dat niet als bank geregistreerd

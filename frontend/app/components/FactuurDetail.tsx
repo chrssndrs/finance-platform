@@ -113,7 +113,7 @@ function RegelRij({
         type="button"
         disabled={bezig}
         onClick={() => deleteFactuurRegel(regel.id).then(() => onVerwijderd(regel.id))}
-        className="text-sm text-red-700 hover:text-red-900 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
+        className="text-sm text-red-700 hover:text-red-900 disabled:opacity-50 disabled:pointer-events-none dark:text-red-400 dark:hover:text-red-300"
       >
         Verwijderen
       </button>
@@ -205,7 +205,7 @@ function NieuweRegelFormulier({
         type="button"
         disabled={bezig}
         onClick={toevoegen}
-        className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+        className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-100 dark:text-neutral-900"
       >
         + Regel
       </button>
@@ -274,7 +274,7 @@ function MatchSectie({ factuur, onGematcht }: { factuur: FactuurMetRegels; onGem
             type="button"
             disabled={bezig}
             onClick={() => koppelen(t.transactie_id)}
-            className="flex w-full items-center justify-between border-b border-neutral-100 px-3 py-2 text-left text-sm last:border-b-0 hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-900 dark:hover:bg-neutral-900/60"
+            className="flex w-full items-center justify-between border-b border-neutral-100 px-3 py-2 text-left text-sm last:border-b-0 hover:bg-neutral-50 disabled:opacity-50 disabled:pointer-events-none dark:border-neutral-900 dark:hover:bg-neutral-900/60"
           >
             <span className="text-neutral-900 dark:text-neutral-100">
               {t.afzender} — {datumFormat.format(new Date(t.datum))}

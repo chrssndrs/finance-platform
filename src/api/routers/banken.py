@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 
 from src.api.deps import get_db, get_write_db
 from src.api.queries_banken import (
+    SQL_BANK_BIJWERKEN,
     SQL_BANK_INVOEGEN,
     SQL_BANK_LAATST_GEBRUIKT_ZETTEN,
     SQL_BANK_OPHALEN,
@@ -107,6 +108,21 @@ def post_bank(
     con.execute(SQL_BANK_INVOEGEN, {**invoer.model_dump(), "locatie": locatie})
     (DATA_ROOT / locatie).mkdir(parents=True, exist_ok=True)
     rij = con.execute(SQL_BANK_OPHALEN, {"bank": invoer.bank}).fetchone()
+    return _naar_bank(rij)
+
+
+@router.put("/{bank}", response_model=Bank)
+def put_bank(
+    bank: str,
+    invoer: BankRegistratie,
+    con: duckdb.DuckDBPyConnection = Depends(get_write_db),
+) -> Bank:
+    if con.execute(SQL_BANK_OPHALEN, {"bank": bank}).fetchone() is None:
+        raise HTTPException(status_code=404, detail="Bank niet gevonden.")
+    if not invoer.naam.strip():
+        raise HTTPException(status_code=400, detail="Naam is verplicht.")
+    con.execute(SQL_BANK_BIJWERKEN, {**invoer.model_dump(), "bank": bank})
+    rij = con.execute(SQL_BANK_OPHALEN, {"bank": bank}).fetchone()
     return _naar_bank(rij)
 
 

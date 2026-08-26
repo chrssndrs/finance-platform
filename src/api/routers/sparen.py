@@ -12,7 +12,7 @@ def _sparen_response(con: duckdb.DuckDBPyConnection) -> SparenResponse:
     rekeningen = [SpaarRekening(**r) for r in bereken_spaarrekeningen(con)]
     handmatig_rij = con.execute("SELECT bedrag::DOUBLE, aangepast_op FROM overzicht.sparen WHERE id = 1").fetchone()
     handmatig_saldo, aangepast_op = handmatig_rij if handmatig_rij else (0.0, None)
-    totaal = round(sum(r.saldo for r in rekeningen) + handmatig_saldo, 2)
+    totaal = round(sum(r.geschat_saldo for r in rekeningen) + handmatig_saldo, 2)
     return SparenResponse(
         rekeningen=rekeningen,
         handmatig_saldo=handmatig_saldo,

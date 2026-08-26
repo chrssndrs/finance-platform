@@ -4,6 +4,7 @@ import type { Positie } from "@/lib/api";
 
 const bedragFormat = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
 const aantalFormat = new Intl.NumberFormat("nl-NL", { maximumFractionDigits: 6 });
+const percentageFormat = new Intl.NumberFormat("nl-NL", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 // Prijs per stuk op 3 decimalen — bij lagere koersen (bv. penny stocks,
 // sommige ETF's) geeft 2 decimalen te veel afronding om zinvol te zijn.
@@ -64,6 +65,12 @@ export function BeleggingenPositiesTabel({ posities }: { posities: Positie[] }) 
                 }
               >
                 {p.resultaat !== null ? bedragFormat.format(p.resultaat) : "—"}
+                {p.resultaat_percentage !== null && (
+                  <span className="ml-1 text-xs font-normal opacity-75">
+                    ({p.resultaat_percentage >= 0 ? "+" : ""}
+                    {percentageFormat.format(p.resultaat_percentage)}%)
+                  </span>
+                )}
               </td>
             </tr>
           ))}

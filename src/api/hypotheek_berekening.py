@@ -59,12 +59,16 @@ def resterende_schuld(deel: Leningdeel, op_datum: date) -> float:
     raise ValueError(f"Onbekend hypotheektype: {deel.type!r}")
 
 
-def _laad_leningdelen(con: duckdb.DuckDBPyConnection) -> list[Leningdeel]:
-    rijen = con.execute("""
+def _laad_leningdelen(con: duckdb.DuckDBPyConnection, locatie_id: int | None = None) -> list[Leningdeel]:
+    rijen = con.execute(
+        """
         SELECT id, naam, type, hoofdsom::DOUBLE, rente_percentage::DOUBLE,
                startdatum, looptijd_maanden, rentevast_tot
         FROM hypotheek.leningdelen
-    """).fetchall()
+        WHERE $locatie_id::INTEGER IS NULL OR locatie_id = $locatie_id
+        """,
+        {"locatie_id": locatie_id},
+    ).fetchall()
     return [
         Leningdeel(
             id=id_, naam=naam, type=type_, hoofdsom=hoofdsom, rente_percentage=rente,
@@ -81,17 +85,19 @@ def _einddatum(deel: Leningdeel) -> date:
     return date(jaar, maand, deel.startdatum.day)
 
 
-def actuele_schuld_totaal(con: duckdb.DuckDBPyConnection, op_datum: date | None = None) -> float:
+def actuele_schuld_totaal(
+    con: duckdb.DuckDBPyConnection, op_datum: date | None = None, locatie_id: int | None = None
+) -> float:
     op_datum = op_datum or date.today()
-    delen = _laad_leningdelen(con)
+    delen = _laad_leningdelen(con, locatie_id)
     return sum(resterende_schuld(deel, op_datum) for deel in delen)
 
 
-def bereken_verloop(con: duckdb.DuckDBPyConnection) -> list[tuple[date, float]]:
+def bereken_verloop(con: duckdb.DuckDBPyConnection, locatie_id: int | None = None) -> list[tuple[date, float]]:
     """Maandelijkse punten van het vroegste startpunt tot het laatste
     einde-looptijd over alle delen — som van elk deel se resterende schuld
     per maand."""
-    delen = _laad_leningdelen(con)
+    delen = _laad_leningdelen(con, locatie_id)
     if not delen:
         return []
 

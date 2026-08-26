@@ -16,6 +16,16 @@ class VermogenResponse(BaseModel):
     onderdelen: list[VermogenOnderdeel]
 
 
+class VermogenPerMaandPunt(BaseModel):
+    maand: str
+    vermogen: float
+    mutatie: float | None
+
+
+class VermogenPerMaandResponse(BaseModel):
+    maanden: list[VermogenPerMaandPunt]
+
+
 class WidgetInvoer(BaseModel):
     titel: str | None = None
     categorie: str | None = None

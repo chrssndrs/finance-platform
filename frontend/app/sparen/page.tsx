@@ -78,12 +78,19 @@ export default function SparenPagina() {
               <div>
                 <div className="font-medium text-neutral-900 dark:text-neutral-100">{r.naam}</div>
                 <div className="text-xs text-neutral-400">
-                  {r.rekening} · bijgewerkt {datumFormat.format(new Date(r.datum))}
+                  {r.rekening} · laatst bekend {datumFormat.format(new Date(r.datum))}
                 </div>
               </div>
-              <span className="tabular-nums font-medium text-neutral-900 dark:text-neutral-100">
-                {bedragFormat.format(r.saldo)}
-              </span>
+              <div className="text-right">
+                <span className="tabular-nums font-medium text-neutral-900 dark:text-neutral-100">
+                  {bedragFormat.format(r.geschat_saldo)}
+                </span>
+                {Math.abs(r.geschat_saldo - r.saldo) >= 0.01 && (
+                  <div className="text-xs text-neutral-400">
+                    (geschat, laatst bekend {bedragFormat.format(r.saldo)})
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -113,7 +120,7 @@ export default function SparenPagina() {
             type="button"
             disabled={bezig}
             onClick={handmatigOpslaan}
-            className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+            className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
           >
             {bezig ? "Bezig..." : "Opslaan"}
           </button>

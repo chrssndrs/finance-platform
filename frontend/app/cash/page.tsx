@@ -68,7 +68,7 @@ function AantalInput({
       value={waarde}
       onChange={(e) => setWaarde(e.target.value)}
       onBlur={opslaan}
-      className="w-16 rounded-md border border-neutral-300 bg-white px-2 py-1 text-right text-sm text-neutral-900 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+      className="w-16 rounded-md border border-neutral-300 bg-white px-2 py-1 text-right text-sm text-neutral-900 disabled:opacity-50 disabled:pointer-events-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
     />
   );
 }
@@ -107,7 +107,7 @@ function LocatieNaam({
       value={naam}
       onChange={(e) => setNaam(e.target.value)}
       onBlur={opslaan}
-      className="w-32 rounded-md border border-transparent bg-transparent px-1 py-1 text-sm font-medium text-neutral-900 hover:border-neutral-300 focus:border-neutral-300 focus:bg-white disabled:opacity-50 dark:text-neutral-100 dark:hover:border-neutral-700 dark:focus:border-neutral-700 dark:focus:bg-neutral-900"
+      className="w-32 rounded-md border border-transparent bg-transparent px-1 py-1 text-sm font-medium text-neutral-900 hover:border-neutral-300 focus:border-neutral-300 focus:bg-white disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-100 dark:hover:border-neutral-700 dark:focus:border-neutral-700 dark:focus:bg-neutral-900"
     />
   );
 }
@@ -229,7 +229,7 @@ export default function CashPagina() {
             type="button"
             disabled={!kanMuteren}
             onClick={() => setToonVerplaatsen(true)}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 disabled:pointer-events-none dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
           >
             Verplaatsen
           </button>
@@ -237,7 +237,7 @@ export default function CashPagina() {
             type="button"
             disabled={!kanMuteren}
             onClick={() => setToonUitgeven(true)}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 disabled:pointer-events-none dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
           >
             Uitgeven
           </button>
@@ -295,7 +295,7 @@ export default function CashPagina() {
         <button
           type="submit"
           disabled={bezig}
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
         >
           {bezig ? "Bezig..." : "+ Locatie toevoegen"}
         </button>

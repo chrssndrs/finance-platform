@@ -65,7 +65,7 @@ export function Widget({ widget, onKlik, onOmhoog, onOmlaag }: WidgetProps) {
             disabled={!onOmhoog}
             onClick={onOmhoog}
             aria-label="Widget omhoog verplaatsen"
-            className="text-neutral-500 hover:text-neutral-900 disabled:opacity-25 dark:text-neutral-400 dark:hover:text-neutral-100"
+            className="text-neutral-500 hover:text-neutral-900 disabled:opacity-25 disabled:pointer-events-none dark:text-neutral-400 dark:hover:text-neutral-100"
           >
             ▲
           </button>
@@ -74,7 +74,7 @@ export function Widget({ widget, onKlik, onOmhoog, onOmlaag }: WidgetProps) {
             disabled={!onOmlaag}
             onClick={onOmlaag}
             aria-label="Widget omlaag verplaatsen"
-            className="text-neutral-500 hover:text-neutral-900 disabled:opacity-25 dark:text-neutral-400 dark:hover:text-neutral-100"
+            className="text-neutral-500 hover:text-neutral-900 disabled:opacity-25 disabled:pointer-events-none dark:text-neutral-400 dark:hover:text-neutral-100"
           >
             ▼
           </button>

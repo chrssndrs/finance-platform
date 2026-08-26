@@ -8,7 +8,11 @@ stap naar silver/gold niet (zie silver.py) — de link rekening -> bank wordt
 hier dus herleid via rij_hash, die wél door alle lagen heen hetzelfde blijft.
 """
 
+from datetime import date
+
 import duckdb
+
+from src.api.banksaldo_berekening import extrapoleer_saldo
 
 SQL_SPAARREKENINGEN = """
     WITH bank_rekeningen AS (
@@ -32,9 +36,13 @@ SQL_SPAARREKENINGEN = """
 """
 
 
-def bereken_spaarrekeningen(con: duckdb.DuckDBPyConnection) -> list[dict]:
+def bereken_spaarrekeningen(con: duckdb.DuckDBPyConnection, vandaag: date | None = None) -> list[dict]:
+    vandaag = vandaag or date.today()
     rijen = con.execute(SQL_SPAARREKENINGEN).fetchall()
     return [
-        {"bank": bank, "naam": naam, "rekening": rekening, "saldo": saldo, "datum": datum}
+        {
+            "bank": bank, "naam": naam, "rekening": rekening, "saldo": saldo, "datum": datum,
+            "geschat_saldo": extrapoleer_saldo(con, saldo, datum, vandaag, rekening),
+        }
         for bank, naam, rekening, saldo, datum in rijen
     ]

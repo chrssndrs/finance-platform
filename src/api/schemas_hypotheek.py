@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 
 class LeningdeelInvoer(BaseModel):
+    locatie_id: int
     naam: str
     type: str
     hoofdsom: float
@@ -15,6 +16,7 @@ class LeningdeelInvoer(BaseModel):
 
 class Leningdeel(BaseModel):
     id: int
+    locatie_id: int | None
     naam: str
     type: str
     hoofdsom: float

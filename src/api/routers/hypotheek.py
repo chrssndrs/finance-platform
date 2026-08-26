@@ -20,13 +20,13 @@ router = APIRouter(prefix="/api/hypotheek")
 GELDIGE_TYPES = {"annuiteit", "lineair", "aflossingsvrij"}
 
 
-def _naar_leningdeel(id_, naam, type_, hoofdsom, rente_percentage, startdatum, looptijd_maanden, rentevast_tot) -> Leningdeel:
+def _naar_leningdeel(id_, locatie_id, naam, type_, hoofdsom, rente_percentage, startdatum, looptijd_maanden, rentevast_tot) -> Leningdeel:
     berekening = LeningdeelBerekening(
         id=id_, naam=naam, type=type_, hoofdsom=hoofdsom, rente_percentage=rente_percentage,
         startdatum=startdatum, looptijd_maanden=looptijd_maanden, rentevast_tot=rentevast_tot,
     )
     return Leningdeel(
-        id=id_, naam=naam, type=type_, hoofdsom=hoofdsom, rente_percentage=rente_percentage,
+        id=id_, locatie_id=locatie_id, naam=naam, type=type_, hoofdsom=hoofdsom, rente_percentage=rente_percentage,
         startdatum=startdatum, looptijd_maanden=looptijd_maanden, rentevast_tot=rentevast_tot,
         actuele_schuld=round(resterende_schuld(berekening, date.today()), 2),
     )
@@ -42,8 +42,10 @@ def _valideer(leningdeel: LeningdeelInvoer) -> None:
 
 
 @router.get("/leningdelen", response_model=LeningdelenResponse)
-def get_leningdelen(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> LeningdelenResponse:
-    rijen = con.execute(SQL_LENINGDELEN).fetchall()
+def get_leningdelen(
+    locatie_id: int | None = None, con: duckdb.DuckDBPyConnection = Depends(get_db)
+) -> LeningdelenResponse:
+    rijen = con.execute(SQL_LENINGDELEN, {"locatie_id": locatie_id}).fetchall()
     return LeningdelenResponse(leningdelen=[_naar_leningdeel(*rij) for rij in rijen])
 
 
@@ -56,6 +58,7 @@ def post_leningdeel(
     nieuw_id = con.execute(
         SQL_LENINGDEEL_INVOEGEN,
         {
+            "locatie_id": leningdeel.locatie_id,
             "naam": leningdeel.naam, "type": leningdeel.type, "hoofdsom": leningdeel.hoofdsom,
             "rente_percentage": leningdeel.rente_percentage, "startdatum": leningdeel.startdatum,
             "looptijd_maanden": leningdeel.looptijd_maanden, "rentevast_tot": leningdeel.rentevast_tot,
@@ -75,7 +78,8 @@ def put_leningdeel(
     resultaat = con.execute(
         SQL_LENINGDEEL_BIJWERKEN,
         {
-            "id": leningdeel_id, "naam": leningdeel.naam, "type": leningdeel.type, "hoofdsom": leningdeel.hoofdsom,
+            "id": leningdeel_id, "locatie_id": leningdeel.locatie_id,
+            "naam": leningdeel.naam, "type": leningdeel.type, "hoofdsom": leningdeel.hoofdsom,
             "rente_percentage": leningdeel.rente_percentage, "startdatum": leningdeel.startdatum,
             "looptijd_maanden": leningdeel.looptijd_maanden, "rentevast_tot": leningdeel.rentevast_tot,
         },
@@ -98,9 +102,11 @@ def delete_leningdeel(
 
 
 @router.get("/verloop", response_model=SchuldResponse)
-def get_verloop(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> SchuldResponse:
-    reeks = bereken_verloop(con)
+def get_verloop(
+    locatie_id: int | None = None, con: duckdb.DuckDBPyConnection = Depends(get_db)
+) -> SchuldResponse:
+    reeks = bereken_verloop(con, locatie_id)
     return SchuldResponse(
         reeks=[SchuldPunt(datum=datum, schuld=round(schuld, 2)) for datum, schuld in reeks],
-        actuele_schuld_totaal=round(actuele_schuld_totaal(con), 2),
+        actuele_schuld_totaal=round(actuele_schuld_totaal(con, locatie_id=locatie_id), 2),
     )

@@ -74,6 +74,7 @@ class Positie(BaseModel):
     laatste_koers: float | None
     huidige_waarde: float | None
     resultaat: float | None
+    resultaat_percentage: float | None
 
 
 class PositiesResponse(BaseModel):

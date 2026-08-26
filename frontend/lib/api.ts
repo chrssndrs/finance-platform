@@ -286,6 +286,7 @@ export interface Positie {
   laatste_koers: number | null;
   huidige_waarde: number | null;
   resultaat: number | null;
+  resultaat_percentage: number | null;
 }
 
 export interface PositiesResponse {
@@ -295,6 +296,7 @@ export interface PositiesResponse {
 export type HypotheekType = "annuiteit" | "lineair" | "aflossingsvrij";
 
 export interface LeningdeelInvoer {
+  locatie_id: number;
   naam: string;
   type: HypotheekType;
   hoofdsom: number;
@@ -306,6 +308,7 @@ export interface LeningdeelInvoer {
 
 export interface Leningdeel {
   id: number;
+  locatie_id: number | null;
   naam: string;
   type: HypotheekType;
   hoofdsom: number;
@@ -633,8 +636,10 @@ export function getPosities(portefeuilleId?: number | null): Promise<PositiesRes
   return fetchJson<PositiesResponse>(`/api/beleggingen/posities?${zoekParams}`);
 }
 
-export function getLeningdelen(): Promise<LeningdelenResponse> {
-  return fetchJson<LeningdelenResponse>("/api/hypotheek/leningdelen");
+export function getLeningdelen(locatieId?: number | null): Promise<LeningdelenResponse> {
+  const zoekParams = new URLSearchParams();
+  if (locatieId != null) zoekParams.set("locatie_id", String(locatieId));
+  return fetchJson<LeningdelenResponse>(`/api/hypotheek/leningdelen?${zoekParams}`);
 }
 
 export function postLeningdeel(leningdeel: LeningdeelInvoer): Promise<Leningdeel> {
@@ -649,8 +654,10 @@ export function deleteLeningdeel(id: number): Promise<void> {
   return verwijder(`/api/hypotheek/leningdelen/${id}`);
 }
 
-export function getSchuldverloop(): Promise<SchuldResponse> {
-  return fetchJson<SchuldResponse>("/api/hypotheek/verloop");
+export function getSchuldverloop(locatieId?: number | null): Promise<SchuldResponse> {
+  const zoekParams = new URLSearchParams();
+  if (locatieId != null) zoekParams.set("locatie_id", String(locatieId));
+  return fetchJson<SchuldResponse>(`/api/hypotheek/verloop?${zoekParams}`);
 }
 
 export interface VermogenOnderdeel {
@@ -664,6 +671,20 @@ export interface VermogenOnderdeel {
 export interface VermogenResponse {
   totaal: number;
   onderdelen: VermogenOnderdeel[];
+}
+
+export interface VermogenPerMaandPunt {
+  maand: string;
+  vermogen: number;
+  mutatie: number | null;
+}
+
+export interface VermogenPerMaandResponse {
+  maanden: VermogenPerMaandPunt[];
+}
+
+export function getVermogenPerMaand(maanden: number): Promise<VermogenPerMaandResponse> {
+  return fetchJson<VermogenPerMaandResponse>(`/api/overzicht/vermogen-per-maand?maanden=${maanden}`);
 }
 
 export type WidgetWeergave = "totaal" | "grafiek" | "transacties";
@@ -907,6 +928,7 @@ export interface SpaarRekening {
   rekening: string;
   saldo: number;
   datum: string;
+  geschat_saldo: number;
 }
 
 export interface SparenResponse {
@@ -938,6 +960,10 @@ export async function detecteerBankKolommen(bestand: File, separator: string): P
 
 export function postBank(bank: BankRegistratie): Promise<Bank> {
   return zendJson<Bank>("/api/banken", "POST", bank);
+}
+
+export function putBank(bank: string, invoer: BankRegistratie): Promise<Bank> {
+  return zendJson<Bank>(`/api/banken/${encodeURIComponent(bank)}`, "PUT", invoer);
 }
 
 export async function postBankUpload(bank: string, bestand: File): Promise<Bank> {

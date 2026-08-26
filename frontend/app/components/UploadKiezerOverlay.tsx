@@ -54,6 +54,12 @@ export function UploadKiezerOverlay({ open, onClose }: { open: boolean; onClose:
               Bekijk of verwijder eerder geüploade bankexports, bv. na een foute upload.
             </span>
           </button>
+          <Link href="/verzamelfacturen" onClick={sluiten} className={keuzeKnopKlasse}>
+            <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Verzamelfacturen bekijken</span>
+            <span className="text-xs text-neutral-500 dark:text-neutral-400">
+              Eerder geüploade verzamelfacturen inzien of alsnog splitsen in posten.
+            </span>
+          </Link>
         </div>
       )}
 

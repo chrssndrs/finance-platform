@@ -30,17 +30,27 @@ def _maanden_geleden(d: date, aantal: int) -> date:
     return date(jaar, maand, min(d.day, 28))
 
 
-def _dag_van_maand_profiel(con: duckdb.DuckDBPyConnection, vanaf: date) -> dict[int, float]:
+def _dag_van_maand_profiel(con: duckdb.DuckDBPyConnection, vanaf: date, rekening: str | None = None) -> dict[int, float]:
     """Gemiddelde nétto mutatie per dag-van-de-maand (1-31): som van alle
     transacties op die dag-van-de-maand, gedeeld door het aantal distincte
     kalendermaanden waarin die dag daadwerkelijk voorkwam (dus dag 31 wordt
-    niet kunstmatig verlaagd door 'm te delen door maanden zonder 31e)."""
-    df = con.execute(
-        """SELECT datum, bedrag_eur::DOUBLE AS bedrag_eur FROM gold.transacties
-           WHERE datum >= $vanaf
-             AND (rekening IS NULL OR rekening NOT IN (SELECT rekening FROM gold.spaarrekening_nummers))""",
-        {"vanaf": vanaf},
-    ).df()
+    niet kunstmatig verlaagd door 'm te delen door maanden zonder 31e).
+
+    rekening=None: alle betaalrekeningen samen (spaarrekeningen expliciet
+    uitgesloten — dit is het banksaldo-gebruik). Een specifieke rekening
+    (bv. voor een geschat spaarsaldo): alleen díe rekening se eigen mutaties."""
+    if rekening is not None:
+        df = con.execute(
+            "SELECT datum, bedrag_eur::DOUBLE AS bedrag_eur FROM gold.transacties WHERE datum >= $vanaf AND rekening = $rekening",
+            {"vanaf": vanaf, "rekening": rekening},
+        ).df()
+    else:
+        df = con.execute(
+            """SELECT datum, bedrag_eur::DOUBLE AS bedrag_eur FROM gold.transacties
+               WHERE datum >= $vanaf
+                 AND (rekening IS NULL OR rekening NOT IN (SELECT rekening FROM gold.spaarrekening_nummers))""",
+            {"vanaf": vanaf},
+        ).df()
     if df.empty:
         return {}
     datums = pd.to_datetime(df["datum"])
@@ -60,6 +70,20 @@ def _geschatte_mutatie(profiel: dict[int, float], vanaf_exclusief: date, tot_inc
     return totaal
 
 
+def extrapoleer_saldo(
+    con: duckdb.DuckDBPyConnection, bedrag: float, datum: date, vandaag: date, rekening: str | None = None
+) -> float:
+    """Schat het huidige saldo op basis van het laatst bekende saldo +
+    het dag-van-de-maand-mutatieprofiel sinds die datum. Gedeeld tussen
+    bereken_banksaldo (betaalrekening) en sparen_berekening.py (per
+    spaarrekening), zodat de aanname maar op één plek staat."""
+    if vandaag <= datum:
+        return bedrag
+    profiel = _dag_van_maand_profiel(con, _maanden_geleden(vandaag, LOOKBACK_MAANDEN), rekening)
+    mutatie = _geschatte_mutatie(profiel, datum, vandaag)
+    return round(bedrag + mutatie, 2)
+
+
 def bereken_banksaldo(con: duckdb.DuckDBPyConnection, vandaag: date | None = None) -> dict:
     vandaag = vandaag or date.today()
     resultaat = con.execute(SQL_LAATSTE_SALDO).fetchone()
@@ -67,11 +91,6 @@ def bereken_banksaldo(con: duckdb.DuckDBPyConnection, vandaag: date | None = Non
         return {"bedrag": None, "datum": None, "geschat_bedrag": None}
 
     bedrag, datum = resultaat
-    if vandaag <= datum:
-        return {"bedrag": bedrag, "datum": datum, "geschat_bedrag": bedrag}
-
-    profiel = _dag_van_maand_profiel(con, _maanden_geleden(vandaag, LOOKBACK_MAANDEN))
-    mutatie = _geschatte_mutatie(profiel, datum, vandaag)
-    geschat_bedrag = round(bedrag + mutatie, 2)
+    geschat_bedrag = extrapoleer_saldo(con, bedrag, datum, vandaag)
 
     return {"bedrag": bedrag, "datum": datum, "geschat_bedrag": geschat_bedrag}

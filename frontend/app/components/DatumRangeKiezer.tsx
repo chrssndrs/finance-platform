@@ -125,7 +125,7 @@ export function DatumRangeKiezer({ selectie, onChange }: DatumRangeKiezerProps) 
               type="button"
               disabled={!van || !tot}
               onClick={() => kies({ modus: "aangepast", vanaf: van, tot })}
-              className="mt-2 w-full rounded-md bg-neutral-900 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-40 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+              className="mt-2 w-full rounded-md bg-neutral-900 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-40 disabled:pointer-events-none dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
             >
               Toepassen
             </button>

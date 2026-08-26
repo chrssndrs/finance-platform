@@ -42,7 +42,7 @@ def huidig_liquide_vermogen(con: duckdb.DuckDBPyConnection, vandaag: date) -> fl
     spaarrekeningen = bereken_spaarrekeningen(con)
     sparen_rij = con.execute("SELECT bedrag::DOUBLE FROM overzicht.sparen WHERE id = 1").fetchone()
     handmatig_sparen = sparen_rij[0] if sparen_rij else 0.0
-    sparen_totaal = sum(r["saldo"] for r in spaarrekeningen) + handmatig_sparen
+    sparen_totaal = sum(r["geschat_saldo"] for r in spaarrekeningen) + handmatig_sparen
 
     posities = bereken_posities(con)
     beleggingen_totaal = sum(p["huidige_waarde"] or 0.0 for p in posities)

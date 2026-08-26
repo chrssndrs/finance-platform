@@ -9,6 +9,7 @@ class SpaarRekening(BaseModel):
     rekening: str
     saldo: float
     datum: date
+    geschat_saldo: float
 
 
 class HandmatigSaldoInvoer(BaseModel):

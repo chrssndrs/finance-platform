@@ -187,7 +187,7 @@ export function AbonnementFormulier({ afzenders, abonnement, voorinvoer, onOpges
                 type="button"
                 disabled={logoBezig}
                 onClick={logoUploaden}
-                className="rounded-md bg-neutral-900 px-2 py-1 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+                className="rounded-md bg-neutral-900 px-2 py-1 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
               >
                 {logoBezig ? "Bezig..." : "Uploaden"}
               </button>
@@ -195,7 +195,7 @@ export function AbonnementFormulier({ afzenders, abonnement, voorinvoer, onOpges
                 type="button"
                 disabled={logoBezig}
                 onClick={() => setLogoBestand(null)}
-                className="text-xs text-neutral-500 hover:text-neutral-900 disabled:opacity-50 dark:text-neutral-400 dark:hover:text-neutral-100"
+                className="text-xs text-neutral-500 hover:text-neutral-900 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-400 dark:hover:text-neutral-100"
               >
                 Annuleren
               </button>
@@ -210,7 +210,7 @@ export function AbonnementFormulier({ afzenders, abonnement, voorinvoer, onOpges
         <button
           type="submit"
           disabled={bezig}
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
         >
           {bezig ? "Bezig..." : abonnement ? "Opslaan" : "Abonnement toevoegen"}
         </button>
@@ -228,7 +228,7 @@ export function AbonnementFormulier({ afzenders, abonnement, voorinvoer, onOpges
             type="button"
             disabled={bezigMetVerwijderen}
             onClick={verwijderen}
-            className="ml-auto text-sm text-red-700 hover:text-red-900 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
+            className="ml-auto text-sm text-red-700 hover:text-red-900 disabled:opacity-50 disabled:pointer-events-none dark:text-red-400 dark:hover:text-red-300"
           >
             Verwijderen
           </button>

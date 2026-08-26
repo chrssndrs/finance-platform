@@ -22,13 +22,14 @@ const TYPE_OPTIES: { waarde: HypotheekType; label: string }[] = [
 ];
 
 interface HypotheekFormulierProps {
+  locatieId: number;
   leningdeel?: Leningdeel;
   onOpgeslagen: (leningdeel: Leningdeel) => void;
   onAnnuleren?: () => void;
   onVerwijderd?: (id: number) => void;
 }
 
-export function HypotheekFormulier({ leningdeel, onOpgeslagen, onAnnuleren, onVerwijderd }: HypotheekFormulierProps) {
+export function HypotheekFormulier({ locatieId, leningdeel, onOpgeslagen, onAnnuleren, onVerwijderd }: HypotheekFormulierProps) {
   const [naam, setNaam] = useState(leningdeel?.naam ?? "");
   const [type, setType] = useState<HypotheekType>(leningdeel?.type ?? "annuiteit");
   const [hoofdsom, setHoofdsom] = useState(leningdeel ? String(leningdeel.hoofdsom).replace(".", ",") : "");
@@ -49,6 +50,7 @@ export function HypotheekFormulier({ leningdeel, onOpgeslagen, onAnnuleren, onVe
     setBezig(true);
     setFoutmelding(null);
     const invoer: LeningdeelInvoer = {
+      locatie_id: locatieId,
       naam: naam.trim(),
       type,
       hoofdsom: Number(hoofdsom.replace(",", ".")),
@@ -170,7 +172,7 @@ export function HypotheekFormulier({ leningdeel, onOpgeslagen, onAnnuleren, onVe
         <button
           type="submit"
           disabled={bezig}
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
         >
           {bezig ? "Bezig..." : leningdeel ? "Opslaan" : "Leningdeel toevoegen"}
         </button>
@@ -188,7 +190,7 @@ export function HypotheekFormulier({ leningdeel, onOpgeslagen, onAnnuleren, onVe
             type="button"
             disabled={bezigMetVerwijderen}
             onClick={verwijderen}
-            className="ml-auto text-sm text-red-700 hover:text-red-900 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
+            className="ml-auto text-sm text-red-700 hover:text-red-900 disabled:opacity-50 disabled:pointer-events-none dark:text-red-400 dark:hover:text-red-300"
           >
             Verwijderen
           </button>

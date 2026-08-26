@@ -78,7 +78,7 @@ function OngecategoriseerdRij({ item, categorieen, onToegewezen }: RijProps) {
         type="button"
         disabled={bezig}
         onClick={toewijzen}
-        className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+        className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
       >
         {bezig ? "Bezig..." : "Toewijzen"}
       </button>

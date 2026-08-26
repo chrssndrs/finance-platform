@@ -157,7 +157,7 @@ export function UitgaveFormulier({
         <button
           type="submit"
           disabled={bezig || succes}
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
         >
           {bezig ? "Bezig met verwerken..." : succes ? "Verwerkt ✓" : "Uitgeven"}
         </button>
@@ -165,7 +165,7 @@ export function UitgaveFormulier({
           type="button"
           disabled={bezig || succes}
           onClick={onAnnuleren}
-          className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800"
+          className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100 disabled:opacity-50 disabled:pointer-events-none dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800"
         >
           Annuleren
         </button>

@@ -11,12 +11,14 @@ from src.api.queries_overzicht import (
 )
 from src.api.schemas_overzicht import (
     VermogenOnderdeel,
+    VermogenPerMaandPunt,
+    VermogenPerMaandResponse,
     VermogenResponse,
     Widget,
     WidgetenResponse,
     WidgetInvoer,
 )
-from src.api.vermogen_berekening import bereken_overzicht, bereken_totaal
+from src.api.vermogen_berekening import bereken_overzicht, bereken_totaal, bereken_vermogen_per_maand
 
 router = APIRouter(prefix="/api/overzicht")
 
@@ -37,6 +39,17 @@ def get_vermogen(con: duckdb.DuckDBPyConnection = Depends(get_db)) -> VermogenRe
     return VermogenResponse(
         totaal=round(bereken_totaal(onderdelen), 2),
         onderdelen=[VermogenOnderdeel(**{**o, "bedrag": round(o["bedrag"], 2)}) for o in onderdelen],
+    )
+
+
+@router.get("/vermogen-per-maand", response_model=VermogenPerMaandResponse)
+def get_vermogen_per_maand(
+    maanden: int = 12, con: duckdb.DuckDBPyConnection = Depends(get_db)
+) -> VermogenPerMaandResponse:
+    if maanden <= 0:
+        raise HTTPException(status_code=400, detail="maanden moet groter dan 0 zijn.")
+    return VermogenPerMaandResponse(
+        maanden=[VermogenPerMaandPunt(**p) for p in bereken_vermogen_per_maand(con, maanden)]
     )
 
 

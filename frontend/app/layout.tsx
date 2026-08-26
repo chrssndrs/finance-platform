@@ -14,6 +14,10 @@ const THEMA_INIT_SCRIPT = `
     var thema = localStorage.getItem("thema");
     var donker = thema === "donker" || (thema !== "licht" && window.matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.classList.toggle("dark", donker);
+    var chartThema = localStorage.getItem("chart-thema");
+    if (chartThema === "warm" || chartThema === "koel") {
+      document.documentElement.classList.add("chart-thema-" + chartThema);
+    }
   } catch (e) {}
 })();
 `;

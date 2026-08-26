@@ -65,11 +65,13 @@ export function UploadsBeherenFormulier({ onAnnuleren }: { onAnnuleren: () => vo
     setSuccesmelding(null);
     try {
       await deleteBankBestand(gekozenBank, bestandsnaam);
-      setBestanden((huidig) => huidig.filter((b) => b.bestandsnaam !== bestandsnaam));
-      setSuccesmelding(`"${bestandsnaam}" verwijderd — pipeline opnieuw gedraaid.`);
+      setSuccesmelding(`"${bestandsnaam}" verwijderd en pipeline opnieuw gedraaid — pagina wordt herladen...`);
+      // Alle andere schermen (Uitgaven-totalen, banksaldo, etc.) lazen hun
+      // data al vóór deze wijziging in — een volledige herlaad is simpeler
+      // en betrouwbaarder dan overal losse her-fetches te triggeren.
+      setTimeout(() => window.location.reload(), 1200);
     } catch (err) {
       setFoutmelding(err instanceof ApiError ? err.message : "Verwijderen mislukt.");
-    } finally {
       setBezigMet(null);
     }
   }
@@ -93,7 +95,12 @@ export function UploadsBeherenFormulier({ onAnnuleren }: { onAnnuleren: () => vo
     <div className="flex flex-col gap-3">
       <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
         Bank
-        <select value={gekozenBank} onChange={(e) => kiesBank(e.target.value)} className={inputKlasse}>
+        <select
+          value={gekozenBank}
+          onChange={(e) => kiesBank(e.target.value)}
+          disabled={bezigMet !== null}
+          className={inputKlasse}
+        >
           {banken.map((b) => (
             <option key={b.bank} value={b.bank}>
               {b.naam}
@@ -102,6 +109,12 @@ export function UploadsBeherenFormulier({ onAnnuleren }: { onAnnuleren: () => vo
         </select>
       </label>
 
+      {bezigMet && !succesmelding && (
+        <p className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
+          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-600 dark:border-neutral-700 dark:border-t-neutral-300" />
+          Bestand verwijderen en pipeline opnieuw draaien (bronze → silver → gold)... dit kan een paar seconden duren.
+        </p>
+      )}
       {foutmelding && <p className="text-sm text-red-700 dark:text-red-400">{foutmelding}</p>}
       {succesmelding && <p className="text-sm text-emerald-700 dark:text-emerald-400">✓ {succesmelding}</p>}
 
@@ -125,7 +138,7 @@ export function UploadsBeherenFormulier({ onAnnuleren }: { onAnnuleren: () => vo
                   type="button"
                   disabled={bezigMet === b.bestandsnaam}
                   onClick={() => verwijderen(b.bestandsnaam)}
-                  className="flex-shrink-0 text-sm text-red-700 hover:text-red-900 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
+                  className="flex-shrink-0 text-sm text-red-700 hover:text-red-900 disabled:opacity-50 disabled:pointer-events-none dark:text-red-400 dark:hover:text-red-300"
                 >
                   {bezigMet === b.bestandsnaam ? "Bezig..." : "Verwijderen"}
                 </button>

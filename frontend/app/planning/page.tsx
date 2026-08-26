@@ -21,20 +21,32 @@ import {
 
 const bedragFormat = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
 const datumFormat = new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium" });
-const maandLabelFormat = new Intl.DateTimeFormat("nl-NL", { month: "long", year: "numeric" });
 
 // Alleen de 2 "verwacht"-lagen tonen — deze grafiek heeft geen echte
 // bank-transacties (inkomsten/uitgaven), alleen geplande posten.
 const ALLEEN_VERWACHT = { inkomsten: false, uitgaven: false, verwachte_inkomsten: true, verwachte_uitgaven: true };
 
-function bucketPerMaand(items: PlanningItem[]): PeriodeTotaal[] {
+const VOORUITKIJK_OPTIES = [3, 6, 12, 24];
+
+// Handmatige posten + de volledige inboedel-vooruitkijk-projectie (niet de
+// drempel-gefilterde items.filter(bron === "inboedel") — die is al een
+// deelverzameling hiervan en zou anders dubbel meetellen) op één hoop in
+// dezelfde maand-emmers, zodat de grafiek het complete verwachte-kosten-
+// beeld toont i.p.v. alleen wat al binnen de planning-drempel valt.
+function bucketPerMaand(handmatigItems: PlanningItem[], inboedelPerMaand: InboedelKostenPerMaandPunt[]): PeriodeTotaal[] {
   const buckets = new Map<string, { inkomsten: number; uitgaven: number }>();
-  for (const item of items) {
+  for (const item of handmatigItems) {
     if (!item.datum) continue;
     const periodeStart = `${item.datum.slice(0, 7)}-01`;
     const slot = buckets.get(periodeStart) ?? { inkomsten: 0, uitgaven: 0 };
     if (item.bedrag >= 0) slot.inkomsten += item.bedrag;
     else slot.uitgaven += -item.bedrag;
+    buckets.set(periodeStart, slot);
+  }
+  for (const punt of inboedelPerMaand) {
+    const periodeStart = `${punt.maand}-01`;
+    const slot = buckets.get(periodeStart) ?? { inkomsten: 0, uitgaven: 0 };
+    slot.uitgaven += -punt.bedrag;
     buckets.set(periodeStart, slot);
   }
   return [...buckets.entries()]
@@ -146,7 +158,10 @@ export default function PlanningPagina() {
 
   const verwachteInkomsten = items.filter((i) => i.bedrag > 0).reduce((som, i) => som + i.bedrag, 0);
   const verwachteUitgaven = items.filter((i) => i.bedrag < 0).reduce((som, i) => som - i.bedrag, 0);
-  const reeks = useMemo(() => bucketPerMaand(items), [items]);
+  const reeks = useMemo(
+    () => bucketPerMaand(items.filter((i) => i.bron === "handmatig"), inboedelPerMaand),
+    [items, inboedelPerMaand]
+  );
 
   const afgeschreven = items.filter((i) => i.bron === "inboedel" && i.is_afgeschreven);
   const binnenkort = items.filter((i) => i.bron === "inboedel" && !i.is_afgeschreven);
@@ -164,7 +179,7 @@ export default function PlanningPagina() {
             <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{item.omschrijving}</span>
             {item.bron === "inboedel" && (
               <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">
-                Inboedel
+                Spullen
               </span>
             )}
           </div>
@@ -203,13 +218,33 @@ export default function PlanningPagina() {
       </div>
 
       {!laden && !foutmelding && reeks.length > 0 && (
-        <TotalenChart
-          reeks={reeks}
-          granulariteit="maand"
-          toonVerwacht
-          zichtbareSeries={ALLEEN_VERWACHT}
-          trendVenster={trendVenster}
-        />
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-end gap-1.5 text-sm text-neutral-500 dark:text-neutral-400">
+            Vooruitkijken
+            {VOORUITKIJK_OPTIES.map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setVooruitkijkMaanden(m)}
+                className={
+                  "rounded-full border px-2.5 py-1 text-xs " +
+                  (vooruitkijkMaanden === m
+                    ? "border-neutral-900 text-neutral-900 dark:border-neutral-100 dark:text-neutral-100"
+                    : "border-neutral-300 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800")
+                }
+              >
+                {m} mnd
+              </button>
+            ))}
+          </div>
+          <TotalenChart
+            reeks={reeks}
+            granulariteit="maand"
+            toonVerwacht
+            zichtbareSeries={ALLEEN_VERWACHT}
+            trendVenster={trendVenster}
+          />
+        </div>
       )}
 
       {!laden && !foutmelding && (
@@ -232,37 +267,6 @@ export default function PlanningPagina() {
               {bedragFormat.format(verwachteInkomsten - verwachteUitgaven)}
             </div>
           </div>
-        </div>
-      )}
-
-      {!laden && !foutmelding && inboedelPerMaand.length > 0 && (
-        <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
-          <div className="mb-2 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-            Verwachte inboedelkosten (komende {vooruitkijkMaanden} maanden)
-          </div>
-          <div className="flex flex-col gap-1">
-            {inboedelPerMaand.map((m) => (
-              <div key={m.maand} className="flex items-center justify-between text-sm">
-                <span
-                  className={m.bedrag === 0 ? "text-neutral-400 dark:text-neutral-500" : "text-neutral-700 dark:text-neutral-300"}
-                >
-                  {maandLabelFormat.format(new Date(`${m.maand}-01T00:00:00`))}
-                </span>
-                <span
-                  className={
-                    "tabular-nums font-medium " +
-                    (m.bedrag === 0 ? "text-neutral-400 dark:text-neutral-500" : "text-red-700 dark:text-red-400")
-                  }
-                >
-                  {m.bedrag !== 0 ? bedragFormat.format(m.bedrag) : "—"}
-                </span>
-              </div>
-            ))}
-          </div>
-          <p className="mt-2 text-xs text-neutral-400">
-            Alle te vervangen inboedel-artikelen, los van de planning-drempel — pas het vooruitkijk-venster
-            aan in Instellingen.
-          </p>
         </div>
       )}
 

@@ -56,7 +56,7 @@ def _fx_serie(wisselkoersen: pd.DataFrame, valuta: str, datums: pd.Series) -> pd
 
 
 def bereken_portfolio_reeks(
-    con: duckdb.DuckDBPyConnection, portefeuille_id: int, code_filter: str | None = None,
+    con: duckdb.DuckDBPyConnection, portefeuille_id: int | None, code_filter: str | None = None,
     vanaf: date | None = None, tot: date | None = None,
 ) -> list[tuple[object, float]]:
     """Waarde van de (gefilterde of totale) portfolio per dag waarop er
@@ -150,9 +150,16 @@ def bereken_posities(con: duckdb.DuckDBPyConnection, portefeuille_id: int | None
 
         huidige_waarde = None
         resultaat = None
+        # Percentage is valuta-onafhankelijk (verhouding van twee bedragen in
+        # dezelfde valuta) — wel op de "native" bedragen berekend, vóór een
+        # eventuele EUR-omrekening, zodat een ontbrekende wisselkoers de
+        # percentage-weergave niet ook nog blokkeert.
+        resultaat_percentage = None
         if laatste_koers is not None:
             resultaat_native = aantal_in_bezit * laatste_koers - totale_koopkosten
             huidige_waarde_native = aantal_in_bezit * laatste_koers
+            if totale_koopkosten:
+                resultaat_percentage = resultaat_native / totale_koopkosten * 100
             if valuta == "EUR":
                 huidige_waarde = huidige_waarde_native
                 resultaat = resultaat_native
@@ -172,6 +179,7 @@ def bereken_posities(con: duckdb.DuckDBPyConnection, portefeuille_id: int | None
             "laatste_koers": laatste_koers,
             "huidige_waarde": huidige_waarde,
             "resultaat": resultaat,
+            "resultaat_percentage": resultaat_percentage,
         })
 
     resultaten.sort(key=lambda p: p["huidige_waarde"] or 0, reverse=True)

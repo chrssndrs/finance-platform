@@ -160,7 +160,7 @@ export function BankUploadFormulier({ onAnnuleren }: { onAnnuleren: () => void }
                 accept=".csv"
                 disabled={bezig || succes}
                 onChange={(e) => setBestand(e.target.files?.[0] ?? null)}
-                className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-neutral-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-neutral-700 hover:file:bg-neutral-200 disabled:opacity-50 dark:file:bg-neutral-800 dark:file:text-neutral-300"
+                className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-neutral-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-neutral-700 hover:file:bg-neutral-200 disabled:opacity-50 disabled:pointer-events-none dark:file:bg-neutral-800 dark:file:text-neutral-300"
               />
             </label>
             {bezig && (
@@ -180,7 +180,7 @@ export function BankUploadFormulier({ onAnnuleren }: { onAnnuleren: () => void }
                 type="button"
                 disabled={bezig || succes}
                 onClick={uploaden}
-                className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+                className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
               >
                 {bezig ? "Bezig met verwerken..." : succes ? "Verwerkt ✓" : "Uploaden"}
               </button>
@@ -188,7 +188,7 @@ export function BankUploadFormulier({ onAnnuleren }: { onAnnuleren: () => void }
                 type="button"
                 disabled={bezig || succes}
                 onClick={onAnnuleren}
-                className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 disabled:pointer-events-none dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
               >
                 Annuleren
               </button>
@@ -233,7 +233,7 @@ export function BankUploadFormulier({ onAnnuleren }: { onAnnuleren: () => void }
             type="button"
             disabled={bezig}
             onClick={detecteren}
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
           >
             {bezig ? "Bezig..." : "Volgende"}
           </button>
@@ -360,7 +360,7 @@ export function BankUploadFormulier({ onAnnuleren }: { onAnnuleren: () => void }
           type="button"
           disabled={bezig || succes}
           onClick={registrerenEnUploaden}
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
         >
           {bezig ? "Bezig met verwerken..." : succes ? "Verwerkt ✓" : "Opslaan en uploaden"}
         </button>
@@ -368,7 +368,7 @@ export function BankUploadFormulier({ onAnnuleren }: { onAnnuleren: () => void }
           type="button"
           disabled={bezig || succes}
           onClick={() => setStap("nieuwe-bank-1")}
-          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 disabled:pointer-events-none dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
         >
           Terug
         </button>
