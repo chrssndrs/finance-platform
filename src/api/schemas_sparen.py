@@ -10,6 +10,13 @@ class SpaarRekening(BaseModel):
     saldo: float
     datum: date
     geschat_saldo: float
+    alias: str | None
+    doelbedrag: float | None
+
+
+class SpaarRekeningDoelInvoer(BaseModel):
+    alias: str | None = None
+    doelbedrag: float | None = None
 
 
 class HandmatigSaldoInvoer(BaseModel):

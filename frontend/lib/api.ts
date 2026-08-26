@@ -929,6 +929,13 @@ export interface SpaarRekening {
   saldo: number;
   datum: string;
   geschat_saldo: number;
+  alias: string | null;
+  doelbedrag: number | null;
+}
+
+export interface SpaarRekeningDoelInvoer {
+  alias: string | null;
+  doelbedrag: number | null;
 }
 
 export interface SparenResponse {
@@ -944,6 +951,10 @@ export function getSparen(): Promise<SparenResponse> {
 
 export function putHandmatigSpaarsaldo(bedrag: number): Promise<SparenResponse> {
   return zendJson<SparenResponse>("/api/sparen/handmatig", "PUT", { bedrag });
+}
+
+export function putSpaarrekeningDoel(rekening: string, invoer: SpaarRekeningDoelInvoer): Promise<SparenResponse> {
+  return zendJson<SparenResponse>(`/api/sparen/rekeningen/${encodeURIComponent(rekening)}`, "PUT", invoer);
 }
 
 export function getBanken(): Promise<BankenResponse> {

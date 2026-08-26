@@ -32,7 +32,11 @@ SQL_SPAARREKENINGEN = """
         FROM spaar_rekeningen sr
         JOIN gold.transacties t ON t.rekening = sr.rekening AND t.saldo_na_mutatie IS NOT NULL
     )
-    SELECT bank, naam, rekening, saldo, datum FROM laatste WHERE rn = 1 ORDER BY naam
+    SELECT l.bank, l.naam, l.rekening, l.saldo, l.datum, d.alias, d.doelbedrag::DOUBLE
+    FROM laatste l
+    LEFT JOIN overzicht.spaarrekening_doelen d ON d.rekening = l.rekening
+    WHERE l.rn = 1
+    ORDER BY l.naam
 """
 
 
@@ -42,7 +46,13 @@ def bereken_spaarrekeningen(con: duckdb.DuckDBPyConnection, vandaag: date | None
     return [
         {
             "bank": bank, "naam": naam, "rekening": rekening, "saldo": saldo, "datum": datum,
-            "geschat_saldo": extrapoleer_saldo(con, saldo, datum, vandaag, rekening),
+            # Een spaarrekening kan nooit negatief staan — de dag-van-de-
+            # maand-extrapolatie (gedeeld met het banksaldo, waar een
+            # negatief bedrag door roodstand wél normaal is) weet dat zelf
+            # niet, dus hier expliciet clampen.
+            "geschat_saldo": max(0.0, extrapoleer_saldo(con, saldo, datum, vandaag, rekening)),
+            "alias": alias,
+            "doelbedrag": doelbedrag,
         }
-        for bank, naam, rekening, saldo, datum in rijen
+        for bank, naam, rekening, saldo, datum, alias, doelbedrag in rijen
     ]

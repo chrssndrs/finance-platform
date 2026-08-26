@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from "react";
 
-import { ApiError, getSparen, putHandmatigSpaarsaldo, type SparenResponse } from "@/lib/api";
+import { Overlay } from "@/app/components/Overlay";
+import { SpaarrekeningDoelFormulier } from "@/app/components/SpaarrekeningDoelFormulier";
+import { ApiError, getSparen, putHandmatigSpaarsaldo, type SpaarRekening, type SparenResponse } from "@/lib/api";
 
 const bedragFormat = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
 const datumFormat = new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "short", year: "numeric" });
+const percentageFormat = new Intl.NumberFormat("nl-NL", { maximumFractionDigits: 0 });
 
 const inputKlasse =
   "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 sm:text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100";
@@ -15,6 +18,7 @@ export default function SparenPagina() {
   const [handmatigInvoer, setHandmatigInvoer] = useState("");
   const [bezig, setBezig] = useState(false);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
+  const [bewerktRekening, setBewerktRekening] = useState<SpaarRekening | null>(null);
 
   useEffect(() => {
     getSparen()
@@ -49,7 +53,8 @@ export default function SparenPagina() {
         <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">Sparen</h1>
         <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
           Spaarrekeningen worden net als betaalrekeningen geregistreerd via het ⬆️-uploadmenu — kies daar &ldquo;Type
-          rekening: Spaarrekening&rdquo; bij het toevoegen van een nieuwe bank.
+          rekening: Spaarrekening&rdquo; bij het toevoegen van een nieuwe bank. Klik op een rekening om een alias of
+          spaardoel in te stellen.
         </p>
       </div>
 
@@ -70,29 +75,50 @@ export default function SparenPagina() {
 
       {data && data.rekeningen.length > 0 && (
         <div className="overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-800">
-          {data.rekeningen.map((r) => (
-            <div
-              key={r.rekening}
-              className="flex items-center justify-between gap-3 border-b border-neutral-100 px-4 py-3 text-sm last:border-b-0 dark:border-neutral-900"
-            >
-              <div>
-                <div className="font-medium text-neutral-900 dark:text-neutral-100">{r.naam}</div>
-                <div className="text-xs text-neutral-400">
-                  {r.rekening} · laatst bekend {datumFormat.format(new Date(r.datum))}
+          {data.rekeningen.map((r) => {
+            const percentage = r.doelbedrag ? (r.geschat_saldo / r.doelbedrag) * 100 : null;
+            return (
+              <button
+                key={r.rekening}
+                type="button"
+                onClick={() => setBewerktRekening(r)}
+                className="flex w-full flex-col gap-2 border-b border-neutral-100 px-4 py-3 text-left text-sm last:border-b-0 hover:bg-neutral-50 dark:border-neutral-900 dark:hover:bg-neutral-900/60"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-neutral-900 dark:text-neutral-100">{r.alias ?? r.naam}</div>
+                    <div className="text-xs text-neutral-400">
+                      {r.rekening} · laatst bekend {datumFormat.format(new Date(r.datum))}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="tabular-nums font-medium text-neutral-900 dark:text-neutral-100">
+                      {bedragFormat.format(r.geschat_saldo)}
+                    </span>
+                    {Math.abs(r.geschat_saldo - r.saldo) >= 0.01 && (
+                      <div className="text-xs text-neutral-400">
+                        (geschat, laatst bekend {bedragFormat.format(r.saldo)})
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="text-right">
-                <span className="tabular-nums font-medium text-neutral-900 dark:text-neutral-100">
-                  {bedragFormat.format(r.geschat_saldo)}
-                </span>
-                {Math.abs(r.geschat_saldo - r.saldo) >= 0.01 && (
-                  <div className="text-xs text-neutral-400">
-                    (geschat, laatst bekend {bedragFormat.format(r.saldo)})
+                {r.doelbedrag !== null && percentage !== null && (
+                  <div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+                      <div
+                        className="h-full rounded-full bg-emerald-600 dark:bg-emerald-500"
+                        style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }}
+                      />
+                    </div>
+                    <div className="mt-1 flex items-center justify-between text-xs text-neutral-400">
+                      <span>Doel: {bedragFormat.format(r.doelbedrag)}</span>
+                      <span>{percentageFormat.format(percentage)}%</span>
+                    </div>
                   </div>
                 )}
-              </div>
-            </div>
-          ))}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -126,6 +152,19 @@ export default function SparenPagina() {
           </button>
         </div>
       </div>
+
+      <Overlay open={bewerktRekening !== null} onClose={() => setBewerktRekening(null)} titel="Spaarrekening bewerken">
+        {bewerktRekening && (
+          <SpaarrekeningDoelFormulier
+            rekening={bewerktRekening}
+            onOpgeslagen={(resultaat) => {
+              setData(resultaat);
+              setBewerktRekening(null);
+            }}
+            onAnnuleren={() => setBewerktRekening(null)}
+          />
+        )}
+      </Overlay>
     </main>
   );
 }

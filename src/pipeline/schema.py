@@ -399,6 +399,20 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
         ON CONFLICT (id) DO NOTHING
     """)
 
+    # Alias + spaardoel per spaarrekening (rekeningnummer, niet bank-slug —
+    # één bank kan meerdere spaarrekeningen hebben). Los van
+    # overzicht.sparen (dat is het ene handmatige restbedrag) en van
+    # instellingen.banken (dat is de bank-registratie zelf, niet de
+    # individuele rekening).
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS overzicht.spaarrekening_doelen (
+            rekening VARCHAR PRIMARY KEY,
+            alias VARCHAR,
+            doelbedrag DECIMAL(12,2),
+            aangepast_op TIMESTAMP NOT NULL
+        )
+    """)
+
     con.execute("CREATE SEQUENCE IF NOT EXISTS overzicht.widgets_seq START 1")
     con.execute("""
         CREATE TABLE IF NOT EXISTS overzicht.widgets (
