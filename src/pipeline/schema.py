@@ -305,7 +305,7 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
             periode_eenheid VARCHAR,
             periode_vanaf DATE,
             periode_tot DATE,
-            weergave VARCHAR NOT NULL DEFAULT 'totaal',
+            weergave VARCHAR NOT NULL DEFAULT 'grafiek',
             volgorde INTEGER NOT NULL,
             aangemaakt_op TIMESTAMP NOT NULL
         )
@@ -320,10 +320,14 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
             id INTEGER PRIMARY KEY DEFAULT nextval('planning.items_seq'),
             omschrijving VARCHAR NOT NULL,
             bedrag DECIMAL(12,2) NOT NULL,
-            datum DATE NOT NULL,
+            datum DATE,
             aangemaakt_op TIMESTAMP NOT NULL
         )
     """)
+    # Datum is optioneel geworden (nog geen idee wanneer een grote uitgave
+    # gepland staat) — op een al-bestaande tabel raakt CREATE TABLE IF NOT
+    # EXISTS de kolom niet aan, dus expliciet de NOT NULL eraf halen.
+    con.execute("ALTER TABLE planning.items ALTER COLUMN datum DROP NOT NULL")
 
     # Verzamelfacturen (bv. creditcard-afschrijving of bol.com-overzicht):
     # één bankrekening-transactie ("factuur") die uit meerdere losse

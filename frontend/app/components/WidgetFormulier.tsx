@@ -51,7 +51,7 @@ export function WidgetFormulier({ widget, volgendeVolgorde, onOpgeslagen, onAnnu
   const [periodeSelectie, setPeriodeSelectie] = useState<PeriodeSelectie>(
     widget ? widgetPeriodeNaarSelectie(widget) : STANDAARD_PERIODE_SELECTIE
   );
-  const [weergave, setWeergave] = useState<WidgetWeergave>(widget?.weergave ?? "totaal");
+  const [weergave, setWeergave] = useState<WidgetWeergave>(widget?.weergave ?? "grafiek");
   const [bezig, setBezig] = useState(false);
   const [bezigMetVerwijderen, setBezigMetVerwijderen] = useState(false);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);

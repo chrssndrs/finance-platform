@@ -75,10 +75,23 @@ export default function HypotheekPagina() {
       )}
 
       {!laden && !foutmelding && leningdelen.length > 0 && (
-        <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
-          <div className="text-sm text-neutral-500 dark:text-neutral-400">Actuele resterende schuld</div>
-          <div className="text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-100">
-            {bedragFormat.format(actueleSchuld)}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+            <div className="text-sm text-neutral-500 dark:text-neutral-400">Actuele resterende schuld</div>
+            <div className="text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-100">
+              {bedragFormat.format(actueleSchuld)}
+            </div>
+          </div>
+          <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+            <div className="text-sm text-neutral-500 dark:text-neutral-400">Percentage afbetaald</div>
+            <div className="text-2xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-100">
+              {(() => {
+                const totaalHoofdsom = leningdelen.reduce((s, l) => s + l.hoofdsom, 0);
+                if (totaalHoofdsom <= 0) return "—";
+                const percentage = ((totaalHoofdsom - actueleSchuld) / totaalHoofdsom) * 100;
+                return `${percentage.toFixed(1).replace(".", ",")}%`;
+              })()}
+            </div>
           </div>
         </div>
       )}

@@ -25,6 +25,22 @@ export function VastgoedTabel({ waardes, onRijKlik }: VastgoedTabelProps) {
   const [sortKey, setSortKey] = useState<SortKey>("datum");
   const [aflopend, setAflopend] = useState(true);
 
+  // Wijziging t.o.v. de chronologisch vorige waarde — altijd op datumvolgorde
+  // berekend, ongeacht hoe de tabel op dit moment gesorteerd wordt getoond.
+  const wijzigingPerId = useMemo(() => {
+    const chronologisch = [...waardes].sort((a, b) => a.datum.localeCompare(b.datum));
+    const map = new Map<number, number | null>();
+    chronologisch.forEach((w, i) => {
+      if (i === 0) {
+        map.set(w.id, null);
+        return;
+      }
+      const vorige = chronologisch[i - 1].waarde;
+      map.set(w.id, vorige !== 0 ? ((w.waarde - vorige) / Math.abs(vorige)) * 100 : null);
+    });
+    return map;
+  }, [waardes]);
+
   const gesorteerd = useMemo(() => {
     const kopie = [...waardes];
     kopie.sort((a, b) => {
@@ -66,21 +82,39 @@ export function VastgoedTabel({ waardes, onRijKlik }: VastgoedTabelProps) {
                 </button>
               </th>
             ))}
+            <th className="whitespace-nowrap py-2 pr-4 font-medium text-neutral-600 dark:text-neutral-400">
+              Wijziging
+            </th>
           </tr>
         </thead>
         <tbody>
-          {gesorteerd.map((w) => (
-            <tr
-              key={w.id}
-              onClick={() => onRijKlik(w)}
-              className="cursor-pointer border-b border-neutral-200 hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-900/60"
-            >
-              <td className="py-2 pr-4 whitespace-nowrap tabular-nums">{formatteerDatumKort(w.datum)}</td>
-              <td className="py-2 pr-4 tabular-nums">{bedragFormat.format(w.waarde)}</td>
-              <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">{w.bron ?? "—"}</td>
-              <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">{w.opmerking ?? "—"}</td>
-            </tr>
-          ))}
+          {gesorteerd.map((w) => {
+            const wijziging = wijzigingPerId.get(w.id) ?? null;
+            return (
+              <tr
+                key={w.id}
+                onClick={() => onRijKlik(w)}
+                className="cursor-pointer border-b border-neutral-200 hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-900/60"
+              >
+                <td className="py-2 pr-4 whitespace-nowrap tabular-nums">{formatteerDatumKort(w.datum)}</td>
+                <td className="py-2 pr-4 tabular-nums">{bedragFormat.format(w.waarde)}</td>
+                <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">{w.bron ?? "—"}</td>
+                <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">{w.opmerking ?? "—"}</td>
+                <td
+                  className={
+                    "py-2 pr-4 tabular-nums " +
+                    (wijziging === null
+                      ? "text-neutral-400"
+                      : wijziging >= 0
+                        ? "text-emerald-700 dark:text-emerald-400"
+                        : "text-red-700 dark:text-red-400")
+                  }
+                >
+                  {wijziging === null ? "—" : `${wijziging >= 0 ? "+" : ""}${wijziging.toFixed(1).replace(".", ",")}%`}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

@@ -3,14 +3,18 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { AbonnementFormulier } from "@/app/components/AbonnementFormulier";
+import { Combobox } from "@/app/components/Combobox";
 import { InboedelFormulier } from "@/app/components/InboedelFormulier";
 import { Overlay } from "@/app/components/Overlay";
 import {
   ApiError,
   getAfzenders,
+  getCategorieen,
   getInboedelOpties,
   getTransactieDetail,
+  putTransactieCategorie,
   type Abonnement,
+  type CategorieGroep,
   type InboedelArtikel,
   type Transactie,
   type TransactieDetail,
@@ -129,6 +133,77 @@ function AbonnementVanTransactieOverlay({
   );
 }
 
+function CategorieBewerker({
+  detail,
+  onOpgeslagen,
+}: {
+  detail: TransactieDetail;
+  onOpgeslagen: (categorie: string, subcategorie: string | null) => void;
+}) {
+  const [categorieen, setCategorieen] = useState<CategorieGroep[]>([]);
+  const [categorie, setCategorie] = useState<string | null>(detail.categorie);
+  const [subcategorie, setSubcategorie] = useState<string | null>(detail.subcategorie);
+  const [bezig, setBezig] = useState(false);
+  const [foutmelding, setFoutmelding] = useState<string | null>(null);
+
+  useEffect(() => {
+    getCategorieen().then((res) => setCategorieen(res.categorieen));
+  }, []);
+
+  const subcategorieen = categorieen.find((g) => g.categorie === categorie)?.subcategorieen ?? [];
+
+  async function opslaan(nieuweCategorie: string | null, nieuweSubcategorie: string | null) {
+    if (!nieuweCategorie) return;
+    setBezig(true);
+    setFoutmelding(null);
+    try {
+      await putTransactieCategorie(detail.transactie_id, { categorie: nieuweCategorie, subcategorie: nieuweSubcategorie });
+      onOpgeslagen(nieuweCategorie, nieuweSubcategorie);
+    } catch (err) {
+      setFoutmelding(err instanceof ApiError ? err.message : "Opslaan mislukt.");
+    } finally {
+      setBezig(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5 border-b border-neutral-100 py-1.5 last:border-b-0 dark:border-neutral-800">
+      <div className="flex items-center justify-between gap-4 text-sm">
+        <span className="text-neutral-500 dark:text-neutral-400">Categorie</span>
+        <div className="flex gap-2">
+          <div className="w-36">
+            <Combobox
+              label=""
+              opties={categorieen.map((g) => g.categorie)}
+              waarde={categorie}
+              onChange={(c) => {
+                setCategorie(c);
+                setSubcategorie(null);
+                opslaan(c, null);
+              }}
+              vrijeInvoer
+            />
+          </div>
+          <div className="w-36">
+            <Combobox
+              label=""
+              opties={subcategorieen}
+              waarde={subcategorie}
+              onChange={(s) => {
+                setSubcategorie(s);
+                opslaan(categorie, s);
+              }}
+              vrijeInvoer
+            />
+          </div>
+        </div>
+      </div>
+      {bezig && <p className="text-right text-xs text-neutral-400">Bezig...</p>}
+      {foutmelding && <p className="text-right text-xs text-red-700 dark:text-red-400">{foutmelding}</p>}
+    </div>
+  );
+}
+
 function TransactieDetailOverlay({ transactieId, onClose }: { transactieId: string; onClose: () => void }) {
   const [detail, setDetail] = useState<TransactieDetail | null>(null);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
@@ -166,7 +241,16 @@ function TransactieDetailOverlay({ transactieId, onClose }: { transactieId: stri
             </div>
           )}
           <div>
+            <CategorieBewerker
+              detail={detail}
+              onOpgeslagen={(categorie, subcategorie) =>
+                setDetail((huidig) =>
+                  huidig ? { ...huidig, categorie, subcategorie: subcategorie ?? "Ongecategoriseerd" } : huidig
+                )
+              }
+            />
             {(Object.keys(VELD_LABEL) as (keyof TransactieDetail)[]).map((veld) => {
+              if (veld === "categorie" || veld === "subcategorie") return null;
               const waarde = detail[veld];
               if (waarde === null || waarde === undefined || veld === "ruwe_rij") return null;
               return (

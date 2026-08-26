@@ -27,6 +27,7 @@ const ALLEEN_VERWACHT = { inkomsten: false, uitgaven: false, verwachte_inkomsten
 function bucketPerMaand(items: PlanningItem[]): PeriodeTotaal[] {
   const buckets = new Map<string, { inkomsten: number; uitgaven: number }>();
   for (const item of items) {
+    if (!item.datum) continue;
     const periodeStart = `${item.datum.slice(0, 7)}-01`;
     const slot = buckets.get(periodeStart) ?? { inkomsten: 0, uitgaven: 0 };
     if (item.bedrag >= 0) slot.inkomsten += item.bedrag;
@@ -155,7 +156,7 @@ export default function PlanningPagina() {
             )}
           </div>
           <div className="text-xs text-neutral-500 dark:text-neutral-400">
-            {datumFormat.format(new Date(item.datum))}
+            {item.datum ? datumFormat.format(new Date(item.datum)) : "Geen datum"}
           </div>
         </div>
         <span

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.api.banksaldo_berekening import bereken_banksaldo
 from src.api.deps import get_db, get_write_db
+from src.pipeline.transacties.gold import zet_override
 from src.api.queries import (
     GRANULARITEIT_NAAR_DUCKDB_EENHEID,
     SQL_AFZENDER_CATEGORIE_TOEPASSEN,
@@ -17,6 +18,7 @@ from src.api.queries import (
     SQL_ONGECATEGORISEERD,
     SQL_STATUS,
     SQL_TOTALEN,
+    SQL_TRANSACTIE_CATEGORIE_TOEPASSEN,
     SQL_TRANSACTIE_DETAIL,
     SQL_TRANSACTIES,
     periode_starts_tussen,
@@ -209,6 +211,47 @@ def get_transactie_detail(
         bronbestand=bronbestand,
         ruwe_rij=json.loads(ruwe_rij_json) if ruwe_rij_json else None,
     )
+
+
+@router.put("/transacties/{transactie_id}/categorie", status_code=204)
+def put_transactie_categorie(
+    transactie_id: str,
+    invoer: AfzenderCategorieInvoer,
+    con: duckdb.DuckDBPyConnection = Depends(get_write_db),
+) -> None:
+    # transactie_id kan drie vormen hebben, afhankelijk van waar de rij
+    # vandaan komt in gold.transacties_effectief (zie gold.py):
+    #   - 'cash-<mutatie_id>'      -> synthetische rij uit contantgeld.mutaties
+    #   - '<origineel>-regel-<id>' -> synthetische rij uit verzamelfacturen.regels
+    #   - alles anders             -> een echte bankregel in gold.transacties
+    # De eerste twee zijn géén rij in gold.transacties (dus zet_override/
+    # UPDATE gold.transacties zou daar geruisloos niets doen) — de view leest
+    # bij elke query live uit hun bron-tabel, dus die rechtstreeks bijwerken
+    # is genoeg, geen pipeline-rerun nodig.
+    if transactie_id.startswith("cash-"):
+        mutatie_id = int(transactie_id.removeprefix("cash-"))
+        resultaat = con.execute(
+            "UPDATE contantgeld.mutaties SET categorie = $categorie, subcategorie = $subcategorie "
+            "WHERE id = $id AND type = 'uitgave' RETURNING id",
+            {"id": mutatie_id, "categorie": invoer.categorie, "subcategorie": invoer.subcategorie},
+        ).fetchone()
+    elif "-regel-" in transactie_id:
+        regel_id = int(transactie_id.rsplit("-regel-", 1)[1])
+        resultaat = con.execute(
+            "UPDATE verzamelfacturen.regels SET categorie = $categorie, subcategorie = $subcategorie "
+            "WHERE id = $id RETURNING id",
+            {"id": regel_id, "categorie": invoer.categorie, "subcategorie": invoer.subcategorie},
+        ).fetchone()
+    else:
+        resultaat = con.execute(
+            SQL_TRANSACTIE_CATEGORIE_TOEPASSEN,
+            {"transactie_id": transactie_id, "categorie": invoer.categorie, "subcategorie": invoer.subcategorie},
+        ).fetchone()
+        if resultaat is not None:
+            zet_override(con, transactie_id, invoer.categorie, invoer.subcategorie, reden="handmatig via transactiedetail")
+
+    if resultaat is None:
+        raise HTTPException(status_code=404, detail="Transactie niet gevonden.")
 
 
 @router.get("/ongecategoriseerd", response_model=OngecategoriseerdResponse)

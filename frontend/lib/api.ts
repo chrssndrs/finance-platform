@@ -447,6 +447,10 @@ export function putOngecategoriseerd(afzender: string, invoer: AfzenderCategorie
   return zendJsonLeeg(`/api/rapportage/ongecategoriseerd/${encodeURIComponent(afzender)}`, "PUT", invoer);
 }
 
+export function putTransactieCategorie(transactieId: string, invoer: AfzenderCategorieInvoer): Promise<void> {
+  return zendJsonLeeg(`/api/rapportage/transacties/${encodeURIComponent(transactieId)}/categorie`, "PUT", invoer);
+}
+
 export function getAbonnementen(): Promise<AbonnementenResponse> {
   return fetchJson<AbonnementenResponse>("/api/abonnementen");
 }
@@ -663,7 +667,7 @@ export function deleteInboedelArtikel(id: number): Promise<void> {
 export interface PlanningItemInvoer {
   omschrijving: string;
   bedrag: number;
-  datum: string;
+  datum: string | null;
 }
 
 export interface PlanningItem extends PlanningItemInvoer {

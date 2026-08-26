@@ -102,5 +102,7 @@ def bereken_planning_items(con: duckdb.DuckDBPyConnection, vandaag: date | None 
     ).fetchone()
     posten += bereken_inboedel_planning(con, vandaag, drempel_modus, drempel_waarde)
 
-    posten.sort(key=lambda p: p["datum"])
+    # Posten zonder datum (nog niet gepland) onderaan, in plaats van een
+    # TypeError bij het vergelijken van None met een date.
+    posten.sort(key=lambda p: (p["datum"] is None, p["datum"]))
     return posten

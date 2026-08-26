@@ -75,7 +75,9 @@ export function AbonnementKaart({ abonnement, onKlik }: AbonnementKaartProps) {
       <div className="min-w-0 flex-1">
         <div className="truncate font-medium text-neutral-900 dark:text-neutral-100">{abonnement.naam}</div>
         <div className="text-sm text-neutral-500 dark:text-neutral-400">
-          {bedragFormat.format(abonnement.bedrag)} · {INTERVAL_LABEL[abonnement.interval] ?? abonnement.interval}
+          {abonnement.interval === "jaarlijks"
+            ? `${bedragFormat.format(abonnement.bedrag / 12)}/maand (${bedragFormat.format(abonnement.bedrag)}/jaar)`
+            : `${bedragFormat.format(abonnement.bedrag)} · ${INTERVAL_LABEL[abonnement.interval] ?? abonnement.interval}`}
         </div>
       </div>
 

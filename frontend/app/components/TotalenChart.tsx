@@ -161,6 +161,7 @@ export function TotalenChart({
           fill="var(--chart-series-1)"
           maxBarSize={24}
           hide={!zichtbareSeries.inkomsten}
+          legendType={zichtbareSeries.inkomsten ? "square" : "none"}
           isAnimationActive={false}
           onClick={onPeriodeKlik ? klikBalk : undefined}
           style={onPeriodeKlik ? { cursor: "pointer" } : undefined}
@@ -176,6 +177,7 @@ export function TotalenChart({
           fillOpacity={0.4}
           maxBarSize={24}
           hide={!toonVerwachteInkomsten}
+          legendType={toonVerwachteInkomsten ? "square" : "none"}
           isAnimationActive={false}
           onClick={onPeriodeKlik ? klikBalk : undefined}
           style={onPeriodeKlik ? { cursor: "pointer" } : undefined}
@@ -188,6 +190,7 @@ export function TotalenChart({
           radius={toonVerwachteUitgaven ? undefined : [4, 4, 0, 0]}
           maxBarSize={24}
           hide={!zichtbareSeries.uitgaven}
+          legendType={zichtbareSeries.uitgaven ? "square" : "none"}
           isAnimationActive={false}
           onClick={onPeriodeKlik ? klikBalk : undefined}
           style={onPeriodeKlik ? { cursor: "pointer" } : undefined}
@@ -204,6 +207,7 @@ export function TotalenChart({
           radius={[4, 4, 0, 0]}
           maxBarSize={24}
           hide={!toonVerwachteUitgaven}
+          legendType={toonVerwachteUitgaven ? "square" : "none"}
           isAnimationActive={false}
           onClick={onPeriodeKlik ? klikBalk : undefined}
           style={onPeriodeKlik ? { cursor: "pointer" } : undefined}

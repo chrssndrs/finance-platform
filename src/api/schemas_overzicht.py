@@ -36,7 +36,7 @@ class WidgetInvoer(BaseModel):
     periode_eenheid: str | None = None
     periode_vanaf: date | None = None
     periode_tot: date | None = None
-    weergave: str = "totaal"
+    weergave: str = "grafiek"
     volgorde: int = 0
 
 

@@ -48,6 +48,16 @@ SQL_AFZENDER_CATEGORIE_TOEPASSEN = """
     WHERE afzender = $afzender AND categorie = 'Overig'
 """
 
+# Eén enkele transactie handmatig ombuigen vanuit het detailkaartje. In
+# tegenstelling tot SQL_AFZENDER_CATEGORIE_TOEPASSEN (alle ongecategoriseerde
+# transacties van één afzender) geldt dit ongeacht de huidige categorie —
+# een bewuste correctie overschrijft altijd, ook een al-juiste categorie.
+SQL_TRANSACTIE_CATEGORIE_TOEPASSEN = """
+    UPDATE gold.transacties SET categorie = $categorie, subcategorie = $subcategorie
+    WHERE transactie_id = $transactie_id
+    RETURNING transactie_id
+"""
+
 SQL_TRANSACTIE_DETAIL = """
     SELECT
         t.transactie_id, t.datum, t.naam_omschrijving, t.afzender, t.winkel,

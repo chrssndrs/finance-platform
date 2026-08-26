@@ -36,17 +36,13 @@ export function PlanningFormulier({ item, onOpgeslagen, onAnnuleren, onVerwijder
       setFoutmelding("Bedrag moet een positief getal zijn.");
       return;
     }
-    if (!datum) {
-      setFoutmelding("Datum is verplicht.");
-      return;
-    }
     setBezig(true);
     setFoutmelding(null);
     try {
       const invoer = {
         omschrijving: omschrijving.trim(),
         bedrag: type === "inkomst" ? bedragGetal : -bedragGetal,
-        datum,
+        datum: datum || null,
       };
       const resultaat =
         item && item.id !== null ? await putPlanningItem(item.id, invoer) : await postPlanningItem(invoer);
@@ -106,7 +102,7 @@ export function PlanningFormulier({ item, onOpgeslagen, onAnnuleren, onVerwijder
         </label>
 
         <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
-          Datum
+          Datum (optioneel)
           <input type="date" value={datum} onChange={(e) => setDatum(e.target.value)} className={inputKlasse} />
         </label>
       </div>

@@ -56,18 +56,19 @@ export function AbonnementFormulier({ afzenders, abonnement, voorinvoer, onOpges
   const [eerstvolgende, setEerstvolgende] = useState(abonnement?.eerstvolgende_afschrijving ?? voorinvoer?.datum ?? "");
   const [domein, setDomein] = useState("");
   const [bezig, setBezig] = useState(false);
+  const [logoBestand, setLogoBestand] = useState<File | null>(null);
   const [logoBezig, setLogoBezig] = useState(false);
   const [bezigMetVerwijderen, setBezigMetVerwijderen] = useState(false);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
 
-  async function logoGekozen(e: React.ChangeEvent<HTMLInputElement>) {
-    const bestand = e.target.files?.[0];
-    if (!bestand || !abonnement) return;
+  async function logoUploaden() {
+    if (!logoBestand || !abonnement) return;
     setLogoBezig(true);
     setFoutmelding(null);
     try {
-      const resultaat = await postAbonnementLogo(abonnement.id, bestand);
+      const resultaat = await postAbonnementLogo(abonnement.id, logoBestand);
       onOpgeslagen(resultaat);
+      setLogoBestand(null);
     } catch (err) {
       setFoutmelding(err instanceof ApiError ? err.message : "Logo uploaden mislukt.");
     } finally {
@@ -189,9 +190,30 @@ export function AbonnementFormulier({ afzenders, abonnement, voorinvoer, onOpges
             type="file"
             accept="image/png,image/jpeg,image/webp,image/svg+xml"
             disabled={logoBezig}
-            onChange={logoGekozen}
+            onChange={(e) => setLogoBestand(e.target.files?.[0] ?? null)}
             className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-neutral-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-neutral-700 hover:file:bg-neutral-200 dark:file:bg-neutral-800 dark:file:text-neutral-300"
           />
+          {logoBestand && (
+            <div className="mt-1 flex items-center gap-2">
+              <span className="truncate text-xs text-neutral-500 dark:text-neutral-400">{logoBestand.name}</span>
+              <button
+                type="button"
+                disabled={logoBezig}
+                onClick={logoUploaden}
+                className="rounded-md bg-neutral-900 px-2 py-1 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+              >
+                {logoBezig ? "Bezig..." : "Uploaden"}
+              </button>
+              <button
+                type="button"
+                disabled={logoBezig}
+                onClick={() => setLogoBestand(null)}
+                className="text-xs text-neutral-500 hover:text-neutral-900 disabled:opacity-50 dark:text-neutral-400 dark:hover:text-neutral-100"
+              >
+                Annuleren
+              </button>
+            </div>
+          )}
         </label>
       )}
 
