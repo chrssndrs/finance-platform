@@ -22,3 +22,10 @@ class PlanningItem(BaseModel):
 
 class PlanningResponse(BaseModel):
     items: list[PlanningItem]
+
+
+class MagicDatumResponse(BaseModel):
+    haalbaar_op: date | None
+    nu_al_haalbaar: bool
+    huidig_liquide_vermogen: float
+    gemiddeld_netto_maandelijks: float

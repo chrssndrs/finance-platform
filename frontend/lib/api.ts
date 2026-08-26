@@ -686,8 +686,19 @@ export interface PlanningResponse {
   items: PlanningItem[];
 }
 
+export interface MagicDatumResponse {
+  haalbaar_op: string | null;
+  nu_al_haalbaar: boolean;
+  huidig_liquide_vermogen: number;
+  gemiddeld_netto_maandelijks: number;
+}
+
 export function getPlanningItems(): Promise<PlanningResponse> {
   return fetchJson<PlanningResponse>("/api/planning/items");
+}
+
+export function getMagicDatum(itemId: number): Promise<MagicDatumResponse> {
+  return fetchJson<MagicDatumResponse>(`/api/planning/items/${itemId}/magic-datum`);
 }
 
 export function postPlanningItem(item: PlanningItemInvoer): Promise<PlanningItem> {

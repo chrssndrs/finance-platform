@@ -3,8 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 
 from src.api.deps import get_db, get_write_db
 from src.api.planning_berekening import bereken_planning_items
+from src.api.planning_magic_berekening import bereken_magic_datum
 from src.api.queries_planning import SQL_ITEM_BIJWERKEN, SQL_ITEM_INVOEGEN, SQL_ITEM_VERWIJDEREN
-from src.api.schemas_planning import PlanningItem, PlanningItemInvoer, PlanningResponse
+from src.api.schemas_planning import MagicDatumResponse, PlanningItem, PlanningItemInvoer, PlanningResponse
 
 router = APIRouter(prefix="/api/planning")
 
@@ -36,6 +37,21 @@ def put_item(
         raise HTTPException(status_code=404, detail="Planningspost niet gevonden.")
     return PlanningItem(
         **{**item.model_dump(), "id": item_id, "bron": "handmatig", "artikel_id": None}
+    )
+
+
+@router.get("/items/{item_id}/magic-datum", response_model=MagicDatumResponse)
+def get_magic_datum(item_id: int, con: duckdb.DuckDBPyConnection = Depends(get_db)) -> MagicDatumResponse:
+    resultaat = bereken_magic_datum(con, item_id)
+    if not resultaat["gevonden"]:
+        raise HTTPException(status_code=404, detail="Planningspost niet gevonden.")
+    if not resultaat["is_uitgave"]:
+        raise HTTPException(status_code=400, detail="Alleen voor uitgaven (negatief bedrag) te berekenen.")
+    return MagicDatumResponse(
+        haalbaar_op=resultaat["haalbaar_op"],
+        nu_al_haalbaar=resultaat["nu_al_haalbaar"],
+        huidig_liquide_vermogen=resultaat["huidig_liquide_vermogen"],
+        gemiddeld_netto_maandelijks=resultaat["gemiddeld_netto_maandelijks"],
     )
 
 
