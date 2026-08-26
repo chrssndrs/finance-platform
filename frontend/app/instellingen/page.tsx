@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 
+import { BankFormulier } from "@/app/components/BankFormulier";
 import { ChartThemaKiezer } from "@/app/components/ChartThemaKiezer";
+import { Overlay } from "@/app/components/Overlay";
 import { ThemeToggle } from "@/app/components/ThemeToggle";
 import {
   ApiError,
@@ -32,6 +34,7 @@ export default function InstellingenPagina() {
   const [pipelineBezig, setPipelineBezig] = useState(false);
   const [pipelineResultaat, setPipelineResultaat] = useState<string | null>(null);
   const [pipelineFoutmelding, setPipelineFoutmelding] = useState<string | null>(null);
+  const [bewerktBank, setBewerktBank] = useState<Bank | null>(null);
 
   useEffect(() => {
     Promise.all([getInstellingen(), getBanken()])
@@ -120,14 +123,32 @@ export default function InstellingenPagina() {
           <div className="mb-2 text-sm font-medium text-neutral-900 dark:text-neutral-100">Geregistreerde banken</div>
           <div className="flex flex-col gap-1.5">
             {banken.map((b) => (
-              <div key={b.bank} className="flex items-center justify-between text-sm">
+              <button
+                key={b.bank}
+                type="button"
+                onClick={() => setBewerktBank(b)}
+                className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              >
                 <span className="text-neutral-900 dark:text-neutral-100">{b.naam}</span>
                 <span className="font-mono text-xs text-neutral-500 dark:text-neutral-400">{b.locatie}</span>
-              </div>
+              </button>
             ))}
           </div>
         </div>
       )}
+
+      <Overlay open={bewerktBank !== null} onClose={() => setBewerktBank(null)} titel="Bank bewerken">
+        {bewerktBank && (
+          <BankFormulier
+            bank={bewerktBank}
+            onOpgeslagen={(bank) => {
+              setBanken((huidig) => huidig.map((b) => (b.bank === bank.bank ? bank : b)));
+              setBewerktBank(null);
+            }}
+            onAnnuleren={() => setBewerktBank(null)}
+          />
+        )}
+      </Overlay>
 
       {!laden && (
         <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
