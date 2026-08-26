@@ -2,7 +2,7 @@ import duckdb
 import pandas as pd
 import yaml
 
-from src.pipeline.paths import CONFIG_ROOT
+from src.pipeline.paths import CONFIG_ROOT, DATA_ROOT
 
 
 def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
@@ -197,6 +197,30 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
                 ing_config.get("mededelingen_kolom"), ing_config.get("saldo_kolom"),
             ])
 
+    # Eenmalige migratie: locatie was voorheen iets dat de gebruiker zelf
+    # moest intypen bij het aanmaken van een bank (foutgevoelig — zo landde
+    # de 'ings'-bank per ongeluk buiten data/). Voortaan altijd automatisch
+    # data/landing/transacties/{bank}; afwijkende registraties + al
+    # geüploade bestanden worden hier gelijkgetrokken. Idempotent: banken
+    # die al op de nieuwe locatie staan worden overgeslagen.
+    for bank, oude_locatie in con.execute("SELECT bank, locatie FROM instellingen.banken").fetchall():
+        nieuwe_locatie = f"data/landing/transacties/{bank}"
+        if oude_locatie == nieuwe_locatie:
+            continue
+        oud_pad = DATA_ROOT / oude_locatie
+        nieuw_pad = DATA_ROOT / nieuwe_locatie
+        nieuw_pad.mkdir(parents=True, exist_ok=True)
+        if oud_pad.is_dir() and oud_pad != nieuw_pad:
+            for bestand in oud_pad.iterdir():
+                if bestand.is_file():
+                    bestand.rename(nieuw_pad / bestand.name)
+            if not any(oud_pad.iterdir()):
+                oud_pad.rmdir()
+        con.execute(
+            "UPDATE instellingen.banken SET locatie = ? WHERE bank = ?",
+            [nieuwe_locatie, bank],
+        )
+
     # bank/export_locatie zijn vervangen door instellingen.banken (hierboven) —
     # ALTER ... DROP COLUMN IF EXISTS zodat dit op een al-gemigreerde db niets doet.
     con.execute("ALTER TABLE instellingen.instellingen DROP COLUMN IF EXISTS bank")
@@ -250,6 +274,19 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
                 )
     con.execute("DROP TABLE IF EXISTS vastgoed.woning")
 
+    # Meerdere portefeuilles i.p.v. één gedeelde pot — portefeuilles zelf toe
+    # te voegen via de Beleggingen-pagina (net als vastgoed.locaties). Mogen
+    # nooit bij elkaar opgeteld worden: elke portefeuille toont zijn eigen,
+    # losse waardeontwikkeling.
+    con.execute("CREATE SEQUENCE IF NOT EXISTS beleggingen.portefeuilles_seq START 1")
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS beleggingen.portefeuilles (
+            id INTEGER PRIMARY KEY DEFAULT nextval('beleggingen.portefeuilles_seq'),
+            naam VARCHAR NOT NULL,
+            aangemaakt_op TIMESTAMP NOT NULL
+        )
+    """)
+
     con.execute("CREATE SEQUENCE IF NOT EXISTS beleggingen.transacties_seq START 1")
     con.execute("""
         CREATE TABLE IF NOT EXISTS beleggingen.transacties (
@@ -265,6 +302,27 @@ def init_schemas(con: duckdb.DuckDBPyConnection) -> None:
             aangemaakt_op TIMESTAMP NOT NULL
         )
     """)
+    # portefeuille_id bestond niet vóór de overstap naar meerdere
+    # portefeuilles — op een al-bestaande tabel raakt CREATE TABLE IF NOT
+    # EXISTS de kolom niet aan.
+    con.execute("ALTER TABLE beleggingen.transacties ADD COLUMN IF NOT EXISTS portefeuille_id INTEGER")
+
+    # Eenmalige migratie: bestaande transacties (die voorheen impliciet bij
+    # één gedeelde portfolio hoorden) krijgen een eerste "Portefeuille 1" —
+    # zodat een al opgebouwde transactiegeschiedenis niet verdwijnt.
+    if con.execute("SELECT COUNT(*) FROM beleggingen.portefeuilles").fetchone()[0] == 0:
+        (aantal_niet_toegewezen,) = con.execute(
+            "SELECT COUNT(*) FROM beleggingen.transacties WHERE portefeuille_id IS NULL"
+        ).fetchone()
+        if aantal_niet_toegewezen > 0:
+            nieuwe_id = con.execute(
+                "INSERT INTO beleggingen.portefeuilles (naam, aangemaakt_op) VALUES ($naam, now()) RETURNING id",
+                {"naam": "Portefeuille 1"},
+            ).fetchone()[0]
+            con.execute(
+                "UPDATE beleggingen.transacties SET portefeuille_id = $id WHERE portefeuille_id IS NULL",
+                {"id": nieuwe_id},
+            )
 
     # Gedeelde koers-cache (niet per transactie) — alle koersen die ooit voor
     # een code opgehaald zijn, incrementeel aangevuld door

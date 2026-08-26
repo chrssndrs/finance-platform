@@ -11,7 +11,6 @@ class AbonnementInvoer(BaseModel):
     bedrag: float
     interval: str
     eerstvolgende_afschrijving: date
-    domein: str | None = None
 
 
 class Abonnement(BaseModel):

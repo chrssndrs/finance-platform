@@ -54,6 +54,7 @@ class AbonnementenResultaat:
     aantal_nieuwe_aanbevelingen: int
     aantal_prijswijziging_aanbevelingen: int
     aantal_logos_opgehaald: int
+    aantal_logos_opgeruimd: int
 
 
 def _laad_config() -> dict:
@@ -369,6 +370,25 @@ def _ververs_logos(con: duckdb.DuckDBPyConnection) -> int:
     return aantal
 
 
+def _ruim_ongebruikte_logos_op(con: duckdb.DuckDBPyConnection) -> int:
+    """Verwijdert geüploade/opgehaalde logo-bestanden die door geen enkel
+    abonnement meer gerefereerd worden (bv. na het verwijderen van een
+    abonnement, of het vervangen van een handmatig geüpload logo)."""
+    if not LOGOS_PAD.is_dir():
+        return 0
+    gebruikt = {
+        rij[0] for rij in con.execute(
+            "SELECT logo_bestand FROM abonnementen.abonnementen WHERE logo_bestand IS NOT NULL"
+        ).fetchall()
+    }
+    aantal = 0
+    for bestand in LOGOS_PAD.iterdir():
+        if bestand.is_file() and bestand.name not in gebruikt:
+            bestand.unlink()
+            aantal += 1
+    return aantal
+
+
 def run_abonnementen(
     con: duckdb.DuckDBPyConnection,
     vandaag: date | None = None,
@@ -424,6 +444,7 @@ def run_abonnementen(
     aantal_prijswijziging_aanbevelingen = _detecteer_prijswijzigingen(con, transacties_df)
 
     aantal_logos = _ververs_logos(con)
+    aantal_logos_opgeruimd = _ruim_ongebruikte_logos_op(con)
 
     resultaat = AbonnementenResultaat(
         aantal_gemigreerd=aantal_gemigreerd,
@@ -432,6 +453,7 @@ def run_abonnementen(
         aantal_nieuwe_aanbevelingen=aantal_nieuwe_aanbevelingen,
         aantal_prijswijziging_aanbevelingen=aantal_prijswijziging_aanbevelingen,
         aantal_logos_opgehaald=aantal_logos,
+        aantal_logos_opgeruimd=aantal_logos_opgeruimd,
     )
     logger.info("Abonnementen-stap klaar: %s", resultaat)
     return resultaat

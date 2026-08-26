@@ -117,7 +117,6 @@ export interface AbonnementInvoer {
   bedrag: number;
   interval: string;
   eerstvolgende_afschrijving: string;
-  domein: string | null;
 }
 
 export interface Aanbeveling {
@@ -195,7 +194,21 @@ export interface WaardenResponse {
   waardes: Waarde[];
 }
 
+export interface Portefeuille {
+  id: number;
+  naam: string;
+}
+
+export interface PortefeuilleInvoer {
+  naam: string;
+}
+
+export interface PortefeuillesResponse {
+  portefeuilles: Portefeuille[];
+}
+
 export interface BeleggingTransactieInvoer {
+  portefeuille_id: number;
   datum: string;
   type: "koop" | "verkoop";
   code: string;
@@ -208,6 +221,7 @@ export interface BeleggingTransactieInvoer {
 
 export interface BeleggingTransactie {
   id: number;
+  portefeuille_id: number;
   datum: string;
   type: "koop" | "verkoop";
   code: string;
@@ -538,8 +552,24 @@ export function deleteWaarde(id: number): Promise<void> {
   return verwijder(`/api/vastgoed/waardes/${id}`);
 }
 
-export function getBeleggingTransacties(): Promise<BeleggingTransactiesResponse> {
-  return fetchJson<BeleggingTransactiesResponse>("/api/beleggingen/transacties");
+export function getPortefeuilles(): Promise<PortefeuillesResponse> {
+  return fetchJson<PortefeuillesResponse>("/api/beleggingen/portefeuilles");
+}
+
+export function postPortefeuille(portefeuille: PortefeuilleInvoer): Promise<Portefeuille> {
+  return zendJson<Portefeuille>("/api/beleggingen/portefeuilles", "POST", portefeuille);
+}
+
+export function putPortefeuille(id: number, portefeuille: PortefeuilleInvoer): Promise<Portefeuille> {
+  return zendJson<Portefeuille>(`/api/beleggingen/portefeuilles/${id}`, "PUT", portefeuille);
+}
+
+export function deletePortefeuille(id: number): Promise<void> {
+  return verwijder(`/api/beleggingen/portefeuilles/${id}`);
+}
+
+export function getBeleggingTransacties(portefeuilleId: number): Promise<BeleggingTransactiesResponse> {
+  return fetchJson<BeleggingTransactiesResponse>(`/api/beleggingen/transacties?portefeuille_id=${portefeuilleId}`);
 }
 
 export function postBeleggingTransactie(transactie: BeleggingTransactieInvoer): Promise<BeleggingTransactie> {
@@ -558,16 +588,24 @@ export function zoekTicker(q: string): Promise<TickerZoekResponse> {
   return fetchJson<TickerZoekResponse>(`/api/beleggingen/zoek?q=${encodeURIComponent(q)}`);
 }
 
-export function getPortfolio(code: string | null, vanaf?: string | null, tot?: string | null): Promise<PortfolioResponse> {
+export function getPortfolio(
+  portefeuilleId: number,
+  code: string | null,
+  vanaf?: string | null,
+  tot?: string | null
+): Promise<PortfolioResponse> {
   const zoekParams = new URLSearchParams();
+  zoekParams.set("portefeuille_id", String(portefeuilleId));
   if (code) zoekParams.set("code", code);
   if (vanaf) zoekParams.set("vanaf", vanaf);
   if (tot) zoekParams.set("tot", tot);
   return fetchJson<PortfolioResponse>(`/api/beleggingen/portfolio?${zoekParams}`);
 }
 
-export function getPosities(): Promise<PositiesResponse> {
-  return fetchJson<PositiesResponse>("/api/beleggingen/posities");
+export function getPosities(portefeuilleId?: number | null): Promise<PositiesResponse> {
+  const zoekParams = new URLSearchParams();
+  if (portefeuilleId != null) zoekParams.set("portefeuille_id", String(portefeuilleId));
+  return fetchJson<PositiesResponse>(`/api/beleggingen/posities?${zoekParams}`);
 }
 
 export function getLeningdelen(): Promise<LeningdelenResponse> {
@@ -797,7 +835,6 @@ export function deleteFactuurRegel(id: number): Promise<void> {
 export interface BankRegistratie {
   bank: string;
   naam: string;
-  locatie: string;
   separator: string;
   datum_kolom: string;
   datum_formaat: string;
@@ -814,6 +851,7 @@ export interface BankRegistratie {
 }
 
 export interface Bank extends BankRegistratie {
+  locatie: string;
   laatst_gebruikt_op: string | null;
 }
 

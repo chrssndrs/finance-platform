@@ -17,13 +17,14 @@ const inputKlasse =
   "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 sm:text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100";
 
 interface BeleggingenFormulierProps {
+  portefeuilleId: number;
   transactie?: BeleggingTransactie;
   onOpgeslagen: (transactie: BeleggingTransactie) => void;
   onAnnuleren?: () => void;
   onVerwijderd?: (id: number) => void;
 }
 
-export function BeleggingenFormulier({ transactie, onOpgeslagen, onAnnuleren, onVerwijderd }: BeleggingenFormulierProps) {
+export function BeleggingenFormulier({ portefeuilleId, transactie, onOpgeslagen, onAnnuleren, onVerwijderd }: BeleggingenFormulierProps) {
   const [datum, setDatum] = useState(transactie?.datum ?? "");
   const [type, setType] = useState<"koop" | "verkoop">(transactie?.type ?? "koop");
   const [code, setCode] = useState(transactie?.code ?? "");
@@ -52,6 +53,7 @@ export function BeleggingenFormulier({ transactie, onOpgeslagen, onAnnuleren, on
     setBezig(true);
     setFoutmelding(null);
     const invoer: BeleggingTransactieInvoer = {
+      portefeuille_id: portefeuilleId,
       datum,
       type,
       code: code.trim(),

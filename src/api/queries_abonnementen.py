@@ -30,17 +30,16 @@ SQL_ABONNEMENTEN = """
 SQL_ABONNEMENT_INVOEGEN = """
     INSERT INTO abonnementen.abonnementen
         (naam, afzender, categorie, subcategorie, bedrag, interval,
-         eerstvolgende_afschrijving, domein, bron, aangemaakt_op)
+         eerstvolgende_afschrijving, bron, aangemaakt_op)
     VALUES ($naam, $afzender, $categorie, $subcategorie, $bedrag, $interval,
-            $eerstvolgende_afschrijving, $domein, 'handmatig', now())
+            $eerstvolgende_afschrijving, 'handmatig', now())
     RETURNING id
 """
 
 SQL_ABONNEMENT_BIJWERKEN = """
     UPDATE abonnementen.abonnementen
     SET naam = $naam, afzender = $afzender, categorie = $categorie, subcategorie = $subcategorie,
-        bedrag = $bedrag, interval = $interval, eerstvolgende_afschrijving = $eerstvolgende_afschrijving,
-        domein = $domein
+        bedrag = $bedrag, interval = $interval, eerstvolgende_afschrijving = $eerstvolgende_afschrijving
     WHERE id = $id
     RETURNING id
 """

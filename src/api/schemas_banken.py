@@ -7,7 +7,6 @@ from pydantic import BaseModel
 class BankRegistratie(BaseModel):
     bank: str
     naam: str
-    locatie: str
     separator: str
     datum_kolom: str
     datum_formaat: str
@@ -24,6 +23,7 @@ class BankRegistratie(BaseModel):
 
 
 class Bank(BankRegistratie):
+    locatie: str
     laatst_gebruikt_op: datetime | None
 
 

@@ -18,7 +18,7 @@ const dagbedragFormat = new Intl.NumberFormat("nl-NL", {
   style: "currency",
   currency: "EUR",
   minimumFractionDigits: 2,
-  maximumFractionDigits: 3,
+  maximumFractionDigits: 2,
 });
 
 interface SectieProps {

@@ -41,10 +41,11 @@ function vanafVoorPeriode(maanden: number | null): string | null {
 }
 
 interface BeleggingenGrafiekProps {
+  portefeuilleId: number;
   posities: Positie[];
 }
 
-export function BeleggingenGrafiek({ posities }: BeleggingenGrafiekProps) {
+export function BeleggingenGrafiek({ portefeuilleId, posities }: BeleggingenGrafiekProps) {
   const [code, setCode] = useState<string | null>(null);
   const [periode, setPeriode] = useState("3m");
   const [data, setData] = useState<{ datum: string; waarde: number }[]>([]);
@@ -53,11 +54,11 @@ export function BeleggingenGrafiek({ posities }: BeleggingenGrafiekProps) {
 
   useEffect(() => {
     const maanden = PERIODE_OPTIES.find((p) => p.key === periode)?.maanden ?? null;
-    getPortfolio(code, vanafVoorPeriode(maanden), null)
+    getPortfolio(portefeuilleId, code, vanafVoorPeriode(maanden), null)
       .then((res) => setData(res.reeks.map((p) => ({ datum: p.datum, waarde: p.waarde }))))
       .catch((err) => setFoutmelding(err instanceof ApiError ? err.message : "Kon grafiek niet laden."))
       .finally(() => setLaden(false));
-  }, [code, periode]);
+  }, [portefeuilleId, code, periode]);
 
   function kiesCode(nieuweCode: string | null) {
     setLaden(true);

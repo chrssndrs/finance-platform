@@ -13,7 +13,6 @@ from src.api.queries_banken import (
     SQL_BANK_OPHALEN,
     SQL_BANKEN,
 )
-from src.api.routers.instellingen import _valideer_locatie
 from src.api.schemas_banken import Bank, BankenResponse, BankRegistratie, KolomDetectie
 from src.pipeline.orchestrator import PipelineStapGefaald, run_pipeline
 from src.pipeline.paths import DATA_ROOT
@@ -91,12 +90,13 @@ def post_bank(
         raise HTTPException(status_code=400, detail=f"Bank {invoer.bank!r} bestaat al.")
     if not invoer.naam.strip():
         raise HTTPException(status_code=400, detail="Naam is verplicht.")
-    if not invoer.locatie.strip():
-        raise HTTPException(status_code=400, detail="Locatie is verplicht.")
-    _valideer_locatie(invoer.locatie, "Locatie")
 
-    con.execute(SQL_BANK_INVOEGEN, invoer.model_dump())
-    (DATA_ROOT / invoer.locatie).mkdir(parents=True, exist_ok=True)
+    # Locatie wordt niet meer door de gebruiker opgegeven — altijd afgeleid
+    # van de bank-code, zodat elke bank automatisch zijn eigen, unieke
+    # landingsmap krijgt zonder kans op typefouten of padtraversal.
+    locatie = f"data/landing/transacties/{invoer.bank}"
+    con.execute(SQL_BANK_INVOEGEN, {**invoer.model_dump(), "locatie": locatie})
+    (DATA_ROOT / locatie).mkdir(parents=True, exist_ok=True)
     rij = con.execute(SQL_BANK_OPHALEN, {"bank": invoer.bank}).fetchone()
     return _naar_bank(rij)
 

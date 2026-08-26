@@ -9,7 +9,7 @@ const dagbedragFormat = new Intl.NumberFormat("nl-NL", {
   style: "currency",
   currency: "EUR",
   minimumFractionDigits: 2,
-  maximumFractionDigits: 3,
+  maximumFractionDigits: 2,
 });
 const datumFormat = new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "short", year: "numeric" });
 

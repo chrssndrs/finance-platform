@@ -94,6 +94,12 @@ function InboedelVanTransactieOverlay({
   );
 }
 
+function volgendeMaandVanaf(datum: string): string {
+  const d = new Date(`${datum}T00:00:00`);
+  d.setMonth(d.getMonth() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
 function AbonnementVanTransactieOverlay({
   detail,
   onClose,
@@ -121,7 +127,7 @@ function AbonnementVanTransactieOverlay({
             naam: detail.afzender,
             afzender: detail.afzender,
             bedrag: Math.abs(detail.bedrag_eur),
-            datum: detail.datum,
+            datum: volgendeMaandVanaf(detail.datum),
             categorie: detail.categorie,
             subcategorie: detail.subcategorie,
           }}

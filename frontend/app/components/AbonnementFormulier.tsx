@@ -54,7 +54,6 @@ export function AbonnementFormulier({ afzenders, abonnement, voorinvoer, onOpges
   });
   const [interval, setInterval] = useState(abonnement?.interval ?? "maandelijks");
   const [eerstvolgende, setEerstvolgende] = useState(abonnement?.eerstvolgende_afschrijving ?? voorinvoer?.datum ?? "");
-  const [domein, setDomein] = useState("");
   const [bezig, setBezig] = useState(false);
   const [logoBestand, setLogoBestand] = useState<File | null>(null);
   const [logoBezig, setLogoBezig] = useState(false);
@@ -96,7 +95,6 @@ export function AbonnementFormulier({ afzenders, abonnement, voorinvoer, onOpges
       bedrag: Number(bedrag.replace(",", ".")),
       interval,
       eerstvolgende_afschrijving: eerstvolgende,
-      domein: domein.trim() || null,
     };
     try {
       const resultaat = abonnement ? await putAbonnement(abonnement.id, invoer) : await postAbonnement(invoer);
@@ -168,17 +166,6 @@ export function AbonnementFormulier({ afzenders, abonnement, voorinvoer, onOpges
           required
           value={eerstvolgende}
           onChange={(e) => setEerstvolgende(e.target.value)}
-          className={inputKlasse}
-        />
-      </label>
-
-      <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
-        Domein (voor logo, optioneel)
-        <input
-          type="text"
-          placeholder="bijv. spotify.com"
-          value={domein}
-          onChange={(e) => setDomein(e.target.value)}
           className={inputKlasse}
         />
       </label>

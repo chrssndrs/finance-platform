@@ -1,6 +1,16 @@
 "use client";
 
-import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceArea,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import type { TooltipContentProps } from "recharts";
 
 import type { SchuldPunt } from "@/lib/api";
@@ -53,11 +63,12 @@ export function HypotheekGrafiek({ reeks }: { reeks: SchuldPunt[] }) {
         />
         <Tooltip content={CustomTooltip} />
         {toontVandaag && (
-          <ReferenceLine
-            x={vandaag}
-            stroke="var(--chart-baseline)"
-            strokeDasharray="4 4"
-            label={{ value: "Vandaag", position: "insideTopRight", fill: "var(--chart-text-muted)", fontSize: 11 }}
+          <ReferenceArea
+            x1={data[0].datum}
+            x2={vandaag}
+            fill="var(--chart-gridline)"
+            fillOpacity={0.5}
+            ifOverflow="hidden"
           />
         )}
         <Line
@@ -68,6 +79,14 @@ export function HypotheekGrafiek({ reeks }: { reeks: SchuldPunt[] }) {
           activeDot={{ r: 4 }}
           isAnimationActive={false}
         />
+        {toontVandaag && (
+          <ReferenceLine
+            x={vandaag}
+            stroke="var(--chart-text-secondary)"
+            strokeWidth={1.5}
+            label={{ value: "Vandaag", position: "insideTopRight", fill: "var(--chart-text-secondary)", fontSize: 11 }}
+          />
+        )}
       </LineChart>
     </ResponsiveContainer>
   );

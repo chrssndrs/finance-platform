@@ -12,15 +12,23 @@ import pandas as pd
 TEKEN = {"koop": 1, "verkoop": -1}
 
 
-def _laad_dataframes(con: duckdb.DuckDBPyConnection) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def _laad_dataframes(
+    con: duckdb.DuckDBPyConnection, portefeuille_id: int | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     # Expliciete AS-aliassen nodig: DuckDB's .df() gebruikt de kolomnaam die
     # de cast-expressie oplevert, niet vanzelfsprekend de oorspronkelijke
     # kolomnaam (i.t.t. fetchall(), waar toch positioneel uitgepakt wordt).
-    transacties = con.execute("""
+    # portefeuille_id=None: alle portefeuilles samen (voor totaal-vermogen-
+    # berekeningen buiten de Beleggingen-pagina) — portefeuilles worden
+    # daar bewust WEL bij elkaar opgeteld, i.t.t. op de Beleggingen-pagina
+    # zelf, waar één specifieke portefeuille altijd apart getoond wordt.
+    where = "WHERE portefeuille_id = $portefeuille_id" if portefeuille_id is not None else ""
+    transacties = con.execute(f"""
         SELECT datum, type, code, naam, aantal::DOUBLE AS aantal,
                prijs_per_stuk::DOUBLE AS prijs_per_stuk, valuta
         FROM beleggingen.transacties
-    """).df()
+        {where}
+    """, {"portefeuille_id": portefeuille_id} if portefeuille_id is not None else {}).df()
     koersen = con.execute("""
         SELECT code, datum, slotkoers::DOUBLE AS slotkoers FROM beleggingen.koersen
     """).df()
@@ -48,20 +56,22 @@ def _fx_serie(wisselkoersen: pd.DataFrame, valuta: str, datums: pd.Series) -> pd
 
 
 def bereken_portfolio_reeks(
-    con: duckdb.DuckDBPyConnection, code_filter: str | None = None,
+    con: duckdb.DuckDBPyConnection, portefeuille_id: int, code_filter: str | None = None,
     vanaf: date | None = None, tot: date | None = None,
 ) -> list[tuple[object, float]]:
     """Waarde van de (gefilterde of totale) portfolio per dag waarop er
-    koersdata is. Gefilterd op één code: de waarde van díe positie alleen
-    (aantal-in-bezit x koers) — begint op 0 vóór de eerste aankoop, eindigt
-    op 0 ná volledige verkoop. Geen filter: som over alle codes.
+    koersdata is, altijd geschaald tot één portefeuille — portefeuilles
+    worden nooit bij elkaar opgeteld. Gefilterd op één code: de waarde van
+    díe positie alleen (aantal-in-bezit x koers) — begint op 0 vóór de
+    eerste aankoop, eindigt op 0 ná volledige verkoop. Geen code-filter: som
+    over alle codes binnen de portefeuille.
 
     vanaf/tot knippen alleen de GETOONDE reeks in — de positie-opbouw zelf
     (cumsum van alle transacties) rekent altijd vanaf het allereerste begin
     door, anders zou een venster dat na de eerste aankoop begint een
     verkeerd (te lage) aantal-in-bezit laten zien.
     """
-    transacties, koersen, wisselkoersen = _laad_dataframes(con)
+    transacties, koersen, wisselkoersen = _laad_dataframes(con, portefeuille_id)
     if code_filter:
         transacties = transacties[transacties["code"] == code_filter]
     if transacties.empty:
@@ -109,10 +119,13 @@ def bereken_portfolio_reeks(
     return [(datum.date(), waarde) for datum, waarde in totaal.items()]
 
 
-def bereken_posities(con: duckdb.DuckDBPyConnection) -> list[dict]:
+def bereken_posities(con: duckdb.DuckDBPyConnection, portefeuille_id: int | None = None) -> list[dict]:
     """Huidige posities: alleen codes met een nog-open (niet volledig
-    verkochte) hoeveelheid."""
-    transacties, koersen, wisselkoersen = _laad_dataframes(con)
+    verkochte) hoeveelheid. portefeuille_id=None: over alle portefeuilles
+    samen (voor totaal-liquide-vermogen-berekeningen zoals de magic-knop en
+    het Overzicht) — de Beleggingen-pagina zelf geeft altijd één specifieke
+    portefeuille_id mee, portefeuilles worden daar nooit samengevoegd."""
+    transacties, koersen, wisselkoersen = _laad_dataframes(con, portefeuille_id)
     if transacties.empty:
         return []
 

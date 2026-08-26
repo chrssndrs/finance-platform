@@ -47,7 +47,6 @@ export function BankUploadFormulier({ onAnnuleren }: { onAnnuleren: () => void }
   // stap 2 — nieuwe bank
   const [bankSlug, setBankSlug] = useState("");
   const [bankNaam, setBankNaam] = useState("");
-  const [locatie, setLocatie] = useState("");
   const [datumFormaat, setDatumFormaat] = useState("%Y%m%d");
   const [decimaalTeken, setDecimaalTeken] = useState(",");
   const [richtingNegatief, setRichtingNegatief] = useState("");
@@ -98,8 +97,8 @@ export function BankUploadFormulier({ onAnnuleren }: { onAnnuleren: () => void }
   }
 
   async function registrerenEnUploaden() {
-    if (!bankSlug.trim() || !bankNaam.trim() || !locatie.trim()) {
-      setFoutmelding("Bank-code, naam en locatie zijn verplicht.");
+    if (!bankSlug.trim() || !bankNaam.trim()) {
+      setFoutmelding("Bank-code en naam zijn verplicht.");
       return;
     }
     for (const { veld, label } of VERPLICHTE_VELDEN) {
@@ -115,7 +114,6 @@ export function BankUploadFormulier({ onAnnuleren }: { onAnnuleren: () => void }
       await postBank({
         bank: bankSlug.trim().toLowerCase(),
         naam: bankNaam.trim(),
-        locatie: locatie.trim(),
         separator,
         datum_kolom: mapping.datum_kolom,
         datum_formaat: datumFormaat,
@@ -265,10 +263,6 @@ export function BankUploadFormulier({ onAnnuleren }: { onAnnuleren: () => void }
         <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
           Naam
           <input type="text" placeholder="bv. Rabobank" value={bankNaam} onChange={(e) => setBankNaam(e.target.value)} className={inputKlasse} />
-        </label>
-        <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400 sm:col-span-2">
-          Landingsmap (relatief aan de data-map)
-          <input type="text" value={locatie} onChange={(e) => setLocatie(e.target.value)} className={`${inputKlasse} font-mono`} />
         </label>
         <label className="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-400">
           Type rekening

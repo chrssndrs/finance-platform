@@ -83,7 +83,6 @@ def post_abonnement(
             "bedrag": abonnement.bedrag,
             "interval": abonnement.interval,
             "eerstvolgende_afschrijving": abonnement.eerstvolgende_afschrijving,
-            "domein": abonnement.domein,
         },
     ).fetchone()[0]
     rij = con.execute(SQL_ABONNEMENT_OPHALEN, {"id": nieuw_id}).fetchone()
@@ -107,7 +106,6 @@ def put_abonnement(
             "bedrag": abonnement.bedrag,
             "interval": abonnement.interval,
             "eerstvolgende_afschrijving": abonnement.eerstvolgende_afschrijving,
-            "domein": abonnement.domein,
         },
     ).fetchone()
     if resultaat is None:

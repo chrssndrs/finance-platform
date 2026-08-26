@@ -3,7 +3,21 @@ from datetime import date
 from pydantic import BaseModel
 
 
+class PortefeuilleInvoer(BaseModel):
+    naam: str
+
+
+class Portefeuille(BaseModel):
+    id: int
+    naam: str
+
+
+class PortefeuillesResponse(BaseModel):
+    portefeuilles: list[Portefeuille]
+
+
 class TransactieInvoer(BaseModel):
+    portefeuille_id: int
     datum: date
     type: str
     code: str
@@ -16,6 +30,7 @@ class TransactieInvoer(BaseModel):
 
 class Transactie(BaseModel):
     id: int
+    portefeuille_id: int
     datum: date
     type: str
     code: str

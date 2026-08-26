@@ -17,6 +17,20 @@ import {
 
 const bedragFormat = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
 
+// Zelfde tabel als src/api/queries_abonnementen.py — hier gedupliceerd i.p.v.
+// geïmporteerd (frontend/backend delen geen modules over die grens heen).
+const INTERVAL_NAAR_MAAND_FACTOR: Record<string, number> = {
+  wekelijks: 52 / 12,
+  maandelijks: 1,
+  tweemaandelijks: 1 / 2,
+  per_kwartaal: 1 / 3,
+  jaarlijks: 1 / 12,
+};
+
+function bedragPerMaand(a: Abonnement): number {
+  return a.bedrag * (INTERVAL_NAAR_MAAND_FACTOR[a.interval] ?? 1);
+}
+
 type SortVeld = "eerstvolgende_afschrijving" | "naam" | "bedrag";
 
 const SORT_OPTIES: { veld: SortVeld; label: string }[] = [
@@ -106,8 +120,11 @@ export default function AbonnementenPagina() {
   const gesorteerd = useMemo(() => {
     const kopie = [...abonnementen];
     kopie.sort((a, b) => {
-      const va = a[sortVeld];
-      const vb = b[sortVeld];
+      // Sorteren op bedrag gebruikt altijd het naar-maand-genormaliseerde
+      // bedrag — anders staat een jaarlijks abonnement van €120 boven een
+      // maandelijks abonnement van €50, terwijl dat laatste per maand duurder is.
+      const va = sortVeld === "bedrag" ? bedragPerMaand(a) : a[sortVeld];
+      const vb = sortVeld === "bedrag" ? bedragPerMaand(b) : b[sortVeld];
       const vergelijking = typeof va === "string" ? va.localeCompare(vb as string) : (va as number) - (vb as number);
       return aflopend ? -vergelijking : vergelijking;
     });
