@@ -3,30 +3,39 @@
 Zelfgebouwd platform voor persoonlijke financiën: banktransacties importeren,
 automatisch categoriseren, en overzichtelijk terugvinden via een webinterface.
 
+Voor een uitgebreide uitleg van alle logica erachter (hoe categorisatie
+werkt, hoe het banksaldo geschat wordt, hoe de hypotheekberekening werkt,
+etc.) — zie [docs/LOGICA.md](docs/LOGICA.md).
+
 ## Functionaliteiten
 
 - **Banktransacties** — bank-exports worden automatisch gecategoriseerd aan de
   hand van eigen regels, met handmatige overrides die nooit worden
   overschreven.
 - **Bank-exports uploaden** — via het upload-menu in de webinterface. Meerdere
-  banken worden ondersteund; een nieuwe bank voeg je zelf toe met een
-  eenmalige koppeling van de kolomnamen. Een upload wordt direct verwerkt.
+  banken worden ondersteund (incl. spaarrekeningen); een nieuwe bank voeg je
+  zelf toe met een eenmalige koppeling van de kolomnamen, en kunt u later
+  altijd aanpassen. Een upload wordt direct verwerkt.
 - **Verzamelfacturen** — één factuur met meerdere posten uploaden en splitsen
   in losse regels, met automatisch matchen op bedrag tegen de bijbehorende
-  transactie.
-- **Inboedel** — huisraad bijhouden (winkel, prijs, aankoopdatum, verwachte
-  levensduur); een artikel is met één klik aan te maken vanuit een
+  transactie. Bereikbaar via het upload-menu.
+- **Spullen** — huisraad bijhouden (winkel, prijs, aankoopdatum, verwachte
+  levensduur, categorie); een artikel is met één klik aan te maken vanuit een
   transactie, met winkel/prijs/datum al ingevuld.
-- **Abonnementen** — terugkerende abonnementen worden automatisch herkend,
+- **Vaste lasten** — terugkerende abonnementen worden automatisch herkend,
   inclusief logo en prijswijzigingen.
-- **Beleggingen** — transacties, portefeuille en posities bijhouden met
-  actuele koersen.
-- **Vastgoed** — woningwaarde bijhouden over tijd.
-- **Hypotheek** — leningdelen en schuldverloop bijhouden.
-- **Planning** — verwacht toekomstige kosten, zoals bijna-versleten
-  inboedel-artikelen die aan vervanging toe zijn.
-- **Overzicht** — vermogen, spaargeld en een zelf samen te stellen
-  widget-dashboard.
+- **Beleggingen** — transacties, meerdere portefeuilles en posities bijhouden
+  met actuele koersen en winst/verlies-percentage.
+- **Woning** — woningwaarde én hypotheek-leningdelen/schuldverloop per pand,
+  op één pagina.
+- **Planning** — verwacht toekomstige kosten, zoals bijna-versleten spullen
+  die aan vervanging toe zijn, met een "is dit haalbaar?"-check.
+- **Cash** — contant geld bijhouden per locatie, uitgesplitst per coupure.
+- **Sparen** — spaarrekeningsaldo's (inclusief geschat actueel saldo), met
+  een alias en spaardoel per rekening.
+- **Overzicht & Vermogen** — een zelf samen te stellen widget-dashboard, plus
+  een aparte Vermogen-pagina met de totale vermogensopbouw en een
+  maandelijkse mutatie-geschiedenis.
 - **Rapportage** — filterbare grafieken en overzichten per categorie en
   periode, met een doorzoekbare transactie-tabel en detailweergave.
 
