@@ -40,6 +40,12 @@ const APPS: App[] = [
     icoon: "🔖",
     kleur: "bg-sky-100 dark:bg-sky-900",
   },
+  {
+    naam: "Vakantiedagen",
+    url: process.env.NEXT_PUBLIC_VAKANTIEDAGEN_URL || "http://localhost:3050",
+    icoon: "🏖️",
+    kleur: "bg-cyan-100 dark:bg-cyan-900",
+  },
 ];
 
 const PLATFORM_URL = process.env.NEXT_PUBLIC_PLATFORM_URL || "http://localhost:3020";

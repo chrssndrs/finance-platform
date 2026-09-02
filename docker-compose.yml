@@ -44,6 +44,7 @@ services:
         NEXT_PUBLIC_FINANCE_URL: ${NEXT_PUBLIC_FINANCE_URL:-http://localhost:3000}
         NEXT_PUBLIC_WENSEN_URL: ${NEXT_PUBLIC_WENSEN_URL:-http://localhost:3030}
         NEXT_PUBLIC_BOOKMARKS_URL: ${NEXT_PUBLIC_BOOKMARKS_URL:-http://localhost:3040}
+        NEXT_PUBLIC_VAKANTIEDAGEN_URL: ${NEXT_PUBLIC_VAKANTIEDAGEN_URL:-http://localhost:3050}
     ports:
       - "3000:3000"
     depends_on:
