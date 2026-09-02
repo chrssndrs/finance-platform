@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
+import AppSwitcher from "@/app/components/AppSwitcher";
 import { DemoBanner } from "@/app/components/DemoBanner";
 import { NavBalk } from "@/app/components/NavBalk";
 import { OudeDataBanner } from "@/app/components/OudeDataBanner";
@@ -62,6 +63,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <DemoBanner />
         <OudeDataBanner />
         <NavBalk>{children}</NavBalk>
+        <AppSwitcher huidige="Finance" />
       </body>
     </html>
   );
