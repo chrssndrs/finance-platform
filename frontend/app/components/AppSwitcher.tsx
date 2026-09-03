@@ -161,17 +161,17 @@ export default function AppSwitcher({ huidige }: { huidige?: string }) {
 
           <div className="mb-1 border-t border-neutral-200 pt-2 dark:border-neutral-800" />
 
-          <div className="grid grid-cols-3 gap-1">
+          <div className="grid grid-cols-3 gap-x-1 gap-y-3">
             {APPS.map((app) => {
               const isHuidige = app.naam === huidige;
               const inhoud = (
                 <>
                   <span
-                    className={`flex h-10 w-10 items-center justify-center rounded-xl text-xl ${app.kleur}`}
+                    className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-xl ${app.kleur}`}
                   >
                     {app.icoon}
                   </span>
-                  <span className="text-[10px] font-medium leading-tight text-neutral-600 dark:text-neutral-400">
+                  <span className="w-full break-words text-center text-[10px] font-medium leading-tight text-neutral-600 dark:text-neutral-400">
                     {app.naam}
                   </span>
                 </>
