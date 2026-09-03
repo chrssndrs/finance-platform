@@ -90,6 +90,12 @@ const APPS: App[] = [
     icoon: "🚗",
     kleur: "bg-lime-100 dark:bg-lime-900",
   },
+  {
+    naam: "Tanken",
+    url: process.env.NEXT_PUBLIC_TANKEN_URL || "http://localhost:3110",
+    icoon: "⛽",
+    kleur: "bg-red-100 dark:bg-red-900",
+  },
 ];
 
 const PLATFORM_URL = process.env.NEXT_PUBLIC_PLATFORM_URL || "http://localhost:3020";
